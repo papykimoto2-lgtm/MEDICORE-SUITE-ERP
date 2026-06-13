@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-prestations.js"></script>
+<script src="medicore-cds.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-prescriptions.js"></script>
 <script src="medicore-demandes.js"></script>
@@ -486,27 +488,26 @@
     </div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-group full"><label>Médicament / Acte <span class="req">*</span></label>
-          <input type="text" id="presc-med" placeholder="DCI, nom commercial, code CCAM…" list="meds-list">
-          <datalist id="meds-list">
-            <option value="Amoxicilline 500mg gélule">
-            <option value="Paracétamol 1g perfusion">
-            <option value="Ceftriaxone 1g IV">
-            <option value="Morphine 10mg/mL">
-            <option value="Artémether/Luméfantrine 20/120mg">
-            <option value="Métronidazole 500mg IV">
-          </datalist></div>
-        <div class="form-group"><label>Posologie <span class="req">*</span></label><input type="text" id="presc-posologie" placeholder="ex: 1cp × 3/j"></div>
-        <div class="form-group"><label>Durée</label><input type="text" id="presc-duree" placeholder="ex: 7 jours"></div>
-        <div class="form-group"><label>Voie d'administration</label>
-          <select id="presc-voie">
-            <option>Orale (PO)</option><option>Intraveineuse (IV)</option>
-            <option>Intramusculaire (IM)</option><option>Sous-cutanée (SC)</option>
-            <option>Topique</option>
-          </select></div>
-        <div class="form-group full"><label>Instructions / Notes cliniques</label>
-          <textarea id="presc-notes" style="min-height:50px" placeholder="Précautions, interactions médicamenteuses, instructions infirmier…"></textarea></div>
+        <div class="form-group"><label>Date de prescription <span class="req">*</span></label>
+          <input type="date" id="presc-date"></div>
+        <div class="form-group"><label>Prescripteur</label>
+          <input type="text" id="presc-medecin" readonly style="background:var(--surface-alt);color:var(--text-muted)"></div>
       </div>
+      <datalist id="meds-list">
+        <option value="Amoxicilline 500mg gélule">
+        <option value="Paracétamol 1g perfusion">
+        <option value="Ceftriaxone 1g IV">
+        <option value="Morphine 10mg/mL">
+        <option value="Artémether/Luméfantrine 20/120mg">
+        <option value="Métronidazole 500mg IV">
+      </datalist>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0">
+        <label style="font-weight:600;font-size:13px">Médicaments prescrits <span class="req">*</span></label>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="ajouterLignePresc()">＋ Ajouter un médicament</button>
+      </div>
+      <div id="presc-lignes"></div>
+      <div class="form-group full" style="margin-top:8px"><label>Instructions / Notes cliniques</label>
+        <textarea id="presc-notes" style="min-height:50px" placeholder="Précautions, interactions médicamenteuses, instructions infirmier…"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closePrescription()">Annuler</button>
@@ -798,6 +799,7 @@ function openDossier(id){
           <button class="btn btn-secondary btn-sm" style="width:100%" onclick="MEDICORE_PATIENT.printBracelet()">🖨 Bracelet</button>
           <button class="btn btn-primary btn-sm" style="width:100%" onclick="openNote('${id}')">＋ Note</button>
           <button class="btn btn-secondary btn-sm" style="width:100%" onclick="openPrescription('${id}')">💊 Prescrire</button>
+          <button class="btn btn-secondary btn-sm" style="width:100%" onclick="openAideConsultation('${id}')">🩺 Aide consultation</button>
           ${p.statut==='Actif'?`<button class="btn btn-secondary btn-sm" style="width:100%" onclick="sortiePatient('${id}')">🚪 Sortie</button>`:''}
         </div>
       </div>
@@ -1232,7 +1234,126 @@ function validerAdmission(){
   openDossier(id);
 }
 
+// ══ AIDE À LA CONSULTATION — check-list + suggestions (non contraignantes) ══════
+function openAideConsultation(id){
+  if(typeof MEDICORE_CDS==='undefined'){ toast('Module d\'aide absent.','error'); return; }
+  const p=patients.find(x=>x.id===id);
+  let ov=document.getElementById('modal-aide'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-aide'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  const sympto=MEDICORE_CDS.SYMPTOMES.map(s=>`
+    <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;background:var(--surface-alt);border:1px solid var(--border);border-radius:20px;padding:5px 11px;cursor:pointer">
+      <input type="checkbox" class="aide-sympto" value="${s.key}" onchange="renderAide('${id}')"> ${s.label}
+    </label>`).join(' ');
+  ov.innerHTML=`<div class="modal" style="width:680px;max-width:96vw;max-height:92vh;overflow-y:auto">
+    <div class="modal-header"><div><div class="modal-title">Aide à la consultation</div>
+      <div class="modal-subtitle">${p?p.nom:id} — sélectionnez les symptômes décrits</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-aide').remove()">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px">${sympto}</div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">⚠️ Suggestions indicatives — le praticien reste seul juge.</div>
+      <div id="aide-resultat"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('modal-aide').remove()">Fermer</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+function renderAide(id){
+  const keys=Array.from(document.querySelectorAll('.aide-sympto:checked')).map(c=>c.value);
+  const box=document.getElementById('aide-resultat');
+  if(!keys.length){ box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Cochez un ou plusieurs symptômes.</div>'; return; }
+  const checklist=MEDICORE_CDS.checklistPour(keys);
+  const meds=MEDICORE_CDS.medsPour(keys);
+  const cl=checklist.map((it,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px">
+      <input type="checkbox" class="aide-check"> <span>${it}</span></label>`).join('');
+  const md=meds.map(m=>{
+    const badge=m.stock.ok
+      ? `<span class="badge b-on">✅ En stock PUI (${m.stock.qty})</span>`
+      : (m.stock.rupture?`<span class="badge b-off">⚠ Rupture PUI</span>`:`<span class="badge b-off">Hors stock PUI</span>`);
+    const arg=[m.med,m.posologie,m.voie,m.duree].map(x=>(x||'').replace(/'/g,"\\'"));
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:7px">
+      <div><strong>${m.med}</strong> ${badge}<div style="font-size:12.5px;color:var(--text-muted)">${m.posologie} — ${m.voie} — ${m.duree}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="prescrireSuggestion('${id}','${arg[0]}','${arg[1]}','${arg[2]}','${arg[3]}')">＋ Prescrire</button>
+    </div>`;
+  }).join('');
+  box.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px">Check-list à vérifier</div>
+        ${cl||'<div style="font-size:12.5px;color:var(--text-muted)">—</div>'}
+      </div>
+      <div>
+        <div style="font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px">Médicaments suggérés <span style="font-weight:400;text-transform:none">(stock PUI prioritaire)</span></div>
+        ${md||'<div style="font-size:12.5px;color:var(--text-muted)">Aucune suggestion.</div>'}
+        ${meds.length?`<button class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px" onclick="prescrireToutesSuggestions('${id}')">＋ Tout ajouter à la prescription</button>`:''}
+      </div>
+    </div>`;
+}
+
+// Ajoute une ligne suggérée dans le formulaire de prescription (l'ouvre si besoin)
+function prescrireSuggestion(id, med, poso, voie, duree){
+  const modal=document.getElementById('modal-prescription');
+  if(!modal.classList.contains('open')) openPrescription(id);
+  // Remplit la 1re ligne vide, sinon en ajoute une
+  const lignes=document.querySelectorAll('#presc-lignes .presc-ligne');
+  let cible=null;
+  lignes.forEach(r=>{ if(!cible && !r.querySelector('.pl-med').value.trim()) cible=r; });
+  if(!cible){ ajouterLignePresc({med,posologie:poso,voie,duree}); }
+  else {
+    cible.querySelector('.pl-med').value=med;
+    cible.querySelector('.pl-poso').value=poso;
+    cible.querySelector('.pl-duree').value=duree;
+    const sv=cible.querySelector('.pl-voie'); for(let i=0;i<sv.options.length;i++){ if(sv.options[i].value===voie){sv.selectedIndex=i;break;} }
+  }
+  toast('Ajouté à la prescription : '+med,'success');
+}
+function prescrireToutesSuggestions(id){
+  const keys=Array.from(document.querySelectorAll('.aide-sympto:checked')).map(c=>c.value);
+  MEDICORE_CDS.medsPour(keys).forEach(m=>prescrireSuggestion(id, m.med, m.posologie, m.voie, m.duree));
+  const a=document.getElementById('modal-aide'); if(a) a.remove();
+}
+
 function openPrescription(id){
+  const p=patients.find(x=>x.id===id);
+  document.getElementById('presc-patient-name').textContent=p?p.nom:id;
+  document.getElementById('modal-prescription').dataset.patientId=id;
+  // Date du jour par défaut + prescripteur
+  const today=new Date().toISOString().slice(0,10);
+  const dd=document.getElementById('presc-date'); if(dd) dd.value=today;
+  const session=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{nom:'Médecin traitant'};
+  const md=document.getElementById('presc-medecin'); if(md) md.value=session.nom||'Médecin traitant';
+  // Réinitialise les lignes (une seule au départ)
+  document.getElementById('presc-lignes').innerHTML='';
+  ajouterLignePresc();
+  document.getElementById('presc-notes').value='';
+  document.getElementById('modal-prescription').classList.add('open');
+}
+function ajouterLignePresc(prefill){
+  prefill=prefill||{};
+  const wrap=document.getElementById('presc-lignes');
+  const row=document.createElement('div');
+  row.className='presc-ligne';
+  row.style.cssText='display:grid;grid-template-columns:1fr 110px 120px 90px 28px;gap:8px;align-items:end;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--border)';
+  row.innerHTML=`
+    <div><label style="font-size:11px;color:var(--text-muted)">Médicament</label>
+      <input type="text" class="pl-med" list="meds-list" value="${prefill.med||''}" placeholder="DCI / nom commercial"></div>
+    <div><label style="font-size:11px;color:var(--text-muted)">Posologie</label>
+      <input type="text" class="pl-poso" value="${prefill.posologie||''}" placeholder="1cp × 3/j"></div>
+    <div><label style="font-size:11px;color:var(--text-muted)">Voie</label>
+      <select class="pl-voie">
+        <option>Orale (PO)</option><option>Intraveineuse (IV)</option>
+        <option>Intramusculaire (IM)</option><option>Sous-cutanée (SC)</option><option>Topique</option>
+      </select></div>
+    <div><label style="font-size:11px;color:var(--text-muted)">Durée</label>
+      <input type="text" class="pl-duree" value="${prefill.duree||''}" placeholder="7 j"></div>
+    <button class="btn btn-danger btn-sm" type="button" title="Retirer" onclick="this.parentElement.remove()" style="height:34px">✕</button>`;
+  wrap.appendChild(row);
+}
+function _openPrescriptionOld(id){
+  document.getElementById('modal-prescription').dataset.patientId=id;
+  document.getElementById('modal-prescription').classList.add('open');
   document.getElementById('presc-patient-name').textContent=patients.find(p=>p.id===id)?.nom||id;
   document.getElementById('modal-prescription').dataset.patientId=id;
   document.getElementById('modal-prescription').classList.add('open');
@@ -1365,6 +1486,65 @@ function alerteClinic(alerts, nomMed, callbackForce, callbackAnnuler){
 }
 
 function validerPrescription(force){
+  const id=document.getElementById('modal-prescription').dataset.patientId;
+  // Collecte des lignes
+  const lignes=Array.from(document.querySelectorAll('#presc-lignes .presc-ligne')).map(r=>({
+    med:r.querySelector('.pl-med').value.trim(),
+    posologie:r.querySelector('.pl-poso').value.trim(),
+    voie:r.querySelector('.pl-voie').value,
+    duree:r.querySelector('.pl-duree').value.trim()
+  })).filter(l=>l.med);
+  if(!lignes.length){toast('Ajoutez au moins un médicament.','error');return}
+  const sansPoso=lignes.find(l=>!l.posologie);
+  if(sansPoso){toast('Posologie manquante pour : '+sansPoso.med,'error');return}
+
+  // ── Contrôles de sécurité clinique (sur tous les médicaments) ───────────────
+  if(!force){
+    let allAlerts=[];
+    lignes.forEach(l=>{ allAlerts=allAlerts.concat(controleAllergie(id,l.med), controleInteractions(id,l.med)); });
+    if(allAlerts.length){
+      alerteClinic(allAlerts, lignes.map(l=>l.med).join(', '),
+        ()=>validerPrescription(true), ()=>{});
+      return;
+    }
+  }
+
+  // ── Contexte commun ──────────────────────────────────────────────────────────
+  const session=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{nom:'Médecin traitant'};
+  const prescripteur=session.nom||'Médecin traitant';
+  const dateInput=document.getElementById('presc-date').value;
+  const dObj=dateInput?new Date(dateInput+'T'+new Date().toTimeString().slice(0,8)):new Date();
+  const horodate=dObj.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const notes=document.getElementById('presc-notes').value;
+  const groupe='RXG'+Date.now().toString(36);
+  const pat=(typeof patients!=='undefined'&&patients.find)?patients.find(x=>x.id===id):null;
+  if(!prescriptions[id]) prescriptions[id]=[];
+
+  // ── Une entrée par médicament (registre local + PUI) ────────────────────────
+  lignes.forEach((l,k)=>{
+    const pid='P'+Date.now()+k;
+    const presc={ id:pid, groupe, med:l.med, posologie:l.posologie, voie:l.voie, duree:l.duree,
+      notes, statut:'En attente validation', date:horodate, medecin:prescripteur, forcee:!!force };
+    prescriptions[id].push(presc);
+    if(typeof MEDICORE_RX!=='undefined'){
+      MEDICORE_RX.ajouter({
+        id:pid, groupe, patientId:id,
+        patient_nom:pat?pat.nom:('Dossier '+id), patient_ipp:pat?(pat.ipp||''):'', service:pat?(pat.service||''):'',
+        med:l.med, posologie:l.posologie, voie:l.voie, duree:l.duree, notes,
+        statut:MEDICORE_RX.S.ATTENTE, date:horodate, medecin:prescripteur, forcee:!!force
+      });
+    }
+  });
+
+  auditLog('PRESCRIPTION_CREER', id, `${lignes.length} médicament(s) : ${lignes.map(l=>l.med).join(', ')}${force?' [FORCÉE]':''}`, prescripteur);
+  if(force) auditLog('ALERTE_CONTOURNEE', id, `Prescription forcée malgré alerte : ${lignes.map(l=>l.med).join(', ')}`, prescripteur);
+
+  closePrescription();
+  if(currentRpTab==='prescriptions') renderPrescriptions(id);
+  toast(force?`${lignes.length} ligne(s) enregistrée(s) (alerte contournée).`:`${lignes.length} médicament(s) envoyé(s) à la PUI.`, force?'warn':'success');
+}
+
+function _validerPrescriptionOld(force){
   const id=document.getElementById('modal-prescription').dataset.patientId;
   const med=document.getElementById('presc-med').value.trim();
   if(!med){toast('Saisissez le médicament.','error');return}

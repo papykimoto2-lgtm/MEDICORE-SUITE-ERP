@@ -205,6 +205,7 @@
 </style>
   <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-prestations.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -988,6 +989,14 @@ function validerDemande(){
   demandes.push(newDemande);
   if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('demandes_labo', demandes, true);
   if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id, 'Enregistrée au registre labo (réf '+id+') — en cours d\'analyse');
+  // Prestation facturable (actes NABM)
+  if(typeof MEDICORE_PRESTA!=='undefined' && dossier){
+    MEDICORE_PRESTA.ajouter({
+      patientId:dossier, patient_nom:patient, module:'laboratoire',
+      libelle:checked.join(', ')||'Examens labo', code:'NABM',
+      montant: (checked.length||1)*(MEDICORE_PRESTA.TARIF_DEFAUT.laboratoire), ref:id
+    });
+  }
   laboAudit('DEMANDE_ENREGISTRER', id, `${patient} — ${checked.join(', ')} — ${newDemande.priorite}`);
   closeNouvelledemande();renderDemandes();updateKPIs();
   toast('Demande '+id+' enregistrée. Étiquettes prêtes.','success');

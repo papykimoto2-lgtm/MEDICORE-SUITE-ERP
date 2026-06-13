@@ -528,6 +528,7 @@
 </style>
   <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-prestations.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -548,6 +549,7 @@
       </div>
       <div class="topbar-actions">
         <button class="btn btn-secondary" onclick="exportCSV()">⬇ Exporter CSV</button>
+        <button class="btn btn-secondary" onclick="ouvrirNoteSortie()" style="margin-right:8px">🚪 Note de sortie</button>
         <button class="btn btn-primary" onclick="openModal()">＋ Nouvelle facture</button>
       </div>
     </div>
@@ -1176,6 +1178,131 @@ function saveDraft() {
   renderTable();
   updateKPIs();
   toast(`Brouillon ${f.id} enregistré.`, 'success');
+}
+
+// ══ NOTE DE SORTIE CONSOLIDÉE — agrège les prestations de toutes les spécialités ══
+function ouvrirNoteSortie(patientId){
+  if(typeof MEDICORE_PRESTA==='undefined'){ toast('Module prestations absent.','error'); return; }
+  // Patient : argument > patient actif > sélection parmi les sorties en attente
+  if(!patientId){
+    const ap = (typeof MEDICORE_PATIENT!=='undefined') ? MEDICORE_PATIENT.get() : null;
+    if(ap && MEDICORE_PRESTA.nbAFacturer(ap.id)>0) patientId = ap.id;
+  }
+  const enAttente = MEDICORE_PRESTA.patientsAFacturer();
+  if(!patientId){
+    if(!enAttente.length){ toast('Aucune prestation à facturer.','info'); return; }
+    return choisirPatientSortie(enAttente);
+  }
+  const lignes = MEDICORE_PRESTA.aFacturer(patientId);
+  if(!lignes.length){ toast('Aucune prestation à facturer pour ce patient.','info'); return; }
+  const nom = lignes[0].patient_nom||patientId, ipp = lignes[0].patient_ipp||'';
+  let ov=document.getElementById('modal-sortie'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-sortie';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  const rows = lignes.map(l=>`
+    <tr data-id="${l.id}">
+      <td style="padding:6px 8px;font-size:12px"><span class="badge" style="background:var(--surface-alt)">${MEDICORE_PRESTA.LABELS_MODULE[l.module]||l.module}</span></td>
+      <td style="padding:6px 8px;font-size:12.5px">${l.libelle}</td>
+      <td style="padding:6px 8px;font-size:11.5px;font-family:monospace;color:var(--text-muted)">${l.code||'—'}</td>
+      <td style="padding:6px 8px;text-align:right"><input type="number" class="ns-montant" value="${l.montant}" style="width:110px;text-align:right;padding:5px 7px;border:1px solid var(--border);border-radius:5px"></td>
+    </tr>`).join('');
+  ov.innerHTML=`<div class="modal" style="width:640px;max-width:96vw">
+    <div class="modal-header"><div><div class="modal-title">Note de sortie — facture consolidée</div>
+      <div class="modal-subtitle">${nom}${ipp?' · '+ipp:''} · ${lignes.length} prestation(s)</div></div>
+      <button onclick="document.getElementById('modal-sortie').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-muted)">✕</button></div>
+    <div style="padding:14px 22px;max-height:50vh;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text-muted)">SERVICE</th>
+          <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text-muted)">PRESTATION</th>
+          <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text-muted)">CODE</th>
+          <th style="text-align:right;padding:6px 8px;font-size:11px;color:var(--text-muted)">MONTANT (FCFA)</th>
+        </tr></thead>
+        <tbody id="ns-body">${rows}</tbody>
+      </table>
+    </div>
+    <div style="padding:0 22px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;background:var(--surface-alt);border-radius:8px">
+        <div style="display:flex;gap:14px;align-items:center">
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted)">Prise en charge
+            <select id="ns-am" onchange="majTotalSortie()" style="margin-left:6px;padding:5px 8px;border:1px solid var(--border);border-radius:5px">
+              <option value="Payant" data-tx="0">Payant (100%)</option>
+              <option value="CNAM" data-tx="0.7">CNAM-CI (70%)</option>
+              <option value="Mutuelle" data-tx="0.8">Mutuelle (80%)</option>
+              <option value="Indigent" data-tx="1">Indigent (100%)</option>
+            </select>
+          </label>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--text-muted)">Total · <span id="ns-tp">part tiers 0</span></div>
+          <div style="font-size:22px;font-weight:700;color:var(--accent)" id="ns-total">0 FCFA</div>
+          <div style="font-size:12px;color:var(--text-muted)">Reste à charge patient : <strong id="ns-rac">0 FCFA</strong></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:16px 22px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-sortie').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="finaliserSortie('${patientId}')">💰 Encaisser & clôturer</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('.ns-montant').forEach(i=>i.addEventListener('input', majTotalSortie));
+  majTotalSortie();
+}
+
+function majTotalSortie(){
+  const total = Array.from(document.querySelectorAll('#ns-body .ns-montant')).reduce((s,i)=>s+(+i.value||0),0);
+  const sel = document.getElementById('ns-am');
+  const tx = parseFloat(sel.options[sel.selectedIndex].dataset.tx)||0;
+  const partTiers = Math.round(total*tx), rac = total-partTiers;
+  document.getElementById('ns-total').textContent = total.toLocaleString('fr-FR')+' FCFA';
+  document.getElementById('ns-tp').textContent = 'part tiers '+partTiers.toLocaleString('fr-FR');
+  document.getElementById('ns-rac').textContent = rac.toLocaleString('fr-FR')+' FCFA';
+}
+
+function finaliserSortie(patientId){
+  const lignes = MEDICORE_PRESTA.aFacturer(patientId);
+  const inputs = Array.from(document.querySelectorAll('#ns-body tr'));
+  const actes=[], ids=[]; let total=0;
+  inputs.forEach(tr=>{
+    const id=tr.dataset.id; const l=lignes.find(x=>x.id===id); if(!l) return;
+    const pu=+tr.querySelector('.ns-montant').value||0;
+    actes.push({ code:l.code||'—', lib:l.libelle, nom:MEDICORE_PRESTA.LABELS_MODULE[l.module]||l.module, qty:1, pu });
+    ids.push(id); total+=pu;
+  });
+  if(!actes.length){ toast('Aucune ligne.','error'); return; }
+  const sel=document.getElementById('ns-am'); const am=sel.value;
+  const nom=lignes[0].patient_nom||patientId, ipp=lignes[0].patient_ipp||'';
+  const id='FAC-'+new Date().getFullYear()+'-'+String(factures.length+1).padStart(4,'0');
+  const f={ id, nom, sejour:patientId, nss:ipp, type:'Note de sortie', am,
+    statut:'Payée', montant:total, date:new Date().toISOString(), actes, consolidee:true };
+  factures.push(f);
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('factures', factures, true);
+  MEDICORE_PRESTA.marquerFacturees(ids, id);
+  if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.markRead('SORTIE_A_FACTURER');
+  if(typeof factAudit==='function') factAudit('NOTE_SORTIE', id, `${nom} — ${actes.length} actes — ${total.toLocaleString('fr-FR')} FCFA`);
+  document.getElementById('modal-sortie').remove();
+  renderTable(); updateKPIs();
+  toast(`Note de sortie ${id} encaissée — ${total.toLocaleString('fr-FR')} FCFA.`,'success');
+}
+
+// Sélecteur de patient (file des sorties à facturer)
+function choisirPatientSortie(liste){
+  let ov=document.getElementById('modal-sortie'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-sortie';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  const rows=liste.map(p=>`
+    <div onclick="document.getElementById('modal-sortie').remove();ouvrirNoteSortie('${p.patientId}')"
+      style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer">
+      <div><strong>${p.nom||p.patientId}</strong>${p.ipp?' · '+p.ipp:''}<div style="font-size:12px;color:var(--text-muted)">${p.n} prestation(s)</div></div>
+      <div style="font-weight:700;color:var(--accent)">${p.total.toLocaleString('fr-FR')} FCFA</div>
+    </div>`).join('');
+  ov.innerHTML=`<div class="modal" style="width:480px">
+    <div class="modal-header"><div class="modal-title">Sorties à facturer</div>
+      <button onclick="document.getElementById('modal-sortie').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-muted)">✕</button></div>
+    <div style="padding:18px 22px">${rows}</div></div>`;
+  document.body.appendChild(ov);
 }
 
 function submitFacture() {

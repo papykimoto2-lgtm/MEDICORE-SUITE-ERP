@@ -453,6 +453,7 @@ function submitLogin(){
   const compte=COMPTES[user];
   if(!compte||compte.pwd!==pwd){
     loginAttempts++;
+    logConnexion(user, compte?compte.nom:'', compte?compte.role:'', false, compte?'Mot de passe incorrect':'Identifiant inconnu');
     document.getElementById('login-pwd').classList.add('error');
     if(loginAttempts>=5){isLocked=true;showMsg('error','🔒',`Compte verrouillé après ${loginAttempts} tentatives échouées.`);}
     else showMsg('error','❌',`Identifiant ou mot de passe incorrect. (${loginAttempts}/5 tentatives)`);
@@ -524,8 +525,26 @@ function backToLogin(){
   document.getElementById('form-subtitle').textContent='Accédez à votre espace MediCore ERP';
 }
 
+// ── Historique de connexion (partagé, lisible par Paramétrage) ─────────────────
+function logConnexion(login, nom, role, ok, motif){
+  try{
+    const KEY='medicore_connexions';
+    let store; try{ store=JSON.parse(localStorage.getItem(KEY)||'{"_v":1,"d":[]}'); }catch(e){ store={_v:1,d:[]}; }
+    const arr = Array.isArray(store)?store:(store.d||[]);
+    arr.unshift({
+      id:'CX'+Date.now().toString(36),
+      login:login||'—', nom:nom||'', role:role||'',
+      ts:new Date().toISOString(), ok:!!ok, motif:motif||'',
+      ua:(navigator.userAgent||'').slice(0,120)
+    });
+    if(arr.length>500) arr.length=500;        // borne l'historique
+    localStorage.setItem(KEY, JSON.stringify({_v:1,_ts:Date.now(),d:arr}));
+  }catch(e){}
+}
+
 // ── Connexion réussie ─────────────────────────────────────────────────────────
 function doLogin(){
+  logConnexion(currentUser.login, currentUser.nom, currentUser.role, true);
   const overlay=document.getElementById('loading-overlay');
   overlay.classList.add('show');
 

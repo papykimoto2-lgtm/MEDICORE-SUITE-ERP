@@ -238,6 +238,7 @@
 </style>
   <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-prestations.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -990,6 +991,15 @@ function validerIntervention(){
   const newOp={id,patient,chirurgien:document.getElementById('op-chirurgien').value,acte,salle:document.getElementById('op-salle').value.split('—')[0].trim(),date:document.getElementById('op-date').value,heure:document.getElementById('op-heure').value,duree:parseInt(document.getElementById('op-duree').value)||90,anesth:document.getElementById('op-anesthtype').value,anesthMed:document.getElementById('op-anesth').value.split('—')[0].trim(),type:document.getElementById('op-type').value,statut:'Programmée',obs:document.getElementById('op-obs').value,dmi:document.getElementById('op-dmi').value||'—'};
   interventions.push(newOp);
   if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id,'Intervention programmée (réf '+id+')');
+  // Prestation facturable (acte chirurgical)
+  if(typeof MEDICORE_PRESTA!=='undefined'){
+    const pid=(patient.split('—')[1]||'').trim();
+    if(pid) MEDICORE_PRESTA.ajouter({
+      patientId:pid, patient_nom:patient.split('—')[0].trim(), module:'bloc_operatoire',
+      libelle:acte, code:(acte.split('—')[0]||'').trim()||'CCAM',
+      montant:MEDICORE_PRESTA.TARIF_DEFAUT.bloc_operatoire, ref:id
+    });
+  }
   blocAudit('INTERVENTION_PROGRAMMEE',id,`${patient} — ${acte} — ${newOp.salle} ${newOp.date} ${newOp.heure}`);
   closeModalOp();renderPlanning();renderInterventions();
   toast('Intervention '+id+' inscrite au programme.','success');

@@ -342,8 +342,16 @@ function renderBody(){
         <td><span class="mono">${u.login}</span></td><td>${u.nom}</td><td>${u.role}</td>
         <td>${u.twofa?'<span class="badge b-on">activée</span>':'<span class="badge b-off">non</span>'}</td>
         <td>${u.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
-        <td style="text-align:right"><button class="btn btn-danger btn-sm" onclick="removeUser(${i})">✕</button></td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="btn btn-secondary btn-sm" onclick="editUser(${i})" title="Modifier">✎</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleUserActif(${i})" title="${u.actif?'Désactiver':'Activer'}">${u.actif?'⏸':'▶'}</button>
+          <button class="btn btn-danger btn-sm" onclick="removeUser(${i})" title="Supprimer">✕</button>
+        </td>
       </tr>`).join('')}</tbody></table></div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Historique de connexion</h3><div class="sub">200 derniers événements · succès et échecs</div></div>
+      <button class="btn btn-secondary btn-sm" onclick="viderHistoConnexion()">Purger</button></div>
+      <div class="card-body" style="padding:0">${renderHistoConnexion()}</div></div>
 
     <div class="card"><div class="card-head"><div><h3>Matrice des permissions</h3><div class="sub">Accès module par rôle — cochez pour autoriser</div></div></div>
       <div class="card-body" style="padding:0"><table class="matrix"><thead><tr><th>Rôle</th>${MODULES_PERM.map(m=>`<th>${m}</th>`).join('')}</tr></thead>
@@ -639,7 +647,53 @@ function addUser(){ formModal('Nouvel utilisateur',[
     {key:'nom',label:'Nom complet',placeholder:'KESSIE Jean'},
     {key:'role',label:'Rôle',type:'select',options:['Administrateur','Médecin','Pharmacien','DAF','Infirmier','Laborantin'],value:'Médecin'}
   ], v=>{ USERS.push({login:v.login,nom:v.nom||v.login,role:v.role,twofa:false,actif:true}); persist(); renderBody(); toast('Utilisateur ajouté.','success'); }); }
-function removeUser(i){ if(confirm('Supprimer '+USERS[i].login+' ?')){ USERS.splice(i,1); persist(); renderBody(); toast('Utilisateur supprimé.','warn'); } }
+function removeUser(i){
+  if(USERS[i].login==='admin'){ toast('Le compte admin ne peut pas être supprimé.','error'); return; }
+  if(confirm('Supprimer '+USERS[i].login+' ?')){ USERS.splice(i,1); persist(); renderBody(); toast('Utilisateur supprimé.','warn'); }
+}
+function editUser(i){
+  const u=USERS[i];
+  formModal('Modifier l\'utilisateur',[
+    {key:'login',label:'Identifiant',required:true,value:u.login},
+    {key:'nom',label:'Nom complet',value:u.nom},
+    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Administrateur SI','Médecin','Pharmacien','DAF','Infirmier','Laborantin'],value:u.role},
+    {key:'twofa',label:'Authentification 2FA',type:'select',options:['Activée','Désactivée'],value:u.twofa?'Activée':'Désactivée'},
+    {key:'actif',label:'Statut',type:'select',options:['Actif','Inactif'],value:u.actif?'Actif':'Inactif'}
+  ], v=>{
+    USERS[i]={ login:v.login, nom:v.nom||v.login, role:v.role, twofa:v.twofa==='Activée', actif:v.actif==='Actif' };
+    persist(); renderBody(); toast('Utilisateur modifié.','success');
+  });
+}
+function toggleUserActif(i){
+  if(USERS[i].login==='admin' && USERS[i].actif){ toast('Le compte admin reste actif.','error'); return; }
+  USERS[i].actif=!USERS[i].actif; persist(); renderBody();
+  toast('Compte '+(USERS[i].actif?'activé':'désactivé')+'.','success');
+}
+
+// ── Historique de connexion ─────────────────────────────────────────────────────
+function lireConnexions(){
+  try{ const p=JSON.parse(localStorage.getItem('medicore_connexions')||'{"d":[]}'); return Array.isArray(p)?p:(p.d||[]); }
+  catch(e){ return []; }
+}
+function renderHistoConnexion(){
+  const list=lireConnexions().slice(0,200);
+  if(!list.length) return '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">Aucune connexion enregistrée.</div>';
+  return `<table><thead><tr><th>Date & heure</th><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>Résultat</th></tr></thead><tbody>${
+    list.map(c=>`<tr>
+      <td style="font-size:12.5px">${new Date(c.ts).toLocaleString('fr-FR')}</td>
+      <td><span class="mono">${c.login||'—'}</span></td>
+      <td>${c.nom||'—'}</td><td>${c.role||'—'}</td>
+      <td>${c.ok
+        ? '<span class="badge b-on">succès</span>'
+        : '<span class="badge b-off">échec'+(c.motif?' · '+c.motif:'')+'</span>'}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function viderHistoConnexion(){
+  if(confirm('Purger tout l\'historique de connexion ?')){
+    localStorage.setItem('medicore_connexions', JSON.stringify({_v:1,_ts:Date.now(),d:[]}));
+    renderBody(); toast('Historique purgé.','warn');
+  }
+}
 function togglePerm(r,m,v){ if(!PERMISSIONS[r])PERMISSIONS[r]={}; PERMISSIONS[r][m]=v?1:0; }
 function addService(){ formModal('Nouveau service',[
     {key:'nom',label:'Nom du service',required:true,placeholder:'Chirurgie'},

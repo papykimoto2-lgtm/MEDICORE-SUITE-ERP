@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-prestations.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -1053,6 +1054,15 @@ function validerDemande(){
   const newDem={id,patient,presc:document.getElementById('d-presc').value,type:document.getElementById('d-type').value,examen:document.getElementById('d-examen').value,equip:document.getElementById('d-equip').value,priorite:document.getElementById('d-priorite').value,date:document.getElementById('d-date').value,statut:'En attente',ccam:document.getElementById('d-ccam').value||'—'};
   demandes.unshift(newDem);
   if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id,'Examen planifié (réf '+id+')');
+  // Prestation facturable (acte CCAM imagerie)
+  if(typeof MEDICORE_PRESTA!=='undefined'){
+    const pid=(patient.split('—')[1]||'').trim();
+    if(pid) MEDICORE_PRESTA.ajouter({
+      patientId:pid, patient_nom:patient.split('—')[0].trim(), module:'imagerie',
+      libelle:newDem.examen||'Imagerie', code:newDem.ccam||'CCAM',
+      montant:MEDICORE_PRESTA.TARIF_DEFAUT.imagerie, ref:id
+    });
+  }
   imgAudit('DEMANDE_PLANIFIEE', id, `${patient} — ${newDem.examen} — ${newDem.priorite}`);
   closeDemande();renderDemandes();updateKPIs();
   toast(`Examen ${id} planifié.`,'success');
