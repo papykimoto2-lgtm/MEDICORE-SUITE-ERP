@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediCore — Demandes inter-modules</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#1C1C2E;--accent2:#B87333;--border:#e2dfd8;--surface-alt:#f8f7f2;--text:#1c1c2e;--text-muted:#6b6b6b}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'DM Sans',system-ui,sans-serif;color:var(--text);background:#f4f2ec;padding:18px}
+  h1{font-family:'DM Serif Display',serif;font-size:24px;margin:0 0 2px}
+  .sub{color:var(--text-muted);font-size:13px;margin-bottom:18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card h3{margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:6px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin:8px 0 3px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit}
+  textarea{resize:vertical;min-height:54px}
+  .btn{margin-top:12px;width:100%;padding:9px;border:none;border-radius:6px;background:var(--accent);color:#fff;font-weight:600;font-size:13.5px;cursor:pointer}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .user-bar{display:flex;align-items:center;gap:8px;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:16px;font-size:13px}
+  .user-bar input{max-width:200px;padding:5px 8px}
+  .seg{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .seg select{max-width:100%}
+</style>
+</head>
+<body>
+
+<h1>Demandes inter-modules</h1>
+<div class="sub">Cycle : création → notification → prise en charge → traitement → retour au demandeur</div>
+
+<div class="user-bar">
+  <span>👤 Utilisateur connecté :</span>
+  <input id="u-nom" placeholder="Dr. Yao" oninput="setUser()">
+  <span style="color:var(--text-muted)">— rôle :</span>
+  <input id="u-role" placeholder="Médecin" oninput="setUser()" style="max-width:140px">
+</div>
+
+<div class="grid">
+
+  <!-- ÉMETTRE -->
+  <div class="card">
+    <h3>① Émettre une demande</h3>
+    <label>Module demandeur (vous)</label>
+    <select id="e-demandeur" onchange="rememberDemandeur()">
+      <option value="dpi">📋 DPI (médecin)</option>
+      <option value="bloc_operatoire">🏥 Bloc opératoire</option>
+      <option value="pharmacie_pui">💊 Pharmacie PUI</option>
+      <option value="facturation">🧾 Facturation</option>
+    </select>
+    <label>Module cible</label>
+    <select id="e-cible"></select>
+    <label>Type</label>
+    <select id="e-type"><option value="acte">Acte médical</option><option value="service">Service</option></select>
+    <label>Objet</label>
+    <input id="e-objet" placeholder="Ex: NFS + CRP en urgence">
+    <div class="row2">
+      <div><label>Patient</label><input id="e-pat" placeholder="Nom patient"></div>
+      <div><label>IPP</label><input id="e-ipp" placeholder="IPP-001"></div>
+    </div>
+    <label>Priorité</label>
+    <select id="e-prio"><option>Normale</option><option>Urgente</option><option>Vitale</option></select>
+    <label>Détails</label>
+    <textarea id="e-det" placeholder="Indication clinique…"></textarea>
+    <button class="btn" onclick="emettre()">Émettre la demande</button>
+  </div>
+
+  <!-- FILE CIBLE -->
+  <div class="card">
+    <h3>② File du module cible</h3>
+    <div class="seg">
+      <select id="f-module" onchange="refresh()"></select>
+    </div>
+    <div id="file-attente"></div>
+  </div>
+
+  <!-- RETOURS -->
+  <div class="card">
+    <h3>③ Retours reçus (demandeur)</h3>
+    <div class="seg">
+      <select id="r-module" onchange="refresh()">
+        <option value="dpi">📋 DPI</option>
+        <option value="bloc_operatoire">🏥 Bloc opératoire</option>
+        <option value="pharmacie_pui">💊 Pharmacie PUI</option>
+        <option value="facturation">🧾 Facturation</option>
+      </select>
+    </div>
+    <div id="mes-retours"></div>
+  </div>
+
+</div>
+
+<script src="medicore-demandes.js"></script>
+<script>
+const D = MEDICORE_DEMANDES;
+
+// Remplit les selects cibles
+function fillCibles(){
+  const opts = Object.entries(D.MODULES).map(([k,m])=>`<option value="${k}">${m.icon} ${m.label}</option>`).join('');
+  document.getElementById('e-cible').innerHTML = opts;
+  document.getElementById('f-module').innerHTML = opts;
+}
+
+function setUser(){
+  const u = { id:'U1', nom:document.getElementById('u-nom').value||'—', role:document.getElementById('u-role').value||'' };
+  sessionStorage.setItem('medicore_user', JSON.stringify(u));
+}
+function rememberDemandeur(){ localStorage.setItem('_demo_demandeur', document.getElementById('e-demandeur').value); }
+
+// Override _module() pour la démo (la page n'est pas le vrai module)
+D._module = ()=> document.getElementById('e-demandeur').value;
+
+function emettre(){
+  const objet = document.getElementById('e-objet').value.trim();
+  if(!objet){ alert('Objet requis.'); return; }
+  setUser();
+  D.creer({
+    cible:    document.getElementById('e-cible').value,
+    type:     document.getElementById('e-type').value,
+    objet,
+    patient:  { id:'P'+Date.now(), nom:document.getElementById('e-pat').value||'—', ipp:document.getElementById('e-ipp').value||'' },
+    priorite: document.getElementById('e-prio').value,
+    details:  document.getElementById('e-det').value
+  });
+  // bascule la file sur le module cible pour voir la demande arriver
+  document.getElementById('f-module').value = document.getElementById('e-cible').value;
+  document.getElementById('e-objet').value=''; document.getElementById('e-det').value='';
+  refresh();
+}
+
+function refresh(){
+  D.renderFileAttente(document.getElementById('f-module').value, 'file-attente');
+  D.renderMesRetours(document.getElementById('r-module').value, 'mes-retours');
+}
+
+D.on(refresh);
+fillCibles();
+const savedDem = localStorage.getItem('_demo_demandeur'); if(savedDem) document.getElementById('e-demandeur').value=savedDem;
+setUser();
+refresh();
+</script>
+</body>
+</html>
