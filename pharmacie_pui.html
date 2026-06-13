@@ -918,7 +918,8 @@ function validerMouv(){
   const qty=parseInt(document.getElementById('ms-qty').value)||0;
   const type=document.getElementById('ms-type').value;
   const p=produits.find(x=>x.code===code);
-  if(!p||!qty){toast('Remplissez les champs obligatoires.','error');return}
+  if(!p||!qty){toast('Remplissez les champs obligatoires.','error');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('stock', produits);return}
   if(type.startsWith('Sortie')) p.stock=Math.max(0,p.stock-qty);
   else if(type==='Entrée') p.stock+=qty;
   const mouv={date:document.getElementById('ms-date').value,type,produit:p.dci,lot:document.getElementById('ms-lot').value||p.lot,qty,depot:document.getElementById('ms-depot').value,patient:document.getElementById('ms-patient').value||'—',fourn:document.getElementById('ms-fourn').value||'—',obs:document.getElementById('ms-obs').value};
@@ -947,7 +948,8 @@ function closeStup(){document.getElementById('modal-stup').classList.remove('ope
 function validerStup(){
   const prod=document.getElementById('st-produit').value;
   const verif=document.getElementById('st-verif').value;
-  if(!verif){toast('Le second comptage est obligatoire pour les stupéfiants.','error');return}
+  if(!verif){toast('Le second comptage est obligatoire pour les stupéfiants.','error');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('stock', produits);return}
   const p=produits.find(x=>x.dci===prod);
   const qty=parseInt(document.getElementById('st-qty').value)||1;
   const patient=document.getElementById('st-patient').value;
@@ -1002,6 +1004,7 @@ function refreshAll(){updateKPIs();renderStock();
     ruptures.forEach(p=>MEDICORE_BUS.publish('STOCK_ALERTE',{produit:p.dci,code:p.code,statut:'Rupture',urgence:'Urgente'}));
     alertes.forEach(p=>MEDICORE_BUS.publish('STOCK_ALERTE',{produit:p.dci,code:p.code,statut:'Alerte mini',urgence:'Normale'}));
   }
+}
 
 function exportCSV(){
   const h=['Code','DCI','Type','Forme','Dépôt','Stock','Mini','Maxi','Péremption','PMP'];
@@ -1027,6 +1030,8 @@ refreshAll();
 <script>
 // Auto-init navigation MediCore
 document.addEventListener('DOMContentLoaded', function() {
+  if(typeof MEDICORE_STORE!=='undefined'){ produits = MEDICORE_STORE.sync('stock', produits); }
+
   if (typeof initNav === 'function') {
     initNav('pharmacie_pui', 'Pharmacie (PUI)', '602 · 371 · 411 · Traçabilité',
       [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Pharmacie (PUI)',file:''}]);

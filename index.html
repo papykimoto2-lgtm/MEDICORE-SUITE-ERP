@@ -245,28 +245,28 @@
     <div class="hero-kpis">
       <div class="hero-kpi" onclick="window.location='tableaux_de_bord.html'">
         <div class="hk-label">Résultat analytique</div>
-        <div class="hk-value">+32,3 M</div>
-        <div class="hk-trend up">▲ Excédent T2</div>
+        <div class="hk-value" id="hk-resultat">—</div>
+        <div class="hk-trend flat">→ En attente de données</div>
       </div>
       <div class="hero-kpi" onclick="window.location='tableaux_de_bord.html'">
         <div class="hk-label">Taux occupation lits</div>
-        <div class="hk-value">72%</div>
-        <div class="hk-trend up">▲ +3pts vs T1</div>
+        <div class="hk-value" id="hk-tol">—</div>
+        <div class="hk-trend flat">→ En attente de données</div>
       </div>
       <div class="hero-kpi" onclick="window.location='tresorerie.html'">
         <div class="hk-label">Trésorerie globale</div>
-        <div class="hk-value">160 M</div>
-        <div class="hk-trend flat">→ FCFA • 4 comptes</div>
+        <div class="hk-value" id="hk-treso">—</div>
+        <div class="hk-trend flat">→ En attente de données</div>
       </div>
       <div class="hero-kpi" onclick="window.location='laboratoire.html'">
         <div class="hk-label">Analyses / jour</div>
-        <div class="hk-value">42</div>
-        <div class="hk-trend up">▲ +6% semaine</div>
+        <div class="hk-value" id="hk-analyses">—</div>
+        <div class="hk-trend flat">→ En attente de données</div>
       </div>
       <div class="hero-kpi" onclick="window.location='bloc_operatoire.html'">
         <div class="hk-label">Interventions auj.</div>
-        <div class="hk-value">5</div>
-        <div class="hk-trend flat">→ 2 en cours</div>
+        <div class="hk-value" id="hk-interv">—</div>
+        <div class="hk-trend flat">→ En attente de données</div>
       </div>
     </div>
   </div>
@@ -441,7 +441,7 @@
       <div class="module-card-body">
         <div class="mc-stats">
           <div class="mc-stat"><strong>6</strong>Sections analytiques</div>
-          <div class="mc-stat"><strong>+32,3 M</strong>Résultat T2</div>
+          <div class="mc-stat"><strong>—</strong>Résultat T2</div>
           <div class="mc-stat"><strong>—</strong>Ventilé</div>
         </div>
       </div>
@@ -643,25 +643,51 @@ function updateDateTime(){
 }
 updateDateTime();setInterval(updateDateTime,30000);
 
-// ── Alertes ───────────────────────────────────────────────────────────────────
+// ── Alertes — alimentées en temps réel par MEDICORE_STORE ─────────────────────
 const alertes=[];
-  // (alertes démo supprimées — alimentées en temps réel)
-document.getElementById('alertes-band').innerHTML=alertes.map(a=>`
-  <div class="alert-pill ${a.type}" onclick="window.location='${a.link}'">${a.icon} ${a.txt}</div>`).join('');
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    if(typeof MEDICORE_STORE === 'undefined') return;
+    const liste = MEDICORE_STORE.alertes();
+    document.getElementById('alertes-band').innerHTML = liste.map(a =>
+      `<div class="alert-pill ${a.type}" onclick="window.location='${a.link}'">${a.icon} ${a.txt}</div>`
+    ).join('');
+  }, 400);
+});
 
-// ── Feed activité ──────────────────────────────────────────────────────────────
-const FEED=[
-  // (données démo supprimées)
-];
-document.getElementById('feed-container').innerHTML=FEED.map(f=>`
-  <div class="feed-item">
-    <div class="feed-icon" style="background:${f.bg}">${f.icon}</div>
-    <div class="feed-content">
-      <div class="feed-title">${f.title} <span class="feed-badge ${f.bc}" style="font-size:10px">${f.badge}</span></div>
-      <div class="feed-detail">${f.detail}</div>
-    </div>
-    <div class="feed-time">${f.time}</div>
-  </div>`).join('');
+// ── Feed activité — alimenté par les événements du BUS inter-modules ──────────
+const FEED=[];
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    const fc = document.getElementById('feed-container');
+    if(!fc) return;
+    if(typeof MEDICORE_BUS === 'undefined'){ fc.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">Aucune activité récente</div>'; return; }
+    const ICONES = {
+      'SORTIE_A_FACTURER':       {icon:'🚪', bg:'var(--orange-bg)', badge:'Sortie',   bc:'badge-info'},
+      'PRESCRIPTION_ATTENTE_PUI':{icon:'💊', bg:'var(--purple-bg)', badge:'Rx',       bc:'badge-info'},
+      'LABO_RESULTATS_PRETS':    {icon:'🔬', bg:'var(--accent-light)', badge:'Labo',  bc:'badge-ok'},
+      'STOCK_ALERTE':            {icon:'⚠️', bg:'var(--red-bg)',    badge:'Stock',    bc:'badge-red'},
+      'PAIEMENT_RECU':           {icon:'🧾', bg:'var(--green-bg)',  badge:'Payé',     bc:'badge-ok'},
+    };
+    const evts = MEDICORE_BUS.all().slice(-8).reverse();
+    if(!evts.length){ fc.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">Aucune activité récente — les événements des modules apparaîtront ici</div>'; return; }
+    fc.innerHTML = evts.map(e => {
+      const ic = ICONES[e.type] || {icon:'🔔', bg:'var(--surface-alt)', badge:e.type.slice(0,8), bc:'badge-info'};
+      const p = e.payload || {};
+      const detail = p.nom || p.produit || p.patient || p.med || JSON.stringify(p).slice(0,60);
+      const dt = new Date(e.ts);
+      const time = dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      return `<div class="feed-item">
+        <div class="feed-icon" style="background:${ic.bg}">${ic.icon}</div>
+        <div class="feed-content">
+          <div class="feed-title">${e.type.replace(/_/g,' ')} <span class="feed-badge ${ic.bc}" style="font-size:10px">${ic.badge}</span></div>
+          <div class="feed-detail">${detail}</div>
+        </div>
+        <div class="feed-time">${time}</div>
+      </div>`;
+    }).join('');
+  }, 400);
+});
 
 // ── Mini calendrier ────────────────────────────────────────────────────────────
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();

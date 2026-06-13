@@ -766,11 +766,13 @@ function demarrerOp(id){
   const i=interventions.find(x=>x.id===id);
   if(i){i.statut='En cours';blocAudit('OP_DEMARREE',id,`${i.acte} — ${i.salle}`);}
   renderInterventions();renderPlanning();toast('Intervention '+id+' démarrée.','success');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('interventions', interventions);
 }
 function terminerOp(id){
   const i=interventions.find(x=>x.id===id);
   if(i){i.statut='Terminée';blocAudit('OP_TERMINEE',id,`${i.acte} — Durée: ${i.duree} min`);}
   renderInterventions();renderPlanning();toast('Intervention '+id+' terminée. Compte rendu opératoire à compléter.','success');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('interventions', interventions);
 }
 
 // ── Fiche opération (timeline) ────────────────────────────────────────────────
@@ -969,7 +971,8 @@ function closeModalOp(){document.getElementById('modal-op').classList.remove('op
 function validerIntervention(){
   const patient=document.getElementById('op-patient').value;
   const acte=document.getElementById('op-acte').value;
-  if(!patient||!acte){toast('Remplissez les champs obligatoires.','error');return}
+  if(!patient||!acte){toast('Remplissez les champs obligatoires.','error');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('interventions', interventions);return}
   const annee=new Date().getFullYear();
   const id='OP-'+annee+'-0'+String(interventions.length+841).padStart(4,'0');
   const newOp={id,patient,chirurgien:document.getElementById('op-chirurgien').value,acte,salle:document.getElementById('op-salle').value.split('—')[0].trim(),date:document.getElementById('op-date').value,heure:document.getElementById('op-heure').value,duree:parseInt(document.getElementById('op-duree').value)||90,anesth:document.getElementById('op-anesthtype').value,anesthMed:document.getElementById('op-anesth').value.split('—')[0].trim(),type:document.getElementById('op-type').value,statut:'Programmée',obs:document.getElementById('op-obs').value,dmi:document.getElementById('op-dmi').value||'—'};
@@ -1029,6 +1032,8 @@ renderInterventions();
 <script>
 // Auto-init navigation MediCore
 document.addEventListener('DOMContentLoaded', function() {
+  if(typeof MEDICORE_STORE!=='undefined'){ interventions = MEDICORE_STORE.sync('interventions', interventions); }
+
   if (typeof initNav === 'function') {
     initNav('bloc_operatoire', 'Bloc Opératoire', 'CNAM-CI · DMI · Traçabilité',
       [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Bloc Opératoire',file:''}]);

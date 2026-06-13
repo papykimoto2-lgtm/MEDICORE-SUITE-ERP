@@ -1070,6 +1070,7 @@ function sortiePatient(id){
   // Toast avec bouton facturation
   const nomPatient = p?p.nom:id;
   toast('Sortie de '+nomPatient+' enregistree. Facture a generer.','success');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('patients', patients);
   if(typeof MEDICORE_GOTO!=='undefined'){
     setTimeout(function(){
       const tc=document.getElementById('toast-container');
@@ -1116,7 +1117,8 @@ function closeAdmission(){document.getElementById('modal-admission').classList.r
 function validerAdmission(){
   const nom=document.getElementById('adm-nom').value.toUpperCase().trim();
   const prenom=document.getElementById('adm-prenom').value.trim();
-  if(!nom||!prenom){toast('Saisissez nom et prénom.','error');return}
+  if(!nom||!prenom){toast('Saisissez nom et prénom.','error');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('patients', patients);return}
 
   // ── Identito-vigilance : détection de doublon ─────────────────────────────
   const ddn=document.getElementById('adm-ddn').value;
@@ -1376,6 +1378,8 @@ function validerNote(){
 
 // ── Init nav ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',function(){
+  if(typeof MEDICORE_STORE!=='undefined'){ patients = MEDICORE_STORE.sync('patients', patients); }
+
   if(typeof initNav==='function'){
     initNav('dpi','Dossier Patient (DPI)','Admissions · Séjours · Prescriptions · Résultats',
       [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Dossier Patient (DPI)',file:''}]);

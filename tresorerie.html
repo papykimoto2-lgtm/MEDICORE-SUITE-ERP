@@ -351,11 +351,12 @@
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-const COMPTES_BQ = [
-  { code:'511', banque:'BGFIBANK', iban:'CI093 00201 12345678901 26', solde:98500000, date:'15/06/2025', couleur:'#1a4b6e' },
-  { code:'512', banque:'ECOBANK',  iban:'CI093 00108 98765432109 44', solde:45200000, date:'15/06/2025', couleur:'#c8702a' },
-  { code:'513', banque:'BNI CI',   iban:'CI093 00301 11223344556 12', solde:12800000, date:'14/06/2025', couleur:'#1e7a4e' },
-  { code:'530', banque:'Caisse principale', iban:'—', solde:3500000, date:'15/06/2025', couleur:'#6b21a8' },
+let COMPTES_BQ = [
+  // Structure conservée — soldes à zéro (données réelles à saisir)
+  { code:'511', banque:'BGFIBANK',         iban:'—', solde:0, date:'—', couleur:'#1a4b6e' },
+  { code:'512', banque:'ECOBANK',          iban:'—', solde:0, date:'—', couleur:'#c8702a' },
+  { code:'513', banque:'BNI CI',           iban:'—', solde:0, date:'—', couleur:'#1e7a4e' },
+  { code:'530', banque:'Caisse principale',iban:'—', solde:0, date:'—', couleur:'#6b21a8' },
 ];
 
 let mouvements = [
@@ -563,7 +564,8 @@ function validerMouvement(){
   const montant=parseFloat(document.getElementById('m-montant').value)||0;
   const libelle=document.getElementById('m-libelle').value;
   const date=document.getElementById('m-date').value;
-  if(!montant||!libelle||!date){toast('Remplissez les champs obligatoires.','error');return}
+  if(!montant||!libelle||!date){toast('Remplissez les champs obligatoires.','error');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('mouvements_tresorerie', mouvements);return}
   const compte=document.getElementById('m-compte').value;
   const annee=new Date().getFullYear();
   const ref='MVT-'+annee+'-'+String(mouvements.length+1).padStart(4,'0');
@@ -629,6 +631,10 @@ refreshAll();renderComptes();renderHistorique();renderPrevision();
 <script>
 // Auto-init navigation MediCore
 document.addEventListener('DOMContentLoaded', function() {
+  if(typeof MEDICORE_STORE!=='undefined'){ COMPTES_BQ = MEDICORE_STORE.sync('comptes_bancaires', COMPTES_BQ); }
+
+  if(typeof MEDICORE_STORE!=='undefined'){ mouvements = MEDICORE_STORE.sync('mouvements_tresorerie', mouvements); }
+
   if (typeof initNav === 'function') {
     initNav('tresorerie', 'Trésorerie', '51 · 52 · 53 SYSCOHADA',
       [{label:'Étape 2 — Finance & support',file:'#'},{label:'Trésorerie',file:''}]);

@@ -1011,7 +1011,8 @@ function validerEcriture() {
     }
   });
 
-  if (Math.abs(td-tc) > 0.01) { toast('L\'écriture n\'est pas équilibrée.', 'error'); return; }
+  if (Math.abs(td-tc) > 0.01) { toast('L\'écriture n\'est pas équilibrée.', 'error');
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('ecritures', ecritures); return; }
   if (!nouvelles.length) { toast('Aucune ligne valide saisie.', 'error'); return; }
 
   ecritures.push(...nouvelles);
@@ -1072,6 +1073,8 @@ initGLSelect();
 <script>
 // Auto-init navigation MediCore
 document.addEventListener('DOMContentLoaded', function() {
+  if(typeof MEDICORE_STORE!=='undefined'){ ecritures = MEDICORE_STORE.sync('ecritures', ecritures); }
+
   if (typeof initNav === 'function') {
     initNav('comptabilite_generale', 'Comptabilité Générale', 'Cl. 1–8 SYSCOHADA',
       [{label:'Étape 2 — Finance & support',file:'#'},{label:'Comptabilité Générale',file:''}]);

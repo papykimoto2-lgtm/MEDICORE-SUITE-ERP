@@ -17,12 +17,12 @@ const MEDICORE_NAV = {
       groupe: '1 · Parcours patient',
       icon: '⚕️',
       items: [
-        { id: 'dpi',             label: 'Dossier Patient (DPI)', icon: '📋', file: 'dpi.html',             syscohada: '411/706',     statut: 'actif',  alertes: 1, etape: 'Admission' },
-        { id: 'laboratoire',     label: 'Laboratoire',           icon: '🔬', file: 'laboratoire.html',     syscohada: '706/411',     statut: 'alerte', alertes: 1, etape: 'Examens' },
-        { id: 'imagerie',        label: 'Imagerie Médicale',     icon: '🩻', file: 'imagerie.html',        syscohada: '706/PACS',    statut: 'actif',  alertes: 1, etape: 'Examens' },
+        { id: 'dpi',             label: 'Dossier Patient (DPI)', icon: '📋', file: 'dpi.html',             syscohada: '411/706',     statut: 'actif',  alertes: 0, etape: 'Admission' },
+        { id: 'laboratoire',     label: 'Laboratoire',           icon: '🔬', file: 'laboratoire.html',     syscohada: '706/411',     statut: 'actif', alertes: 0, etape: 'Examens' },
+        { id: 'imagerie',        label: 'Imagerie Médicale',     icon: '🩻', file: 'imagerie.html',        syscohada: '706/PACS',    statut: 'actif',  alertes: 0, etape: 'Examens' },
         { id: 'bloc_operatoire', label: 'Bloc Opératoire',       icon: '🏥', file: 'bloc_operatoire.html', syscohada: '706/DMI',     statut: 'actif',  alertes: 0, etape: 'Soins' },
-        { id: 'pharmacie_pui',   label: 'Pharmacie (PUI)',       icon: '💊', file: 'pharmacie_pui.html',   syscohada: '602/371/411', statut: 'alerte', alertes: 2, etape: 'Soins' },
-        { id: 'facturation',     label: 'Facturation',           icon: '🧾', file: 'facturation.html',     syscohada: '411/706/707', statut: 'actif',  alertes: 2, etape: 'Sortie' },
+        { id: 'pharmacie_pui',   label: 'Pharmacie (PUI)',       icon: '💊', file: 'pharmacie_pui.html',   syscohada: '602/371/411', statut: 'actif', alertes: 0, etape: 'Soins' },
+        { id: 'facturation',     label: 'Facturation',           icon: '🧾', file: 'facturation.html',     syscohada: '411/706/707', statut: 'actif',  alertes: 0, etape: 'Sortie' },
       ]
     },
     {
@@ -33,8 +33,8 @@ const MEDICORE_NAV = {
         { id: 'comptabilite_analytique',  label: 'Compta. Analytique',       icon: '📈', file: 'comptabilite_analytique.html',  syscohada: 'Classe 9',     statut: 'actif', alertes: 0 },
         { id: 'tresorerie',               label: 'Trésorerie',               icon: '💰', file: 'tresorerie.html',               syscohada: '51/52/53',     statut: 'actif', alertes: 0 },
         { id: 'immobilisations',          label: 'Immobilisations',          icon: '🏗️', file: 'immobilisations.html',          syscohada: '2x/28x/681',   statut: 'actif', alertes: 0 },
-        { id: 'achats_logistique',        label: 'Achats & Logistique',      icon: '🛒', file: 'achats_logistique.html',        syscohada: '401/601/602',  statut: 'actif', alertes: 1 },
-        { id: 'rh_paie',                  label: 'RH & Paie',                icon: '👥', file: 'rh_paie.html',                  syscohada: '641/644/645',  statut: 'actif', alertes: 1 },
+        { id: 'achats_logistique',        label: 'Achats & Logistique',      icon: '🛒', file: 'achats_logistique.html',        syscohada: '401/601/602',  statut: 'actif', alertes: 0 },
+        { id: 'rh_paie',                  label: 'RH & Paie',                icon: '👥', file: 'rh_paie.html',                  syscohada: '641/644/645',  statut: 'actif', alertes: 0 },
       ]
     },
     {
@@ -877,4 +877,164 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Purge périodique du bus
   try{ MEDICORE_BUS.purge(); }catch(e){}
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MEDICORE_STORE — Persistance & consolidation inter-modules
+// Chaque module sauvegarde ses données ici ; le portail et les tableaux de bord
+// lisent des agrégats calculés en temps réel. Offline-first (localStorage).
+// ══════════════════════════════════════════════════════════════════════════════
+const MEDICORE_STORE = {
+
+  // ── Persistance générique ───────────────────────────────────────────────────
+  save(cle, donnees){
+    try{ localStorage.setItem('medicore_'+cle, JSON.stringify(donnees)); }catch(e){}
+  },
+  load(cle, defaut){
+    try{
+      const v = localStorage.getItem('medicore_'+cle);
+      return v ? JSON.parse(v) : (defaut !== undefined ? defaut : []);
+    }catch(e){ return defaut !== undefined ? defaut : []; }
+  },
+
+  // ── Branche un tableau de module sur le store ───────────────────────────────
+  // Usage : patients = MEDICORE_STORE.sync('patients', patients);
+  // → charge les données persistées si présentes, sinon garde le tableau actuel
+  sync(cle, tableauActuel){
+    const sauvegarde = this.load(cle, null);
+    if(sauvegarde && Array.isArray(sauvegarde) && sauvegarde.length > 0){
+      return sauvegarde;
+    }
+    return tableauActuel || [];
+  },
+
+  // ── Agrégats consolidés (calculés à la volée) ───────────────────────────────
+  kpis(){
+    const patients      = this.load('patients');
+    const factures      = this.load('factures');
+    const ecritures     = this.load('ecritures');
+    const interventions = this.load('interventions');
+    const demandesLabo  = this.load('demandes_labo');
+    const mouvementsTr  = this.load('mouvements_tresorerie');
+    const stock         = this.load('stock');
+    const comptes       = this.load('comptes_bancaires');
+
+    const auj = new Date().toISOString().split('T')[0];
+
+    // Trésorerie : somme des soldes de comptes + flux
+    const soldeComptes = (comptes||[]).reduce((s,c)=>s+(c.solde||0),0);
+    const flux = (mouvementsTr||[]).reduce((s,m)=>s+(m.type==='Encaissement'?m.montant:-m.montant),0);
+
+    // CA : factures payées
+    const ca = (factures||[]).filter(f=>f.statut==='Payée').reduce((s,f)=>s+(f.montant||0),0);
+    const enAttente = (factures||[]).filter(f=>f.statut==='En attente').reduce((s,f)=>s+(f.montant||0),0);
+
+    // Résultat : produits (706/707) - charges (6xx) depuis les écritures
+    const produits = (ecritures||[]).filter(e=>String(e.compte).startsWith('7')).reduce((s,e)=>s+(e.credit||0),0);
+    const charges  = (ecritures||[]).filter(e=>String(e.compte).startsWith('6')).reduce((s,e)=>s+(e.debit||0),0);
+
+    // Activité
+    const patientsActifs = (patients||[]).filter(p=>p.statut==='Actif'||p.type==='Hospitalisé').length;
+    const interventionsAuj = (interventions||[]).filter(i=>i.date===auj).length;
+    const analysesAuj = (demandesLabo||[]).filter(d=>(d.date||'').startsWith(auj)).length;
+
+    // Stock : ruptures
+    const ruptures = (stock||[]).filter(p=>p.stock===0).length;
+    const alertesStock = (stock||[]).filter(p=>p.stock>0 && p.stock<=(p.mini||p.stock_mini||0)).length;
+
+    return {
+      tresorerie: soldeComptes + flux,
+      ca, enAttente,
+      produits, charges,
+      resultat: produits - charges,
+      patientsActifs,
+      interventionsAuj,
+      analysesAuj,
+      ruptures, alertesStock,
+      nbFactures: (factures||[]).length,
+      nbPatients: (patients||[]).length,
+    };
+  },
+
+  // ── Injecter les KPIs consolidés dans le portail (index.html) ───────────────
+  remplirPortail(){
+    const k = this.kpis();
+    const fmtM = v => v ? (v/1000000).toFixed(1).replace('.',',')+' M' : '—';
+    const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent = val; };
+
+    set('hk-resultat', k.resultat ? (k.resultat>0?'+':'')+fmtM(k.resultat) : '—');
+    set('hk-treso',    k.tresorerie ? fmtM(k.tresorerie) : '—');
+    set('hk-analyses', k.analysesAuj || '—');
+    set('hk-interv',   k.interventionsAuj || '—');
+    // TOL non calculable sans config lits — laisser —
+  },
+
+  // ── Alertes temps réel pour la bande d'alertes du portail ───────────────────
+  alertes(){
+    const k = this.kpis();
+    const liste = [];
+    if(k.ruptures > 0)
+      liste.push({type:'red', icon:'🚨', txt:k.ruptures+' produit(s) en rupture de stock PUI', link:'pharmacie_pui.html'});
+    if(k.alertesStock > 0)
+      liste.push({type:'warn', icon:'⚠️', txt:k.alertesStock+' produit(s) sous le seuil minimum', link:'pharmacie_pui.html'});
+    if(k.enAttente > 0)
+      liste.push({type:'warn', icon:'🧾', txt:(k.enAttente/1000000).toFixed(1)+' M FCFA de factures en attente', link:'facturation.html'});
+    if(typeof MEDICORE_BUS !== 'undefined'){
+      const presc = MEDICORE_BUS.count('PRESCRIPTION_ATTENTE_PUI');
+      if(presc > 0) liste.push({type:'warn', icon:'💊', txt:presc+' prescription(s) en attente de validation PUI', link:'pharmacie_pui.html'});
+      const sorties = MEDICORE_BUS.count('SORTIE_A_FACTURER');
+      if(sorties > 0) liste.push({type:'warn', icon:'🚪', txt:sorties+' sortie(s) patient à facturer', link:'facturation.html'});
+    }
+    if(!liste.length)
+      liste.push({type:'green', icon:'✅', txt:'Aucune alerte active — système opérationnel', link:'#'});
+    return liste;
+  },
+
+  // ── Badges sidebar dynamiques (remplace les alertes hardcodées) ─────────────
+  badgesSidebar(){
+    const k = this.kpis();
+    const badges = {};
+    if(typeof MEDICORE_BUS !== 'undefined'){
+      const pPui = MEDICORE_BUS.count('PRESCRIPTION_ATTENTE_PUI') + (k.ruptures + k.alertesStock);
+      if(pPui > 0) badges['pharmacie_pui'] = pPui;
+      const sFact = MEDICORE_BUS.count('SORTIE_A_FACTURER');
+      if(sFact > 0) badges['facturation'] = sFact;
+      const rLabo = MEDICORE_BUS.count('LABO_DEMANDE_URGENTE');
+      if(rLabo > 0) badges['laboratoire'] = rLabo;
+      const rDpi = MEDICORE_BUS.count('LABO_RESULTATS_PRETS') + MEDICORE_BUS.count('IMAGERIE_CR_PRET');
+      if(rDpi > 0) badges['dpi'] = rDpi;
+    }
+    return badges;
+  },
+
+  appliquerBadges(){
+    const badges = this.badgesSidebar();
+    Object.entries(badges).forEach(([modId, count]) => {
+      const link = document.querySelector('.nav-item[href="'+modId+'.html"]');
+      if(link && !link.querySelector('.nav-badge')){
+        const b = document.createElement('span');
+        b.className = 'nav-badge';
+        b.textContent = count;
+        link.appendChild(b);
+      }
+    });
+  }
+};
+
+// Appliquer au chargement de chaque page
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    try{
+      MEDICORE_STORE.remplirPortail();
+      MEDICORE_STORE.appliquerBadges();
+      // Bande d'alertes du portail si présente
+      const band = document.getElementById('alertes-band');
+      if(band && typeof alertes !== 'undefined' && (!alertes || !alertes.length)){
+        const liste = MEDICORE_STORE.alertes();
+        band.innerHTML = liste.map(a =>
+          '<a class="alerte-chip '+a.type+'" href="'+a.link+'">'+a.icon+' '+a.txt+'</a>'
+        ).join('');
+      }
+    }catch(e){ console.warn('[MEDICORE_STORE]', e.message); }
+  }, 300);
 });

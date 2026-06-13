@@ -248,28 +248,28 @@
     <div class="hero-kpis">
       <div class="hero-kpi" onclick="window.location='tableaux_de_bord.html'">
         <div class="hk-label">Résultat analytique</div>
-        <div class="hk-value">+32,3 M</div>
-        <div class="hk-trend up">▲ Excédent T2</div>
+        <div class="hk-value">—</div>
+        <div class="hk-trend up">→ En attente</div>
       </div>
       <div class="hero-kpi" onclick="window.location='tableaux_de_bord.html'">
         <div class="hk-label">Taux occupation lits</div>
-        <div class="hk-value">72%</div>
-        <div class="hk-trend up">▲ +3pts vs T1</div>
+        <div class="hk-value">—</div>
+        <div class="hk-trend up">→ En attente</div>
       </div>
       <div class="hero-kpi" onclick="window.location='tresorerie.html'">
         <div class="hk-label">Trésorerie globale</div>
-        <div class="hk-value">160 M</div>
-        <div class="hk-trend flat">→ FCFA • 4 comptes</div>
+        <div class="hk-value">—</div>
+        <div class="hk-trend flat">→ En attente</div>
       </div>
       <div class="hero-kpi" onclick="window.location='laboratoire.html'">
         <div class="hk-label">Analyses / jour</div>
-        <div class="hk-value">42</div>
-        <div class="hk-trend up">▲ +6% semaine</div>
+        <div class="hk-value">—</div>
+        <div class="hk-trend up">→ En attente</div>
       </div>
       <div class="hero-kpi" onclick="window.location='bloc_operatoire.html'">
         <div class="hk-label">Interventions auj.</div>
         <div class="hk-value">5</div>
-        <div class="hk-trend flat">→ 2 en cours</div>
+        <div class="hk-trend flat">→ En attente</div>
       </div>
     </div>
   </div>
@@ -444,7 +444,7 @@
       <div class="module-card-body">
         <div class="mc-stats">
           <div class="mc-stat"><strong>6</strong>Sections analytiques</div>
-          <div class="mc-stat"><strong>+32,3 M</strong>Résultat T2</div>
+          <div class="mc-stat"><strong>—</strong>Résultat T2</div>
           <div class="mc-stat"><strong>100%</strong>Ventilé</div>
         </div>
       </div>
@@ -461,7 +461,7 @@
       </div>
       <div class="module-card-body">
         <div class="mc-stats">
-          <div class="mc-stat"><strong>160 M</strong>Solde global FCFA</div>
+          <div class="mc-stat"><strong>—</strong>Solde global FCFA</div>
           <div class="mc-stat"><strong>4</strong>Comptes bancaires</div>
           <div class="mc-stat"><strong>0</strong>Alertes</div>
         </div>
@@ -516,7 +516,7 @@
       <div class="module-card-body">
         <div class="mc-stats">
           <div class="mc-stat"><strong>12</strong>Agents actifs</div>
-          <div class="mc-stat"><strong>6,42 M</strong>Masse salariale</div>
+          <div class="mc-stat"><strong>6,— M</strong>Masse salariale</div>
           <div class="mc-stat" style="color:var(--orange)"><strong style="color:var(--orange)">1</strong>Contrat à renouveler</div>
         </div>
       </div>
@@ -648,24 +648,14 @@ updateDateTime();setInterval(updateDateTime,30000);
 
 // ── Alertes ───────────────────────────────────────────────────────────────────
 const alertes=[
-  {type:'red',icon:'🚨',txt:'Rupture de gants chirurgicaux stériles au BO',link:'bloc_operatoire.html'},
-  {type:'warn',icon:'⚠️',txt:'1 valeur biologique critique non notifiée',link:'laboratoire.html'},
-  {type:'warn',icon:'⚠️',txt:'5 dossiers à coder/facturer avant fin de mois',link:'tableaux_de_bord.html'},
-  {type:'green',icon:'✅',txt:'Trésorerie stable — 160 M FCFA disponibles',link:'tresorerie.html'},
+  // (données démo supprimées)
 ];
 document.getElementById('alertes-band').innerHTML=alertes.map(a=>`
   <div class="alert-pill ${a.type}" onclick="window.location='${a.link}'">${a.icon} ${a.txt}</div>`).join('');
 
 // ── Feed activité ──────────────────────────────────────────────────────────────
 const FEED=[
-  {icon:'🧾',bg:'var(--accent-light)',title:'Facture FAC-2025-0042 payée',detail:'MARTIN Jean — 160 000 FCFA',time:'Il y a 5 min',badge:'Payée',bc:'badge-ok'},
-  {icon:'🔬',bg:'var(--green-bg)',title:'Résultats validés — BIO-2025-0841',detail:'KONÉ Aminata — NFS + Biochimie transmis DPI',time:'Il y a 12 min',badge:'Validé',bc:'badge-ok'},
-  {icon:'🏥',bg:'var(--purple-bg)',title:'Intervention OP-2025-0842 en cours',detail:'TRAORÉ Moussa — PTH — Dr. KONÉ — Salle 2',time:'Il y a 18 min',badge:'En cours',bc:'badge-info'},
-  {icon:'⚠️',bg:'var(--red-bg)',title:'Valeur critique détectée — K+ 6,8 mmol/L',detail:'OUATTARA Seydou — Notification requise',time:'Il y a 22 min',badge:'Critique',bc:'badge-red'},
-  {icon:'💊',bg:'var(--teal-bg)',title:'Mouvement stock PUI enregistré',detail:'Amoxicilline 500mg — Entrée 1000 unités',time:'Il y a 35 min',badge:'Stock',bc:'badge-ok'},
-  {icon:'💰',bg:'var(--green-bg)',title:'Dotation mensuelle reçue',detail:'Ministère Santé — 65 000 000 FCFA — BGFIBANK',time:'Il y a 1h',badge:'Encaissement',bc:'badge-ok'},
-  {icon:'📊',bg:'var(--accent-light)',title:'Écriture comptable validée',detail:'OD-2025-06 — Dotation amortissements 3,2 M FCFA',time:'Il y a 2h',badge:'SYSCOHADA',bc:'badge-info'},
-  {icon:'🔒',bg:'var(--purple-bg)',title:'Stupéfiant dispensé — Registre signé',detail:'Morphine 10mg × 2 — OUATTARA Seydou — Chir.',time:'Il y a 2h30',badge:'Double comptage',bc:'badge-info'},
+  // (données démo supprimées)
 ];
 document.getElementById('feed-container').innerHTML=FEED.map(f=>`
   <div class="feed-item">
@@ -724,12 +714,7 @@ renderCalendar();
 
 // ── Poles chart ────────────────────────────────────────────────────────────────
 const POLES=[
-  {p:'Médecine',prod:52000000,ch:48500000,c:'#1a4b6e'},
-  {p:'Chirurgie',prod:94500000,ch:86200000,c:'#c8702a'},
-  {p:'Maternité',prod:38200000,ch:32100000,c:'#1e7a4e'},
-  {p:'Pharmacie',prod:31500000,ch:28400000,c:'#6b21a8'},
-  {p:'Laboratoire',prod:22800000,ch:19600000,c:'#0f766e'},
-  {p:'Urgences',prod:14200000,ch:15300000,c:'#b92b2b'},
+  // (données démo supprimées)
 ];
 const maxPP=Math.max(...POLES.map(p=>p.prod));
 document.getElementById('poles-chart').innerHTML=POLES.map(p=>{
@@ -754,15 +739,7 @@ document.getElementById('poles-chart').innerHTML=POLES.map(p=>{
 
 // ── Indicateurs clés ──────────────────────────────────────────────────────────
 const INDICS=[
-  {l:'Résultat analytique T2',v:'+32,3 M FCFA',ok:true,icon:'💰'},
-  {l:'Taux d\'occupation lits',v:'72%',ok:true,icon:'🏥'},
-  {l:'Durée moy. séjour (DMS)',v:'4,1 jours',ok:true,icon:'📅'},
-  {l:'Satisfaction patients',v:'82%',ok:true,icon:'⭐'},
-  {l:'Taux de codage des actes',v:'91,4%',ok:true,icon:'📋'},
-  {l:'CQI laboratoire conformes',v:'94%',ok:true,icon:'🔬'},
-  {l:'Traçabilité DMI bloc',v:'100%',ok:true,icon:'🏗️'},
-  {l:'Ruptures stock PUI',v:'2 produits',ok:false,icon:'💊'},
-  {l:'Taux occupation bloc BO',v:'65%',ok:false,icon:'🏥'},
+  // (données démo supprimées)
 ];
 document.getElementById('indicateurs-cles').innerHTML=INDICS.map(i=>`
   <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 18px;border-bottom:1px solid var(--border)">

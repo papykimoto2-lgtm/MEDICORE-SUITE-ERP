@@ -827,7 +827,7 @@ function renderConges(){
   document.getElementById('cg-att').textContent=att;
   document.getElementById('cg-encours').textContent=enCours;
   document.getElementById('cg-jours').textContent=joursTotal;
-  document.getElementById('cg-solde').textContent='18 j';
+  document.getElementById('cg-solde').textContent='—';
 
   // Planning visuel
   const COLS=30;const cols='80px '+Array(COLS).fill('1fr').join(' ');
@@ -887,10 +887,10 @@ function validerDemandeConge(id,statut){
 
 // ── GTA ────────────────────────────────────────────────────────────────────────
 function renderGTA(){
-  document.getElementById('gta-pres').textContent='92%';
-  document.getElementById('gta-hsup').textContent='148 h';
-  document.getElementById('gta-gardes').textContent='24';
-  document.getElementById('gta-astreintes').textContent='18';
+  document.getElementById('gta-pres').textContent='—';
+  document.getElementById('gta-hsup').textContent='—';
+  document.getElementById('gta-gardes').textContent='—';
+  document.getElementById('gta-astreintes').textContent='—';
 
   document.getElementById('gta-agent-liste').innerHTML=personnel.filter(p=>p.statut==='Actif').map(p=>`
     <div onclick="showGTADetail('${p.mat}')" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;margin-bottom:6px;cursor:pointer;background:var(--surface);transition:all .15s;display:flex;align-items:center;gap:10px"
