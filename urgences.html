@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Urgences & Triage</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;--accent2:#c8702a;
+    --green:#1e7a4e;--green-bg:#e8f5ef;--orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;--purple:#6b21a8;--purple-bg:#f3e8ff;
+    --text:#1c1c1c;--text-muted:#6b6b6b;--radius:8px;
+    --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);
+    /* Niveaux de triage (CIMU 1-5) */
+    --n1:#b92b2b;--n2:#e8702a;--n3:#d4a017;--n4:#1e7a4e;--n5:#3b82a6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:240px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;padding:24px 32px;overflow-y:auto}
+  .btn{border:none;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary{background:var(--accent);color:#fff}.btn-danger{background:var(--red);color:#fff}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-sm{padding:6px 11px;font-size:12px}.btn-xs{padding:4px 8px;font-size:11px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .kpi-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-size:26px;font-weight:600;margin-top:4px}
+  .tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:18px}
+  .tab-btn{padding:9px 16px;border:none;background:none;cursor:pointer;font-size:13.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  .tab-panel{display:none}.tab-panel.active{display:block}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px}
+  .card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:600;font-size:15px}.card-sub{font-size:12px;color:var(--text-muted)}
+  .card-body{padding:16px 18px}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);border-bottom:2px solid var(--border)}
+  td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+  .niv{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;color:#fff;font-weight:700;font-size:13px}
+  .niv-bar{display:inline-block;width:4px;height:34px;border-radius:2px;vertical-align:middle;margin-right:8px}
+  .badge{display:inline-block;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:600}
+  .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal{background:var(--surface);border-radius:12px;width:560px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow)}
+  .modal-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--accent)}
+  .modal-close{border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-muted)}
+  .modal-body{padding:18px 22px}.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+  .fg{margin-bottom:12px}.fg label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px}
+  .fg input,.fg select,.fg textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .niv-pick{display:flex;gap:6px;flex-wrap:wrap}
+  .niv-opt{flex:1;min-width:90px;border:2px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;text-align:center;font-size:12px}
+  .niv-opt.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-light)}
+  .bay{border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px;min-height:90px}
+  .bay.occ{border-left:4px solid var(--red);background:var(--red-bg)}
+  .bay.libre{border-left:4px solid var(--green);background:var(--green-bg)}
+  .toast-wrap{position:fixed;bottom:80px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:8px}
+  .toast{padding:11px 16px;border-radius:8px;color:#fff;font-size:13px;box-shadow:var(--shadow);max-width:340px}
+  .toast.success{background:var(--green)}.toast.error{background:var(--red)}.toast.info{background:var(--accent)}.toast.warn{background:var(--orange)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"><!-- nav.js --></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Urgences & Triage 🚑</h1>
+        <p>Triage CIMU · File priorisée · Salle de déchocage · Surveillance continue</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary" onclick="scannerUrg()">📷 Scanner patient</button>
+        <button class="btn btn-primary" onclick="ouvrirTriage()">＋ Nouveau passage</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="kpi-grid" id="kpis"></div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('file',this)">🚦 File de triage</button>
+        <button class="tab-btn" onclick="switchTab('dechocage',this)">🛏 Déchocage</button>
+        <button class="tab-btn" onclick="switchTab('surveillance',this)">📈 Surveillance</button>
+      </div>
+      <div id="tab-file" class="tab-panel active"></div>
+      <div id="tab-dechocage" class="tab-panel"></div>
+      <div id="tab-surveillance" class="tab-panel"></div>
+    </div>
+  </div>
+</div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="qr.js"></script>
+<script src="medicore-audit.js"></script>
+<script src="medicore-rbac.js"></script>
+<script src="medicore-session.js"></script>
+<script src="nav.js"></script>
+<script src="medicore-parcours.js"></script>
+<script src="medicore-parcours-ui.js"></script>
+<script src="medicore-prestations.js"></script>
+<script src="medicore-caisse.js"></script>
+<script>
+// ══ Niveaux de triage CIMU (5 niveaux) ══════════════════════════════════════════
+const NIVEAUX={
+  1:{label:'Réanimation immédiate', couleur:'var(--n1)', delai:0,  hex:'#b92b2b'},
+  2:{label:'Très urgent',           couleur:'var(--n2)', delai:20, hex:'#e8702a'},
+  3:{label:'Urgent',                couleur:'var(--n3)', delai:60, hex:'#d4a017'},
+  4:{label:'Peu urgent',            couleur:'var(--n4)', delai:120,hex:'#1e7a4e'},
+  5:{label:'Non urgent',            couleur:'var(--n5)', delai:240,hex:'#3b82a6'},
+};
+const NB_BOX_DECHOC=4;   // nombre de places en salle de déchocage
+
+let episodes=[];   // store 'urgences'
+
+function load(){
+  if(typeof MEDICORE_STORE!=='undefined') episodes=MEDICORE_STORE.load('urgences',[]);
+  else { try{ episodes=JSON.parse(localStorage.getItem('medicore_urgences')||'[]'); episodes=Array.isArray(episodes)?episodes:(episodes.d||[]); }catch(e){ episodes=[]; } }
+}
+function save(){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('urgences',episodes,true);
+  else localStorage.setItem('medicore_urgences',JSON.stringify({_v:1,_ts:Date.now(),d:episodes})); }
+function uid(){ return 'URG'+Date.now().toString(36)+Math.random().toString(36).slice(2,4); }
+function now(){ return new Date().toISOString(); }
+function soignant(){ try{ return (JSON.parse(sessionStorage.getItem('medicore_user')||'{}').nom)||'Infirmier tri'; }catch(e){ return 'Infirmier tri'; } }
+function attenteMin(e){ return Math.round((Date.now()-new Date(e.arrivee).getTime())/60000); }
+
+// ── Triage automatique suggéré depuis les signes vitaux ─────────────────────────
+function suggererNiveau(s){
+  const spo2=+s.spo2, fc=+s.fc, ta=parseInt(s.ta), t=+s.t, gcs=+s.gcs;
+  if((spo2&&spo2<90)||(fc&&(fc>140||fc<40))||(gcs&&gcs<=8)||(ta&&ta<80)) return 1;
+  if((spo2&&spo2<94)||(fc&&fc>120)||(t&&t>=40)||(ta&&ta>=200)||(gcs&&gcs<=13)) return 2;
+  if((t&&t>=39)||(fc&&fc>100)||(ta&&ta>=160)) return 3;
+  if(s.eva&&+s.eva>=4) return 4;
+  return 5;
+}
+
+// ══ KPIs ════════════════════════════════════════════════════════════════════════
+function renderKPIs(){
+  const enFile=episodes.filter(e=>e.statut==='attente');
+  const dechoc=episodes.filter(e=>e.statut==='dechocage');
+  const surv=episodes.filter(e=>e.statut==='surveillance'||e.statut==='soins');
+  const n12=enFile.filter(e=>e.niveau<=2).length;
+  const att=enFile.length?Math.round(enFile.reduce((s,e)=>s+attenteMin(e),0)/enFile.length):0;
+  const k=[
+    {l:'En file d\'attente',v:enFile.length,c:'blue'},
+    {l:'Niveaux 1-2 (critiques)',v:n12,c:'red'},
+    {l:'En déchocage',v:dechoc.length+' / '+NB_BOX_DECHOC,c:'red'},
+    {l:'En surveillance',v:surv.length,c:'green'},
+    {l:'Attente moy. (min)',v:att,c:'blue'},
+  ];
+  document.getElementById('kpis').innerHTML=k.map(x=>`<div class="kpi-card ${x.c}"><div class="kpi-label">${x.l}</div><div class="kpi-value">${x.v}</div></div>`).join('');
+}
+
+// ══ FILE DE TRIAGE (priorisée) ══════════════════════════════════════════════════
+function renderFile(){
+  const file=episodes.filter(e=>e.statut==='attente')
+    .sort((a,b)=> a.niveau-b.niveau || new Date(a.arrivee)-new Date(b.arrivee));
+  const rows=file.length?file.map(e=>{
+    const n=NIVEAUX[e.niveau]; const att=attenteMin(e); const retard=att>n.delai;
+    return `<tr>
+      <td><span class="niv-bar" style="background:${n.hex}"></span></td>
+      <td><span class="niv" style="background:${n.hex}">${e.niveau}</span></td>
+      <td><strong>${e.nom}</strong>${e.ipp?`<div style="font-size:11px;color:var(--text-muted)">${e.ipp}</div>`:''}</td>
+      <td>${e.motif||'—'}</td>
+      <td>${e.signes?`<span style="font-size:11.5px">TA ${e.signes.ta||'—'} · FC ${e.signes.fc||'—'} · SpO₂ ${e.signes.spo2||'—'}%</span>`:'—'}</td>
+      <td><span style="color:${retard?'var(--red)':'var(--text-muted)'};font-weight:${retard?'600':'400'}">${att} min${retard?' ⚠':''}</span><div style="font-size:10.5px;color:var(--text-muted)">cible ≤ ${n.delai} min</div></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-danger btn-xs" onclick="versDechocage('${e.id}')">🛏 Déchocage</button>
+        <button class="btn btn-secondary btn-xs" onclick="prendreEnSoins('${e.id}')">▶ Soins</button>
+        <button class="btn btn-secondary btn-xs" onclick="ouvrirReeval('${e.id}')">✎</button>
+      </td></tr>`;
+  }).join(''):`<tr><td colspan="7" style="text-align:center;padding:26px;color:var(--text-muted)">Aucun patient en file d'attente.</td></tr>`;
+  document.getElementById('tab-file').innerHTML=`
+    <div class="card"><div class="card-head"><div><div class="card-title">File de triage — priorité décroissante</div>
+      <div class="card-sub">Tri automatique par niveau CIMU puis ancienneté</div></div>
+      <div style="display:flex;gap:6px;font-size:11px">${Object.entries(NIVEAUX).map(([n,v])=>`<span class="badge" style="background:${v.hex};color:#fff">${n} ${v.label}</span>`).join('')}</div></div>
+    <div class="card-body" style="padding:0"><table>
+      <thead><tr><th></th><th>Niv.</th><th>Patient</th><th>Motif</th><th>Signes</th><th>Attente</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div></div>`;
+}
+
+// ══ DÉCHOCAGE (places limitées) ═════════════════════════════════════════════════
+function renderDechocage(){
+  const occ=episodes.filter(e=>e.statut==='dechocage');
+  const boxes=[];
+  for(let i=0;i<NB_BOX_DECHOC;i++){
+    const e=occ[i];
+    boxes.push(e?`<div class="bay occ">
+        <div style="display:flex;justify-content:space-between;align-items:center"><strong>Box ${i+1}</strong><span class="niv" style="background:${NIVEAUX[e.niveau].hex}">${e.niveau}</span></div>
+        <div style="font-size:13px;font-weight:600">${e.nom}</div>
+        <div style="font-size:11.5px;color:var(--text-muted)">${e.motif||''}</div>
+        <div style="display:flex;gap:5px;margin-top:auto">
+          <button class="btn btn-secondary btn-xs" onclick="ouvrirReeval('${e.id}')">＋ Relevé</button>
+          <button class="btn btn-secondary btn-xs" onclick="versSurveillance('${e.id}')">→ Surveillance</button>
+          <button class="btn btn-secondary btn-xs" onclick="libererDechoc('${e.id}')">Libérer</button>
+        </div></div>`
+      :`<div class="bay libre"><strong>Box ${i+1}</strong><div style="font-size:12px;color:var(--green);margin-top:auto">● Libre</div></div>`);
+  }
+  document.getElementById('tab-dechocage').innerHTML=`
+    <div class="card"><div class="card-head"><div class="card-title">Salle de déchocage</div>
+      <div class="card-sub">${occ.length}/${NB_BOX_DECHOC} box occupés</div></div>
+    <div class="card-body"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">${boxes.join('')}</div></div></div>`;
+}
+
+// ══ SURVEILLANCE (relevés répétés + tendance) ═══════════════════════════════════
+function renderSurveillance(){
+  const liste=episodes.filter(e=>e.statut==='surveillance'||e.statut==='soins'||e.statut==='dechocage');
+  const cards=liste.length?liste.map(e=>{
+    const r=(e.reeval||[]);
+    const last=r[r.length-1];
+    const alerte=last && (last.spo2<92 || last.fc>130 || parseInt(last.ta)>=180 || last.t>=39.5);
+    return `<div class="card" style="border-left:4px solid ${alerte?'var(--red)':'var(--green)'}">
+      <div class="card-head"><div><div class="card-title">${e.nom} <span class="niv" style="background:${NIVEAUX[e.niveau].hex}">${e.niveau}</span></div>
+        <div class="card-sub">${e.motif||''} · ${e.statut}</div></div>
+        <div><button class="btn btn-primary btn-sm" onclick="ouvrirReeval('${e.id}')">＋ Relevé</button>
+          ${alerte?'<span class="badge" style="background:var(--red-bg);color:var(--red);margin-left:6px">⚠ Dégradation</span>':''}</div></div>
+      <div class="card-body" style="padding:0">
+        ${r.length?`<table><thead><tr><th>Heure</th><th>TA</th><th>FC</th><th>FR</th><th>T°</th><th>SpO₂</th><th>EVA</th><th>GCS</th><th>Par</th></tr></thead><tbody>
+          ${r.slice().reverse().map(x=>`<tr><td>${new Date(x.ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</td><td>${x.ta||'—'}</td><td>${x.fc||'—'}</td><td>${x.fr||'—'}</td><td>${x.t||'—'}</td><td style="${x.spo2<92?'color:var(--red);font-weight:600':''}">${x.spo2||'—'}%</td><td>${x.eva||'—'}</td><td>${x.gcs||'—'}</td><td style="font-size:11px;color:var(--text-muted)">${x.par||''}</td></tr>`).join('')}
+        </tbody></table>`:'<div style="padding:16px;color:var(--text-muted);font-size:13px">Aucun relevé. Ajoutez le premier.</div>'}
+      </div>
+      <div class="card-body" style="display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn btn-secondary btn-sm" onclick="orienter('${e.id}')">↪ Orienter (hospit./sortie)</button>
+      </div></div>`;
+  }).join(''):`<div class="card"><div class="card-body" style="text-align:center;color:var(--text-muted)">Aucun patient en surveillance.</div></div>`;
+  document.getElementById('tab-surveillance').innerHTML=cards;
+}
+
+// ══ ACTIONS ═══════════════════════════════════════════════════════════════════════
+function rerender(){ renderKPIs(); renderFile(); renderDechocage(); renderSurveillance(); }
+function maj(id,patch){ const e=episodes.find(x=>x.id===id); if(e){ Object.assign(e,patch); save(); rerender(); } return e; }
+function versDechocage(id){
+  if(episodes.filter(e=>e.statut==='dechocage').length>=NB_BOX_DECHOC){ toast('Déchocage complet ('+NB_BOX_DECHOC+' box).','error'); return; }
+  maj(id,{statut:'dechocage'}); toast('Patient admis en déchocage.','success');
+}
+function libererDechoc(id){ maj(id,{statut:'surveillance'}); toast('Box libéré — patient en surveillance.','info'); }
+function prendreEnSoins(id){ maj(id,{statut:'soins'}); toast('Patient pris en charge.','success'); }
+function versSurveillance(id){ maj(id,{statut:'surveillance'}); toast('Patient en surveillance.','info'); }
+function orienter(id){
+  const e=episodes.find(x=>x.id===id); if(!e) return;
+  const choix=prompt('Orientation : hospitalisation, sortie, transfert ?','hospitalisation');
+  if(!choix) return;
+  maj(id,{statut: /sort/i.test(choix)?'sorti':(/transf/i.test(choix)?'transfert':'hospitalisé'), orientation:choix, fin:now()});
+  // Prestation facturable du passage aux urgences
+  if(typeof MEDICORE_PRESTA!=='undefined' && e.patientId) MEDICORE_PRESTA.ajouter({
+    patientId:e.patientId, patient_nom:e.nom, module:'facturation', libelle:'Passage aux urgences (niveau '+e.niveau+')', code:'URG', montant:15000, ref:e.id });
+  toast('Patient orienté : '+choix+'.','success');
+}
+
+// ── Nouveau passage / triage ───────────────────────────────────────────────────
+function ouvrirTriage(prefill){
+  prefill=prefill||{};
+  const ov=document.createElement('div'); ov.className='modal-ov'; ov.id='m-triage';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal"><div class="modal-header"><div class="modal-title">Triage — nouveau passage</div>
+    <button class="modal-close" onclick="document.getElementById('m-triage').remove()">✕</button></div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="fg"><label>Nom du patient *</label><input id="t-nom" value="${prefill.nom||''}"></div>
+        <div class="fg"><label>IPP / Dossier</label><input id="t-ipp" value="${prefill.ipp||''}"></div>
+      </div>
+      <div class="fg"><label>Motif de recours *</label><input id="t-motif" placeholder="ex : douleur thoracique, traumatisme…"></div>
+      <div class="grid3">
+        <div class="fg"><label>TA (mmHg)</label><input id="t-ta" placeholder="120/80"></div>
+        <div class="fg"><label>FC (bpm)</label><input id="t-fc" type="number"></div>
+        <div class="fg"><label>FR (/min)</label><input id="t-fr" type="number"></div>
+        <div class="fg"><label>Température (°C)</label><input id="t-t" type="number" step="0.1"></div>
+        <div class="fg"><label>SpO₂ (%)</label><input id="t-spo2" type="number"></div>
+        <div class="fg"><label>Glycémie (g/L)</label><input id="t-gly" type="number" step="0.01"></div>
+        <div class="fg"><label>EVA douleur (0-10)</label><input id="t-eva" type="number" min="0" max="10"></div>
+        <div class="fg"><label>Glasgow (3-15)</label><input id="t-gcs" type="number" min="3" max="15"></div>
+        <div class="fg"><label>&nbsp;</label><button class="btn btn-secondary" style="width:100%" onclick="autoNiveau()">⚙ Suggérer niveau</button></div>
+      </div>
+      <div class="fg"><label>Niveau de triage (CIMU) *</label>
+        <div class="niv-pick" id="t-niv">${Object.entries(NIVEAUX).map(([n,v])=>`<div class="niv-opt" data-n="${n}" onclick="pickNiveau(${n})"><span class="niv" style="background:${v.hex}">${n}</span><div style="margin-top:4px">${v.label}</div><div style="font-size:10.5px;color:var(--text-muted)">≤ ${v.delai} min</div></div>`).join('')}</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('m-triage').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerTriage()">Enregistrer le triage</button></div></div>`;
+  document.body.appendChild(ov);
+}
+let niveauSel=null;
+function pickNiveau(n){ niveauSel=n; document.querySelectorAll('#t-niv .niv-opt').forEach(o=>o.classList.toggle('sel',+o.dataset.n===n)); }
+function signesForm(){ const g=id=>document.getElementById(id).value;
+  return {ta:g('t-ta'),fc:g('t-fc'),fr:g('t-fr'),t:g('t-t'),spo2:g('t-spo2'),glycemie:g('t-gly'),eva:g('t-eva'),gcs:g('t-gcs')}; }
+function autoNiveau(){ const n=suggererNiveau(signesForm()); pickNiveau(n); toast('Niveau suggéré : '+n+' — '+NIVEAUX[n].label+' (modifiable).','info'); }
+function validerTriage(){
+  const nom=document.getElementById('t-nom').value.trim();
+  const motif=document.getElementById('t-motif').value.trim();
+  if(!nom){ toast('Nom requis.','error'); return; }
+  if(!motif){ toast('Motif requis.','error'); return; }
+  if(!niveauSel){ toast('Sélectionnez le niveau de triage.','error'); return; }
+  const ep={ id:uid(), patientId:document.getElementById('t-ipp').value.trim()||null,
+    nom, ipp:document.getElementById('t-ipp').value.trim(), motif, niveau:+niveauSel,
+    signes:signesForm(), statut:'attente', arrivee:now(), soignant:soignant(), reeval:[] };
+  // premier relevé = signes du triage
+  ep.reeval.push(Object.assign({ts:now(),par:ep.soignant}, ep.signes));
+  episodes.unshift(ep); save(); rerender();
+  document.getElementById('m-triage').remove();
+  niveauSel=null;
+  if(ep.niveau<=2) toast('⚠ Niveau '+ep.niveau+' — prise en charge immédiate requise !','error');
+  else toast('Patient enregistré au triage (niveau '+ep.niveau+').','success');
+}
+
+// ── Réévaluation (relevé de surveillance) ───────────────────────────────────────
+function ouvrirReeval(id){
+  const e=episodes.find(x=>x.id===id); if(!e) return;
+  const ov=document.createElement('div'); ov.className='modal-ov'; ov.id='m-reeval';
+  ov.onclick=ev=>{ if(ev.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:480px"><div class="modal-header"><div class="modal-title">Relevé — ${e.nom}</div>
+    <button class="modal-close" onclick="document.getElementById('m-reeval').remove()">✕</button></div>
+    <div class="modal-body"><div class="grid3">
+      <div class="fg"><label>TA</label><input id="r-ta" value="${e.signes?.ta||''}"></div>
+      <div class="fg"><label>FC</label><input id="r-fc" type="number"></div>
+      <div class="fg"><label>FR</label><input id="r-fr" type="number"></div>
+      <div class="fg"><label>T°</label><input id="r-t" type="number" step="0.1"></div>
+      <div class="fg"><label>SpO₂</label><input id="r-spo2" type="number"></div>
+      <div class="fg"><label>EVA</label><input id="r-eva" type="number" min="0" max="10"></div>
+      <div class="fg"><label>Glasgow</label><input id="r-gcs" type="number" min="3" max="15"></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('m-reeval').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerReeval('${id}')">Enregistrer</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function validerReeval(id){
+  const g=x=>document.getElementById(x).value;
+  const r={ts:now(),par:soignant(),ta:g('r-ta'),fc:g('r-fc'),fr:g('r-fr'),t:g('r-t'),spo2:g('r-spo2'),eva:g('r-eva'),gcs:g('r-gcs')};
+  const e=episodes.find(x=>x.id===id); if(!e) return;
+  e.reeval=e.reeval||[]; e.reeval.push(r); save(); rerender();
+  document.getElementById('m-reeval').remove();
+  if(r.spo2&&+r.spo2<92) toast('⚠ SpO₂ '+r.spo2+'% — dégradation, alerter le médecin.','error');
+  else toast('Relevé enregistré.','success');
+}
+
+// ── Scan patient connu → pré-remplit le triage ──────────────────────────────────
+function scannerUrg(){
+  if(typeof MEDICORE_SCAN==='undefined' || !MEDICORE_SCAN.open){ toast('Scanner indisponible.','warn'); ouvrirTriage(); return; }
+  MEDICORE_SCAN.open(function(data){
+    const p=(typeof MEDICORE_SCAN.parse==='function')?MEDICORE_SCAN.parse(data):null;
+    ouvrirTriage(p?{nom:p.nom,ipp:p.ipp||p.patient}:{});
+  });
+}
+
+function toast(msg,type){
+  const w=document.getElementById('toast-wrap'); const t=document.createElement('div');
+  t.className='toast '+(type||'info'); t.textContent=msg; w.appendChild(t);
+  setTimeout(()=>t.remove(),4200);
+}
+function switchTab(tab,el){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active'); document.getElementById('tab-'+tab).classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  if(typeof initNav==='function') initNav('urgences','Urgences & Triage','Accueil & orientation',['Parcours patient','Urgences']);
+  load(); rerender();
+  setInterval(renderKPIs, 30000);   // rafraîchit les compteurs d'attente
+});
+</script>
+<script src="medicore-secure.js"></script>
+</body>
+</html>

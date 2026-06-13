@@ -20,6 +20,8 @@ const MEDICORE_SYNC = {
     { store:'demandes',              label:'Demandes inter-modules' },
     { store:'prestations',           label:'Prestations facturables' },
     { store:'caisse',                label:'Caisse / encaissements'  },
+    { store:'urgences',              label:'Urgences / triage'     },
+    { store:'audit',                 label:'Journal d\'audit'        },
     { store:'connexions',            label:'Historique connexions'  },
     { store:'patients',              label:'Patients (DPI)'        },
     { store:'constantes',            label:'Constantes vitales', kind:'doc' },

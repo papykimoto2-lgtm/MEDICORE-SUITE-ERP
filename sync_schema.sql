@@ -110,3 +110,11 @@ select doc_id, payload->>'service' as service, payload->>'service_label' as cais
        payload->>'compte_debit' as compte_debit, payload->>'compte_credit' as compte_credit,
        payload->>'date' as date_enc, updated_at
 from public.medicore_sync_docs where store='caisse' and not deleted;
+
+-- Urgences / triage
+create or replace view public.v_urgences as
+select doc_id, payload->>'nom' as patient, payload->>'ipp' as ipp, payload->>'motif' as motif,
+       (payload->>'niveau')::int as niveau_triage, payload->>'statut' as statut,
+       payload->>'arrivee' as arrivee, payload->>'orientation' as orientation,
+       payload->>'soignant' as soignant, updated_at
+from public.medicore_sync_docs where store='urgences' and not deleted;

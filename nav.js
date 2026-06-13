@@ -17,6 +17,7 @@ const MEDICORE_NAV = {
       groupe: '1 · Parcours patient',
       icon: '⚕️',
       items: [
+        { id: 'urgences',        label: 'Urgences & Triage',     icon: '🚑', file: 'urgences.html',        syscohada: '706/411',     statut: 'actif',  alertes: 0, etape: 'Accueil' },
         { id: 'dpi',             label: 'Dossier Patient (DPI)', icon: '📋', file: 'dpi.html',             syscohada: '411/706',     statut: 'actif',  alertes: 0, etape: 'Admission' },
         { id: 'laboratoire',     label: 'Laboratoire',           icon: '🔬', file: 'laboratoire.html',     syscohada: '706/411',     statut: 'actif', alertes: 0, etape: 'Examens' },
         { id: 'imagerie',        label: 'Imagerie Médicale',     icon: '🩻', file: 'imagerie.html',        syscohada: '706/PACS',    statut: 'actif',  alertes: 0, etape: 'Examens' },
@@ -574,8 +575,9 @@ const MEDICORE_PATIENT = {
     if(!p.ipp) p.ipp = ippFromDossier(p.id || p.dossier || '');
     try { localStorage.setItem(this.KEY, JSON.stringify(p)); } catch(e){}
     this.renderChip();
+    try { document.dispatchEvent(new CustomEvent('medicore-patient-change',{detail:p})); } catch(e){}
   },
-  clear(){ try { localStorage.removeItem(this.KEY); } catch(e){} this.renderChip(); },
+  clear(){ try { localStorage.removeItem(this.KEY); } catch(e){} this.renderChip(); try { document.dispatchEvent(new CustomEvent('medicore-patient-change')); } catch(e){} },
 
   // Scan universel du bracelet / fiche d'entrée → définit le patient actif
   scan(){

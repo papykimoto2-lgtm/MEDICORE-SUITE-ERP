@@ -7,6 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-audit.js"></script>
+<script src="medicore-rbac.js"></script>
+<script src="medicore-session.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -229,7 +232,7 @@ const DEFAULT_TARIFS      = JSON.parse(JSON.stringify(TARIFS));
 const DEFAULT_FOURNISSEURS= JSON.parse(JSON.stringify(FOURNISSEURS));
 
 const MODULES_PERM = ['Facturation','Comptabilité','Pharmacie','Laboratoire','Bloc','DPI','RH','Paramétrage'];
-const ROLES_PERM = ['Administrateur','Médecin','Pharmacien','DAF'];
+const ROLES_PERM = ['Administrateur','Direction','Médecin','Infirmier','Pharmacien','Laborantin','Caissier','Comptable','RH','Archiviste'];
 let PERMISSIONS = {
   'Administrateur': {Facturation:1,'Comptabilité':1,Pharmacie:1,Laboratoire:1,Bloc:1,DPI:1,RH:1,'Paramétrage':1},
   'Médecin':       {Facturation:1,'Comptabilité':0,Pharmacie:0,Laboratoire:1,Bloc:1,DPI:1,RH:0,'Paramétrage':0},
@@ -352,6 +355,9 @@ function renderBody(){
     <div class="card"><div class="card-head"><div><h3>Historique de connexion</h3><div class="sub">200 derniers événements · succès et échecs</div></div>
       <button class="btn btn-secondary btn-sm" onclick="viderHistoConnexion()">Purger</button></div>
       <div class="card-body" style="padding:0">${renderHistoConnexion()}</div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Journal d'audit</h3><div class="sub">Connexions · consultations · modifications · suppressions</div></div></div>
+      <div class="card-body" style="padding:0">${typeof MEDICORE_AUDIT!=='undefined'?MEDICORE_AUDIT.renderTable(200):'<div style="padding:20px;color:var(--text-muted)">Module audit non chargé.</div>'}</div></div>
 
     <div class="card"><div class="card-head"><div><h3>Matrice des permissions</h3><div class="sub">Accès module par rôle — cochez pour autoriser</div></div></div>
       <div class="card-body" style="padding:0"><table class="matrix"><thead><tr><th>Rôle</th>${MODULES_PERM.map(m=>`<th>${m}</th>`).join('')}</tr></thead>
@@ -645,7 +651,7 @@ function formModal(titre, champs, onOk){
 function addUser(){ formModal('Nouvel utilisateur',[
     {key:'login',label:'Identifiant',required:true,placeholder:'j.kessie'},
     {key:'nom',label:'Nom complet',placeholder:'KESSIE Jean'},
-    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Médecin','Pharmacien','DAF','Infirmier','Laborantin'],value:'Médecin'}
+    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Direction','Médecin','Infirmier','Pharmacien','Laborantin','Caissier','Comptable','RH','Archiviste'],value:'Médecin'}
   ], v=>{ USERS.push({login:v.login,nom:v.nom||v.login,role:v.role,twofa:false,actif:true}); persist(); renderBody(); toast('Utilisateur ajouté.','success'); }); }
 function removeUser(i){
   if(USERS[i].login==='admin'){ toast('Le compte admin ne peut pas être supprimé.','error'); return; }
@@ -656,7 +662,7 @@ function editUser(i){
   formModal('Modifier l\'utilisateur',[
     {key:'login',label:'Identifiant',required:true,value:u.login},
     {key:'nom',label:'Nom complet',value:u.nom},
-    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Administrateur SI','Médecin','Pharmacien','DAF','Infirmier','Laborantin'],value:u.role},
+    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Direction','Médecin','Infirmier','Pharmacien','Laborantin','Caissier','Comptable','RH','Archiviste'],value:u.role},
     {key:'twofa',label:'Authentification 2FA',type:'select',options:['Activée','Désactivée'],value:u.twofa?'Activée':'Désactivée'},
     {key:'actif',label:'Statut',type:'select',options:['Actif','Inactif'],value:u.actif?'Actif':'Inactif'}
   ], v=>{
@@ -1176,5 +1182,6 @@ document.addEventListener('DOMContentLoaded',function(){
   loadConfig(); renderNav(); renderBody();
 });
 </script>
+<script src="medicore-secure.js"></script>
 </body>
 </html>

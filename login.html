@@ -348,6 +348,9 @@
   <div class="loading-text" id="loading-text">Authentification en cours…</div>
 </div>
 
+<script src="medicore-audit.js"></script>
+<script src="medicore-rbac.js"></script>
+<script src="medicore-session.js"></script>
 <script>
 // ── Comptes de démonstration ───────────────────────────────────────────────────
 const COMPTES = {
@@ -470,7 +473,7 @@ function submitLogin(){
   btn.disabled=true;
 
   setTimeout(()=>{
-    if(compte.require2FA){
+    if(compte.require2FA || (typeof MEDICORE_RBAC!=='undefined' && MEDICORE_RBAC.needs2FA(compte.role))){
       btn.disabled=false;
       document.getElementById('btn-text').style.display='block';
       document.getElementById('btn-spinner').style.display='none';
@@ -556,8 +559,10 @@ function doLogin(){
       document.getElementById('loading-text').textContent=msgs[step];
     } else {
       clearInterval(interval);
-      // Stocker session
-      sessionStorage.setItem('medicore_user', JSON.stringify(currentUser));
+      // Stocker session (jeton + expiration via MEDICORE_SESSION)
+      if(typeof MEDICORE_SESSION!=='undefined') MEDICORE_SESSION.issue(currentUser);
+      else sessionStorage.setItem('medicore_user', JSON.stringify(currentUser));
+      if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Connexion réussie','CONNEXION',currentUser.role||'', currentUser.login);
       // Rediriger vers l'accueil
       setTimeout(()=>{window.location.href='index.html';},400);
     }

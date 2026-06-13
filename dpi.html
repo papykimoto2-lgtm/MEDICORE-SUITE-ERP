@@ -7,6 +7,11 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-audit.js"></script>
+<script src="medicore-rbac.js"></script>
+<script src="medicore-session.js"></script>
+<script src="medicore-parcours.js"></script>
+<script src="medicore-parcours-ui.js"></script>
 <script src="medicore-prestations.js"></script>
 <script src="medicore-cds.js"></script>
 <script src="medicore-print.js"></script>
@@ -751,7 +756,12 @@ function renderPatientsList(){
 window.onPatientScanned = function(p){
   try{
     const m = patients.find(x=> x.id===p.id || (p.ipp && x.ipp===p.ipp));
-    if(m) openDossier(m.id);
+    if(m){
+      openDossier(m.id);
+      // Alerte immédiate si vigilance critique (allergies, interactions, constantes)
+      const al=alertesMedicales(m.id, m).filter(a=>a.sev==='haute');
+      if(al.length && typeof toast==='function') toast('⚠ Vigilance : '+al[0].txt, 'error');
+    }
   }catch(e){}
 };
 
@@ -766,10 +776,12 @@ function openDossier(id){
   if(typeof MEDICORE_PATIENT!=='undefined') MEDICORE_PATIENT.set(Object.assign({},p));
   // Journal : tracer la consultation
   auditLog('CONSULTATION_DOSSIER', id, `Dossier consulté`, getPrescripteur());
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.consultationDossier(id, p.nom);
   const couleur=COULEURS_SERVICE[p.service]||'#888';
   const tl=timeline[id]||[];
 
   document.getElementById('dossier-content').innerHTML=`
+    ${syntheseClinique(id)}
     <!-- En-tête patient -->
     <div class="dossier-section" style="background:var(--surface)">
       <div style="display:flex;align-items:flex-start;gap:14px">
@@ -803,29 +815,6 @@ function openDossier(id){
           <button class="btn btn-secondary btn-sm" style="width:100%" onclick="openPrescription('${id}')">💊 Prescrire</button>
           <button class="btn btn-secondary btn-sm" style="width:100%" onclick="openAideConsultation('${id}')">🩺 Aide consultation</button>
           ${p.statut==='Actif'?`<button class="btn btn-secondary btn-sm" style="width:100%" onclick="sortiePatient('${id}')">🚪 Sortie</button>`:''}
-        </div>
-      </div>
-    </div>
-
-    <!-- Antécédents (affichés au scan / à l'ouverture) -->
-    <div class="dossier-section" style="background:var(--surface)">
-      <div class="section-title">Antécédents & terrain</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Antécédents médicaux</div>
-          <div>${p.antecedents||'Aucun antécédent renseigné'}</div>
-        </div>
-        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Allergies</div>
-          <div style="${p.allergies?'color:var(--red);font-weight:600':''}">${p.allergies||'Aucune connue'}</div>
-        </div>
-        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Groupe sanguin</div>
-          <div>${p.groupe||'—'}</div>
-        </div>
-        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Historique</div>
-          <div>${(typeof MEDICORE_RX!=='undefined'?MEDICORE_RX.pourPatient(id).length:0)} ordonnance(s) · ${(bioResultats[id]||[]).length} résultat(s)</div>
         </div>
       </div>
     </div>
@@ -1102,7 +1091,91 @@ function switchView(view){
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────────
-// ══ DOCUMENTS IMPRIMABLES (aperçu + PDF) ════════════════════════════════════════
+// ══ SYNTHÈSE CLINIQUE — affichée d'emblée (sécurité patient) ════════════════════
+const MOTS_CHRONIQUES=[
+  {k:'diab',l:'Diabète'},{k:'hyperten',l:'Hypertension (HTA)'},{k:'hta',l:'HTA'},
+  {k:'asthm',l:'Asthme'},{k:'drépano',l:'Drépanocytose'},{k:'drepano',l:'Drépanocytose'},
+  {k:'vih',l:'VIH'},{k:'sida',l:'VIH/SIDA'},{k:'insuffisance rénale',l:'Insuffisance rénale'},
+  {k:'insuffisance card',l:'Insuffisance cardiaque'},{k:'épileps',l:'Épilepsie'},{k:'epileps',l:'Épilepsie'},
+  {k:'cancer',l:'Cancer'},{k:'tubercul',l:'Tuberculose'},{k:'hépatite',l:'Hépatite'}
+];
+function maladiesChroniques(p){
+  const set=new Set();
+  (Array.isArray(p.chroniques)?p.chroniques:(p.chroniques?[p.chroniques]:[])).forEach(c=>set.add(c));
+  const txt=((p.antecedents||'')+' '+(p.motif||'')).toLowerCase();
+  MOTS_CHRONIQUES.forEach(m=>{ if(txt.includes(m.k)) set.add(m.l); });
+  return Array.from(set);
+}
+function traitementsEnCours(id){
+  return _prescriptionsPatient(id)
+    .filter(r=>r.statut!=='Refusée' && r.statut!=='Arrêtée' && r.statut!=='REFUSEE')
+    .map(r=>({med:r.med, posologie:r.posologie, statut:r.statut}));
+}
+function alertesMedicales(id, p){
+  const al=[];
+  if(p.allergies) al.push({sev:'haute', txt:'Allergie : '+p.allergies});
+  // Interactions entre traitements en cours
+  const meds=traitementsEnCours(id).map(t=>t.med);
+  if(typeof INTERACTIONS!=='undefined'){
+    for(let i=0;i<meds.length;i++) for(let j=i+1;j<meds.length;j++){
+      const a=meds[i].toLowerCase(), b=meds[j].toLowerCase();
+      INTERACTIONS.forEach(inter=>{
+        if((a.includes(inter.a.toLowerCase())&&b.includes(inter.b.toLowerCase()))||(a.includes(inter.b.toLowerCase())&&b.includes(inter.a.toLowerCase())))
+          al.push({sev:inter.severity==='haute'?'haute':'moyenne', txt:`Interaction ${meds[i]} ↔ ${meds[j]} : ${inter.msg}`});
+      });
+    }
+  }
+  // Résultats biologiques anormaux
+  (bioResultats[id]||[]).filter(r=>r.anormal).forEach(r=>al.push({sev:'moyenne', txt:`Résultat anormal : ${r.param} = ${r.val} ${r.unite}`}));
+  // Dernière constante hors normes
+  const cst=Array.isArray(constantes[id])?constantes[id][0]:constantes[id];
+  if(cst){
+    if(cst.spo2&&cst.spo2<92) al.push({sev:'haute', txt:`SpO₂ basse : ${cst.spo2}%`});
+    if(cst.t&&cst.t>=39) al.push({sev:'moyenne', txt:`Fièvre élevée : ${cst.t}°C`});
+    if(parseInt(cst.ta)>=180) al.push({sev:'haute', txt:`Tension élevée : ${cst.ta}`});
+  }
+  return al;
+}
+function syntheseClinique(id){
+  const p=patients.find(x=>x.id===id); if(!p) return '';
+  const chr=maladiesChroniques(p);
+  const trt=traitementsEnCours(id);
+  const al=alertesMedicales(id,p);
+  const aHaute=al.some(a=>a.sev==='haute');
+  const pill=(txt,bg,col)=>`<span style="display:inline-block;background:${bg};color:${col};border-radius:14px;padding:3px 10px;font-size:12px;font-weight:600;margin:2px 4px 2px 0">${txt}</span>`;
+  return `
+  <div class="dossier-section" style="background:${aHaute?'#fff5f5':'#f3f8f5'};border:1px solid ${aHaute?'var(--red)':'#cfe6db'};border-left:4px solid ${aHaute?'var(--red)':'var(--green)'}">
+    <div class="section-title" style="display:flex;align-items:center;gap:8px">
+      <span>🧠 Synthèse clinique</span>
+      ${aHaute?'<span class="badge" style="background:var(--red-bg);color:var(--red);font-weight:700">⚠ Vigilance</span>':'<span class="badge" style="background:#dcfce7;color:#15803d">Aucune alerte critique</span>'}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Allergies</div>
+        ${p.allergies?pill('⚠ '+p.allergies,'var(--red-bg)','var(--red)'):'<span style="color:var(--text-muted)">Aucune connue</span>'}
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Maladies chroniques</div>
+        ${chr.length?chr.map(c=>pill(c,'#fef3c7','#92400e')).join(''):'<span style="color:var(--text-muted)">Aucune renseignée</span>'}
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Antécédents</div>
+        <div>${p.antecedents||'<span style="color:var(--text-muted)">Aucun renseigné</span>'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Traitements en cours</div>
+        ${trt.length?trt.map(t=>`<div style="font-size:12.5px">• <strong>${t.med}</strong>${t.posologie?' — '+t.posologie:''}</div>`).join(''):'<span style="color:var(--text-muted)">Aucun</span>'}
+      </div>
+    </div>
+    ${al.length?`<div style="margin-top:10px;border-top:1px dashed ${aHaute?'var(--red)':'#cfe6db'};padding-top:8px">
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Alertes médicales</div>
+      ${al.map(a=>`<div style="font-size:12.5px;color:${a.sev==='haute'?'var(--red)':'#92400e'};font-weight:${a.sev==='haute'?'600':'500'}">${a.sev==='haute'?'🔴':'🟠'} ${a.txt}</div>`).join('')}
+    </div>`:''}
+  </div>`;
+}
+
+function syntheseClinique_end(){}
+// ── DOCUMENTS IMPRIMABLES (aperçu + PDF) ════════════════════════════════════════
 function _prescriptionsPatient(id){
   let arr=(prescriptions[id]||[]).slice();
   if(typeof MEDICORE_RX!=='undefined'){
@@ -1899,5 +1972,6 @@ document.addEventListener('keydown',e=>{
   if(el) el.addEventListener('click',e=>{if(e.target===e.currentTarget) e.currentTarget.classList.remove('open')});
 });
 </script>
+<script src="medicore-secure.js"></script>
 </body>
 </html>
