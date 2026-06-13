@@ -1,26 +1,23 @@
 {
   "version": 2,
-  "builds": [{ "src": "*.html", "use": "@vercel/static" }],
   "routes": [
-    { "src": "/", "dest": "/login.html" },
-    { "src": "/login", "dest": "/login.html" },
-    { "src": "/portail", "dest": "/index.html" },
-    { "src": "/([a-z_]+)\\.html", "dest": "/$1.html" },
+    { "src": "/",          "dest": "/login.html" },
+    { "src": "/login",     "dest": "/login.html" },
+    { "src": "/portail",   "dest": "/index.html" },
     { "src": "/([a-z_]+)", "dest": "/$1.html" },
-    { "src": "/(.*\\.(js|css|png|jpg|ico|svg))", "dest": "/$1" },
-    { "src": "/(.*)", "dest": "/$1" }
+    { "src": "/(.*)",      "dest": "/$1" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-Frame-Options",        "value": "SAMEORIGIN" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+        { "key": "Cache-Control",          "value": "no-store" }
       ]
     },
     {
-      "source": "/(qr\\.js|nav\\.js|supabase\\.js|mobile\\.css)",
+      "source": "/(nav\\.js|qr\\.js|supabase\\.js|mobile\\.css)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
     }
   ]
