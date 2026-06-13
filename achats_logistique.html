@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Achats & Logistique</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;
+    --accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;
+    --orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;
+    --purple:#6b21a8;--purple-bg:#f3e8ff;
+    --teal:#0f766e;--teal-bg:#ccfbf1;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;
+    --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);
+    --shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:242px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;padding:28px 32px;overflow-y:auto}
+
+  /* KPIs */
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:26px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .kpi-card.blue::before{background:var(--accent)}
+  .kpi-card.green::before{background:var(--green)}
+  .kpi-card.orange::before{background:var(--accent2)}
+  .kpi-card.red::before{background:var(--red)}
+  .kpi-card.teal::before{background:var(--teal)}
+  .kpi-label{font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:22px;margin:5px 0 3px;color:var(--accent)}
+  .kpi-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:2px 7px;border-radius:20px}
+  .kpi-badge.up{background:var(--green-bg);color:var(--green)}
+  .kpi-badge.down{background:var(--red-bg);color:var(--red)}
+  .kpi-badge.warn{background:var(--orange-bg);color:var(--orange)}
+  .kpi-badge.neutral{background:var(--accent-light);color:var(--accent)}
+
+  /* Tabs */
+  .tabs{display:flex;margin-bottom:22px;border-bottom:2px solid var(--border);flex-wrap:wrap}
+  .tab-btn{padding:9px 17px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn:hover{color:var(--accent)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:600;font-size:14px}
+  .card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+  /* Tables */
+  table{width:100%;border-collapse:collapse}
+  thead th{padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;background:var(--surface-alt);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface-alt)}
+  tbody td{padding:10px 14px;font-size:13px;vertical-align:middle}
+  tfoot td{padding:11px 14px;font-weight:700;font-size:13px;background:var(--surface-alt);border-top:2px solid var(--border)}
+  .text-right{text-align:right}
+  .text-center{text-align:center}
+  .amount{font-variant-numeric:tabular-nums;font-weight:600}
+  .text-muted{color:var(--text-muted)}
+
+  /* Badges */
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+  .b-brouillon{background:#f0f0f0;color:#555}
+  .b-valide{background:var(--green-bg);color:var(--green)}
+  .b-attente{background:var(--orange-bg);color:var(--orange)}
+  .b-envoye{background:var(--accent-light);color:var(--accent)}
+  .b-recu{background:var(--teal-bg);color:var(--teal)}
+  .b-litige{background:var(--red-bg);color:var(--red)}
+  .b-marche{background:var(--purple-bg);color:var(--purple)}
+  .b-ouvert{background:var(--green-bg);color:var(--green)}
+  .b-clos{background:#f0f0f0;color:#555}
+  .b-urgent{background:var(--red-bg);color:var(--red);font-weight:700}
+
+  /* Boutons */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-success{background:var(--green-bg);color:var(--green);border:1px solid #a8d8be}
+  .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #f3b4b4}
+  .btn-sm{padding:5px 10px;font-size:12px}
+
+  /* Filtres */
+  .filter-row{display:flex;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface-alt);flex-wrap:wrap}
+  .filter-row select,.filter-row input{width:auto;padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none;color:var(--text)}
+  .filter-row select:focus,.filter-row input:focus{border-color:var(--accent)}
+  .filter-row label{font-size:12.5px;font-weight:500;color:var(--text-muted);white-space:nowrap}
+
+  /* Search */
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .search-bar input{border:none;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);width:200px;box-shadow:none;padding:0}
+
+  /* Modal */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,.45);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);width:720px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:20px 26px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent)}
+  .modal-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .modal-close:hover{background:var(--surface-alt)}
+  .modal-body{padding:22px 26px}
+  .modal-footer{padding:14px 26px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+  /* Formulaire */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12.5px;font-weight:500;color:var(--text-muted)}
+  label .req{color:var(--red)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .section-label{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;padding-top:4px;border-top:1px solid var(--border)}
+
+  /* Lignes commande */
+  .lignes-table{width:100%;border-collapse:collapse}
+  .lignes-table th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600;padding:7px 10px;background:var(--surface-alt);border-bottom:1px solid var(--border);text-align:left}
+  .lignes-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .lignes-table td input,.lignes-table td select{padding:5px 8px;font-size:12.5px}
+  .lignes-table tfoot td{padding:8px 10px;font-weight:600;background:var(--surface-alt);font-size:13px}
+  .add-ligne{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;font-size:12px;font-weight:500;color:var(--accent);background:var(--accent-light);border:1px dashed #aac4d8;border-radius:6px;cursor:pointer;margin-top:7px}
+  .add-ligne:hover{background:#d5e8f3}
+  .remove-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:15px;padding:0 3px}
+  .remove-btn:hover{color:var(--red)}
+
+  /* Alerte */
+  .alert-box{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--radius);margin-bottom:14px;font-size:13px}
+  .alert-box.warn{background:var(--orange-bg);border:1px solid #f0c080;color:var(--orange)}
+  .alert-box.info{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent)}
+  .alert-box.red{background:var(--red-bg);border:1px solid #f3b4b4;color:var(--red)}
+  .alert-icon{font-size:16px;flex-shrink:0}
+
+  /* Stock bar */
+  .stock-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:3px;width:80px;display:inline-block;vertical-align:middle}
+  .stock-bar-fill{height:100%;border-radius:3px}
+
+  /* Fournisseur card */
+  .fourn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:18px}
+  .fourn-card{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:all .15s}
+  .fourn-card:hover{border-color:var(--accent);background:var(--accent-light)}
+  .fourn-card h4{font-size:13.5px;font-weight:600;color:var(--accent);margin-bottom:4px}
+  .fourn-stat{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)}
+  .fourn-stat:last-child{border-bottom:none}
+
+  /* Timeline réception */
+  .timeline-steps{display:flex;align-items:center;gap:0;margin:16px 0}
+  .ts-step{flex:1;text-align:center;position:relative}
+  .ts-step::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px}
+  .ts-step:last-child::after{display:none}
+  .ts-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;margin:0 auto 4px;border:2px solid}
+  .ts-label{font-size:11.5px;font-weight:500;color:var(--text)}
+
+  /* Pagination */
+  .pagination{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-muted)}
+  .pg-btns{display:flex;gap:4px}
+  .pg-btn{padding:4px 9px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;font-size:12.5px;font-family:'DM Sans',sans-serif}
+  .pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .pg-btn:hover:not(.active){background:var(--surface-alt)}
+
+  /* Toast container */
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .25s ease,toastOut .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}
+  .toast.error{background:var(--red)}
+  .toast.warn{background:var(--orange)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+
+  .achat-tag{display:inline-block;background:var(--teal-bg);color:var(--teal);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;margin-left:8px;vertical-align:middle;border:1px solid rgba(15,118,110,.25)}
+  .compte-tag{font-family:monospace;font-size:11.5px;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:4px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"></aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left"></div>
+      <div class="topbar-title">
+        <h1>Achats & Logistique <span class="achat-tag">SYSCOHADA</span></h1>
+        <p>Marchés publics · Commandes · Réceptions · Stocks magasins · Fournisseurs — Comptes 401 · 601 · 602 · 604 · 606</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Exporter</button>
+        <button class="btn btn-primary" onclick="openBC()">＋ Bon de commande</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="alertes-achats"></div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Commandes en cours</div>
+          <div class="kpi-value" id="kpi-cmd">—</div>
+          <span class="kpi-badge neutral">📋 BC ouverts</span>
+        </div>
+        <div class="kpi-card orange">
+          <div class="kpi-label">Montant engagé (mois)</div>
+          <div class="kpi-value" id="kpi-engage">—</div>
+          <span class="kpi-badge warn">Compte 604/601</span>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Réceptions ce mois</div>
+          <div class="kpi-value" id="kpi-recep">—</div>
+          <span class="kpi-badge up">✓ Conformes</span>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Litiges fournisseurs</div>
+          <div class="kpi-value" id="kpi-litige">—</div>
+          <span class="kpi-badge" id="kpi-litige-badge">En traitement</span>
+        </div>
+        <div class="kpi-card teal">
+          <div class="kpi-label">Marchés actifs</div>
+          <div class="kpi-value" id="kpi-marche">—</div>
+          <span class="kpi-badge neutral">📜 Contrats</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('commandes',this)">Bons de commande</button>
+        <button class="tab-btn" onclick="switchTab('receptions',this)">Réceptions</button>
+        <button class="tab-btn" onclick="switchTab('marches',this)">Marchés publics</button>
+        <button class="tab-btn" onclick="switchTab('fournisseurs',this)">Fournisseurs</button>
+        <button class="tab-btn" onclick="switchTab('stocks',this)">Stocks magasins</button>
+        <button class="tab-btn" onclick="switchTab('transports',this)">Transports</button>
+      </div>
+
+      <!-- ── BONS DE COMMANDE ── -->
+      <div id="tab-commandes" class="tab-panel active">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Bons de commande</div><div class="card-subtitle" id="bc-count">—</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="search-bar"><span>🔍</span><input type="text" id="bc-search" placeholder="N° BC, fournisseur, objet…" oninput="renderBC()"></div>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-bc-statut" onchange="renderBC()">
+                <option value="">Tous statuts</option>
+                <option value="Brouillon">Brouillon</option>
+                <option value="En attente visa">En attente visa</option>
+                <option value="Validé">Validé</option>
+                <option value="Envoyé">Envoyé fournisseur</option>
+                <option value="Reçu partiel">Reçu partiel</option>
+                <option value="Soldé">Soldé</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>N° BC</th><th>Date</th><th>Fournisseur</th><th>Objet</th>
+              <th>Compte SYSCOHADA</th><th class="text-right">Montant HT (FCFA)</th>
+              <th>Circuit validation</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="bc-tbody"></tbody>
+            <tfoot><tr>
+              <td colspan="5">TOTAL ENGAGÉ</td>
+              <td class="text-right" id="bc-total">—</td>
+              <td colspan="3"></td>
+            </tr></tfoot>
+          </table>
+          <div class="pagination">
+            <span id="bc-pag-info"></span>
+            <div class="pg-btns" id="bc-pag-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RÉCEPTIONS ── -->
+      <div id="tab-receptions" class="tab-panel">
+        <!-- Processus réception -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><div class="card-title">Processus de réception</div></div>
+          <div style="padding:20px"><div class="timeline-steps" id="reception-flow"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Bons de réception</div><div class="card-subtitle" id="br-count">—</div></div>
+            <button class="btn btn-primary btn-sm" onclick="openBR()">＋ Enregistrer réception</button>
+          </div>
+          <div class="filter-row">
+            <label>Statut :</label>
+            <select id="f-br-statut" onchange="renderBR()">
+              <option value="">Tous</option>
+              <option value="Conforme">Conforme</option>
+              <option value="Litige">Litige</option>
+              <option value="Partiel">Partiel</option>
+            </select>
+            <label>Période :</label>
+            <select id="f-br-mois" onchange="renderBR()">
+              <option value="">Tous les mois</option>
+              <option value="2025-06">Juin 2025</option>
+              <option value="2025-05">Mai 2025</option>
+            </select>
+          </div>
+          <table>
+            <thead><tr>
+              <th>N° BR</th><th>Date</th><th>N° BC lié</th><th>Fournisseur</th>
+              <th>Articles reçus</th><th class="text-right">Montant (FCFA)</th>
+              <th>Contrôle quant.</th><th>Contrôle qualit.</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="br-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── MARCHÉS PUBLICS ── -->
+      <div id="tab-marches" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:18px">
+          <span class="alert-icon">📋</span>
+          <span>Les marchés publics des établissements de santé en zone OHADA sont soumis aux procédures de passation définies par les codes nationaux des marchés publics. Tout achat dépassant le seuil de mise en concurrence doit faire l'objet d'un appel d'offres.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Marchés actifs</div><div class="kpi-value" style="font-size:20px" id="m-actifs">—</div><span class="kpi-badge neutral">En cours</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Valeur totale engagée</div><div class="kpi-value" style="font-size:20px" id="m-valeur">—</div><span class="kpi-badge up">FCFA</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">AO en cours</div><div class="kpi-value" style="font-size:20px" id="m-ao">—</div><span class="kpi-badge warn">À dépouiller</span></div>
+          <div class="kpi-card red"><div class="kpi-label">Échéances < 60j</div><div class="kpi-value" style="font-size:20px" id="m-echeance">—</div><span class="kpi-badge down">⚠ Renouveler</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Registre des marchés</div></div>
+            <button class="btn btn-primary btn-sm" onclick="openMarche()">＋ Nouveau marché</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>N° Marché</th><th>Objet</th><th>Fournisseur attributaire</th>
+              <th>Type</th><th>Date début</th><th>Date fin</th>
+              <th class="text-right">Montant (FCFA)</th><th>Taux exec.</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="marche-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Appels d'offres -->
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Appels d'offres en cours</div></div>
+            <button class="btn btn-secondary btn-sm" onclick="openAO()">＋ Lancer AO</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>N° AO</th><th>Objet</th><th>Date lancement</th><th>Date limite dépôt</th>
+              <th>Offres reçues</th><th>Seuil (FCFA)</th><th>Phase</th><th></th>
+            </tr></thead>
+            <tbody id="ao-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── FOURNISSEURS ── -->
+      <div id="tab-fournisseurs" class="tab-panel">
+        <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+          <div class="search-bar" style="flex:1"><span>🔍</span><input type="text" id="fourn-search" placeholder="Nom, spécialité, NINEA…" oninput="renderFournisseurs()" style="width:100%"></div>
+          <select style="padding:7px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-fourn-cat" onchange="renderFournisseurs()">
+            <option value="">Toutes catégories</option>
+            <option value="Médicaments">Médicaments & réactifs</option>
+            <option value="Équipements">Équipements médicaux</option>
+            <option value="Fournitures">Fournitures générales</option>
+            <option value="Services">Prestations de services</option>
+            <option value="Travaux">Travaux</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="openFourn()">＋ Nouveau fournisseur</button>
+        </div>
+        <div class="fourn-grid" id="fourn-grid"></div>
+        <!-- Évaluation fournisseurs -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Évaluation & performance fournisseurs</div><div class="card-subtitle">Délai livraison, qualité, conformité prix</div></div>
+          <table>
+            <thead><tr>
+              <th>Fournisseur</th><th>Catégorie</th>
+              <th class="text-right">Nb cmd.</th><th class="text-right">CA (FCFA)</th>
+              <th>Délai liv. moy.</th><th>Taux conform.</th><th>Score</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="fourn-eval-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── STOCKS MAGASINS ── -->
+      <div id="tab-stocks" class="tab-panel">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Références en stock</div><div class="kpi-value" style="font-size:20px" id="st-refs">—</div><span class="kpi-badge neutral">Magasins</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Valeur stock global</div><div class="kpi-value" style="font-size:20px" id="st-val">—</div><span class="kpi-badge warn">FCFA — PMP</span></div>
+          <div class="kpi-card red"><div class="kpi-label">Alertes stock</div><div class="kpi-value" style="font-size:20px" id="st-alertes">—</div><span class="kpi-badge down">⚠ Sous mini</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Inventaires réalisés</div><div class="kpi-value" style="font-size:20px">3</div><span class="kpi-badge up">✓ 2025</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Stocks magasins généraux</div><div class="card-subtitle">Bureautique · Alimentaire · Entretien · Maintenance</div></div>
+            <div style="display:flex;gap:8px">
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-st-cat" onchange="renderStocks()">
+                <option value="">Toutes catégories</option>
+                <option value="Bureautique">Bureautique</option>
+                <option value="Alimentaire">Alimentaire</option>
+                <option value="Entretien">Entretien/Hygiène</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Linge">Linge/Blanchisserie</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="openMvtStock()">↗ Mouvement stock</button>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Référence</th><th>Désignation</th><th>Catégorie</th><th>Magasin</th>
+              <th class="text-right">Stock actuel</th><th>Mini/Maxi</th><th>Niveau</th>
+              <th class="text-right">PMP (FCFA)</th><th class="text-right">Valeur</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="stock-tbody"></tbody>
+            <tfoot><tr>
+              <td colspan="4">TOTAL</td>
+              <td></td><td></td><td></td><td></td>
+              <td class="text-right" id="stock-total-val">—</td>
+              <td></td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── TRANSPORTS ── -->
+      <div id="tab-transports" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:18px">
+          <span class="alert-icon">🚚</span>
+          <span>Suivi des mouvements physiques : réceptions depuis fournisseurs, expéditions inter-sites, livraisons internes aux services. Traçabilité complète des flux logistiques.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Livraisons attendues</div><div class="kpi-value" style="font-size:20px" id="tr-att">—</div><span class="kpi-badge neutral">Cette semaine</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Livraisons reçues</div><div class="kpi-value" style="font-size:20px" id="tr-rec">—</div><span class="kpi-badge up">✓ Ce mois</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Retards de livraison</div><div class="kpi-value" style="font-size:20px" id="tr-retard">—</div><span class="kpi-badge warn">⏰ Hors délai</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Suivi des livraisons</div></div>
+          <table>
+            <thead><tr>
+              <th>N° Livraison</th><th>Fournisseur</th><th>Objet</th>
+              <th>Date prévue</th><th>Date réelle</th><th>Transporteur</th>
+              <th>Destination</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="transport-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal BC -->
+<div class="overlay" id="modal-bc">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">Nouveau bon de commande</div><div class="modal-subtitle">Engagement budgétaire — Circuit de validation hiérarchique</div></div>
+      <button class="modal-close" onclick="closeBC()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>N° BC (auto)</label><input type="text" id="bc-num" readonly style="background:var(--surface-alt);color:var(--text-muted)"></div>
+        <div class="form-group"><label>Date <span class="req">*</span></label><input type="date" id="bc-date"></div>
+        <div class="form-group"><label>Fournisseur <span class="req">*</span></label>
+          <select id="bc-fourn">
+            <option value="">— Sélectionner —</option>
+            <option>Laborex CI</option><option>CAMEG</option><option>Sanofi CI</option>
+            <option>GE Healthcare</option><option>Beckman Coulter</option>
+            <option>Bureau Plus CI</option><option>SODECI</option><option>CIE</option>
+          </select></div>
+        <div class="form-group"><label>Compte SYSCOHADA <span class="req">*</span></label>
+          <select id="bc-compte">
+            <option value="601">601 — Achats matières premières</option>
+            <option value="602">602 — Achats produits pharmaceutiques</option>
+            <option value="604">604 — Achats études & prestations</option>
+            <option value="606">606 — Achats non stockés</option>
+            <option value="221">221 — Acquisition équipements</option>
+          </select></div>
+        <div class="form-group"><label>Service demandeur</label>
+          <select id="bc-service">
+            <option>Pharmacie PUI</option><option>Laboratoire</option><option>Bloc opératoire</option>
+            <option>Médecine générale</option><option>Administration</option><option>Maintenance</option>
+          </select></div>
+        <div class="form-group"><label>Marché cadre lié</label>
+          <select id="bc-marche">
+            <option value="">Hors marché</option>
+            <option>MC-2025-001 — Médicaments essentiels</option>
+            <option>MC-2025-002 — Réactifs laboratoire</option>
+            <option>MC-2025-003 — Équipements biomédicaux</option>
+          </select></div>
+        <div class="form-group"><label>Urgence</label>
+          <select id="bc-urgence">
+            <option value="Normale">Normale</option>
+            <option value="Urgente">Urgente</option>
+          </select></div>
+        <div class="form-group full">
+          <label>Lignes de commande <span class="req">*</span></label>
+          <table class="lignes-table">
+            <thead><tr><th>Désignation</th><th style="width:80px">Qté</th><th style="width:80px">Unité</th><th style="width:120px">PU HT (FCFA)</th><th style="width:110px">Total HT</th><th></th></tr></thead>
+            <tbody id="bc-lignes"></tbody>
+            <tfoot><tr><td colspan="3" style="text-align:right;font-size:12.5px;color:var(--text-muted)">Total HT :</td><td colspan="2" id="bc-total-modal" class="amount" style="padding:8px 10px">0 FCFA</td><td></td></tr></tfoot>
+          </table>
+          <div class="add-ligne" onclick="addLigneBC()">＋ Ajouter une ligne</div>
+        </div>
+        <div class="form-group full"><label>Objet / Justification</label><textarea id="bc-objet" style="min-height:56px" placeholder="Description de l'achat, référence marché, justification budgétaire…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBC()">Annuler</button>
+      <button class="btn btn-secondary" onclick="saveBCBrouillon()">Enregistrer brouillon</button>
+      <button class="btn btn-primary" onclick="submitBC()">Soumettre au visa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Réception -->
+<div class="overlay" id="modal-br">
+  <div class="modal" style="width:620px">
+    <div class="modal-header">
+      <div><div class="modal-title">Enregistrer une réception</div><div class="modal-subtitle">Contrôle quantitatif et qualitatif — Compte 401</div></div>
+      <button class="modal-close" onclick="closeBR()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>BC lié <span class="req">*</span></label><select id="br-bc"><option value="">— Sélectionner BC —</option></select></div>
+        <div class="form-group"><label>Date réception <span class="req">*</span></label><input type="date" id="br-date"></div>
+        <div class="form-group"><label>N° BL fournisseur</label><input type="text" id="br-bl" placeholder="N° bon de livraison fournisseur"></div>
+        <div class="form-group"><label>Livreur / Transporteur</label><input type="text" id="br-livreur" placeholder="Nom du livreur"></div>
+        <div class="section-label">Contrôle quantitatif</div>
+        <div class="form-group"><label>Quantité commandée</label><input type="number" id="br-qte-cmd" readonly style="background:var(--surface-alt)"></div>
+        <div class="form-group"><label>Quantité reçue <span class="req">*</span></label><input type="number" id="br-qte-rec" oninput="checkConformite()"></div>
+        <div class="section-label">Contrôle qualitatif</div>
+        <div class="form-group"><label>Conformité qualitative</label>
+          <select id="br-qualite" onchange="checkConformite()">
+            <option value="Conforme">Conforme</option>
+            <option value="Non conforme">Non conforme — Retour</option>
+            <option value="Réserves">Accepté avec réserves</option>
+          </select></div>
+        <div class="form-group"><label>Résultat contrôle</label>
+          <div id="br-resultat" style="padding:9px 12px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text-muted)">En attente de saisie</div>
+        </div>
+        <div class="form-group full"><label>Observations</label><textarea id="br-obs" style="min-height:56px" placeholder="Écarts constatés, réserves, conditions de livraison…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeBR()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerBR()">Valider la réception</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Fournisseur -->
+<div class="overlay" id="modal-fourn">
+  <div class="modal" style="width:580px">
+    <div class="modal-header">
+      <div><div class="modal-title">Nouveau fournisseur</div><div class="modal-subtitle">Référencement au répertoire fournisseurs</div></div>
+      <button class="modal-close" onclick="closeFourn()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Raison sociale <span class="req">*</span></label><input type="text" id="f-rs" placeholder="Nom de la société"></div>
+        <div class="form-group"><label>NINEA / NIF</label><input type="text" id="f-ninea" placeholder="Numéro fiscal"></div>
+        <div class="form-group"><label>Catégorie</label>
+          <select id="f-cat">
+            <option>Médicaments</option><option>Équipements</option><option>Fournitures</option><option>Services</option><option>Travaux</option>
+          </select></div>
+        <div class="form-group"><label>Pays</label><input type="text" id="f-pays" value="Côte d'Ivoire"></div>
+        <div class="form-group"><label>Ville</label><input type="text" id="f-ville" placeholder="Abidjan, Yamoussoukro…"></div>
+        <div class="form-group"><label>Téléphone</label><input type="text" id="f-tel" placeholder="+225…"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="f-email" placeholder="contact@…"></div>
+        <div class="form-group"><label>IBAN / RIB bancaire</label><input type="text" id="f-iban" placeholder="Coordonnées bancaires"></div>
+        <div class="form-group"><label>Délai livraison (jours)</label><input type="number" id="f-delai" value="7" min="1"></div>
+        <div class="form-group"><label>Compte SYSCOHADA</label>
+          <select id="f-compte-sys">
+            <option value="401">401 — Fournisseurs</option>
+            <option value="404">404 — Fournisseurs immobilisations</option>
+          </select></div>
+        <div class="form-group full"><label>Observations</label><textarea id="f-obs-fourn" style="min-height:50px" placeholder="Conditions générales, agréments, références…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeFourn()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerFourn()">Référencer le fournisseur</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Données ────────────────────────────────────────────────────────────────────
+const TODAY = new Date().toISOString().split('T')[0];
+
+let bonCommandes = [
+  { id:'BC-2025-0081', date:'2025-06-02', fourn:'Laborex CI', objet:'Médicaments essentiels — lot juin', compte:'602', service:'Pharmacie PUI', montant:18400000, statut:'Soldé', urgence:'Normale', marche:'MC-2025-001' },
+  { id:'BC-2025-0082', date:'2025-06-05', fourn:'Beckman Coulter', objet:'Réactifs laboratoire — automate AU480', compte:'602', service:'Laboratoire', montant:6200000, statut:'Reçu partiel', urgence:'Normale', marche:'MC-2025-002' },
+  { id:'BC-2025-0083', date:'2025-06-10', fourn:'Bureau Plus CI', objet:'Fournitures de bureau T2 2025', compte:'606', service:'Administration', montant:840000, statut:'Validé', urgence:'Normale', marche:'' },
+  { id:'BC-2025-0084', date:'2025-06-12', fourn:'GE Healthcare', objet:'Maintenance préventive échographe', compte:'604', service:'Maternité', montant:2400000, statut:'Envoyé', urgence:'Normale', marche:'MC-2025-003' },
+  { id:'BC-2025-0085', date:'2025-06-15', fourn:'CAMEG', objet:'Médicaments génériques urgents', compte:'602', service:'Pharmacie PUI', montant:9100000, statut:'Validé', urgence:'Urgente', marche:'MC-2025-001' },
+  { id:'BC-2025-0086', date:'2025-06-18', fourn:'Sanofi CI', objet:'Vaccins et sérums', compte:'602', service:'Pharmacie PUI', montant:4800000, statut:'En attente visa', urgence:'Normale', marche:'' },
+  { id:'BC-2025-0087', date:'2025-06-20', fourn:'CIE / SODECI', objet:'Abonnement eau & électricité T3', compte:'606', service:'Administration', montant:3200000, statut:'Brouillon', urgence:'Normale', marche:'' },
+];
+
+let receptions = [
+  { id:'BR-2025-0061', date:'2025-06-04', bcLie:'BC-2025-0081', fourn:'Laborex CI', articles:'Médicaments essentiels (42 références)', montant:18400000, qteCmd:100, qteRec:100, qualite:'Conforme', statut:'Conforme', obs:'' },
+  { id:'BR-2025-0062', date:'2025-06-08', bcLie:'BC-2025-0082', fourn:'Beckman Coulter', articles:'Réactifs laboratoire (8 références)', montant:3900000, qteCmd:24, qteRec:18, qualite:'Conforme', statut:'Partiel', obs:'6 réactifs manquants — complément prévu 25/06' },
+  { id:'BR-2025-0063', date:'2025-06-11', bcLie:'BC-2025-0083', fourn:'Bureau Plus CI', articles:'Fournitures bureautique', montant:840000, qteCmd:1, qteRec:1, qualite:'Non conforme', statut:'Litige', obs:'Ramettes papier A4 — qualité inférieure au cahier des charges' },
+  { id:'BR-2025-0064', date:'2025-06-17', bcLie:'BC-2025-0084', fourn:'GE Healthcare', articles:'Maintenance échographe portable', montant:2400000, qteCmd:1, qteRec:1, qualite:'Conforme', statut:'Conforme', obs:'Rapport d\'intervention remis' },
+];
+
+const MARCHES = [
+  { id:'MC-2025-001', objet:'Fourniture médicaments essentiels', fourn:'Laborex CI', type:'Appel d\'offres', debut:'2025-01-01', fin:'2025-12-31', montant:180000000, exec:42, statut:'Actif' },
+  { id:'MC-2025-002', objet:'Réactifs et consommables laboratoire', fourn:'Beckman Coulter', type:'Appel d\'offres', debut:'2025-01-01', fin:'2025-12-31', montant:48000000, exec:31, statut:'Actif' },
+  { id:'MC-2025-003', objet:'Maintenance équipements biomédicaux', fourn:'GE Healthcare', type:'Entente directe', debut:'2025-03-01', fin:'2026-02-28', montant:24000000, exec:28, statut:'Actif' },
+  { id:'MC-2024-008', objet:'Fournitures de bureau annuelles', fourn:'Bureau Plus CI', type:'Consultation restreinte', debut:'2024-07-01', fin:'2025-06-30', montant:8400000, exec:94, statut:'À renouveler' },
+  { id:'MC-2025-004', objet:'Prestations de nettoyage et entretien', fourn:'Clean Service CI', type:'Appel d\'offres', debut:'2025-02-01', fin:'2026-01-31', montant:36000000, exec:37, statut:'Actif' },
+];
+
+const AO_LIST = [
+  { id:'AO-2025-001', objet:'Fourniture gaz médicaux (O2, N2O)', date:'2025-05-15', limite:'2025-07-01', offres:3, seuil:12000000, phase:'Dépouillement' },
+  { id:'AO-2025-002', objet:'Acquisition ambulance médicalisée', date:'2025-06-01', limite:'2025-07-15', offres:2, seuil:35000000, phase:'Réception offres' },
+];
+
+let fournisseurs = [
+  { id:'F-001', rs:'Laborex CI', ninea:'CI-2015-B-12345', cat:'Médicaments', pays:'Côte d\'Ivoire', ville:'Abidjan', tel:'+225 27 20 21 34 56', email:'commandes@laborex.ci', delai:5, compte:'401', nbCmd:28, ca:82400000, tauxConf:97, score:95 },
+  { id:'F-002', rs:'CAMEG', ninea:'CI-2010-A-08841', cat:'Médicaments', pays:'Côte d\'Ivoire', ville:'Abidjan', tel:'+225 27 20 25 41 12', email:'approvisionnement@cameg.ci', delai:7, compte:'401', nbCmd:18, ca:41200000, tauxConf:94, score:88 },
+  { id:'F-003', rs:'Sanofi CI', ninea:'CI-2008-B-44521', cat:'Médicaments', pays:'Côte d\'Ivoire', ville:'Abidjan', tel:'+225 27 20 30 12 80', email:'orders@sanofi.ci', delai:10, compte:'401', nbCmd:12, ca:28800000, tauxConf:99, score:92 },
+  { id:'F-004', rs:'GE Healthcare', ninea:'CI-2012-C-77201', cat:'Équipements', pays:'Côte d\'Ivoire', ville:'Abidjan', tel:'+225 27 20 22 45 00', email:'service@ge-healthcare.ci', delai:21, compte:'401', nbCmd:8, ca:38400000, tauxConf:100, score:96 },
+  { id:'F-005', rs:'Beckman Coulter', ninea:'CI-2014-C-53312', cat:'Équipements', pays:'Côte d\'Ivoire', ville:'Abidjan', tel:'+225 27 20 20 11 44', email:'ci@beckman.com', delai:14, compte:'401', nbCmd:14, ca:22800000, tauxConf:85, score:78 },
+  { id:'F-006', rs:'Bureau Plus CI', ninea:'CI-2018-D-90121', cat:'Fournitures', pays:'Côte d\'Ivoire', ville:'Abidjan', tel:'+225 07 08 12 34 56', email:'ventes@bureauplus.ci', delai:3, compte:'401', nbCmd:22, ca:6200000, tauxConf:82, score:74 },
+];
+
+let stocksMagasin = [
+  { ref:'BUR-001', desig:'Ramettes papier A4 (× 500 feuilles)', cat:'Bureautique', magasin:'Magasin central', stock:48, mini:20, maxi:150, pmp:4500 },
+  { ref:'BUR-002', desig:'Stylos bille bleu (boîtes × 50)', cat:'Bureautique', magasin:'Magasin central', stock:8, mini:10, maxi:50, pmp:3200 },
+  { ref:'ALI-001', desig:'Sacs de riz 50 kg (restauration)', cat:'Alimentaire', magasin:'Magasin restauration', stock:24, mini:10, maxi:60, pmp:22000 },
+  { ref:'ALI-002', desig:'Huile végétale 5 L (bidons)', cat:'Alimentaire', magasin:'Magasin restauration', stock:36, mini:20, maxi:80, pmp:4800 },
+  { ref:'ENT-001', desig:'Produits désinfectants sol (bidons 5L)', cat:'Entretien', magasin:'Magasin entretien', stock:18, mini:15, maxi:60, pmp:8500 },
+  { ref:'ENT-002', desig:'Gants ménagers (paires)', cat:'Entretien', magasin:'Magasin entretien', stock:4, mini:30, maxi:100, pmp:1200 },
+  { ref:'MAI-001', desig:'Ampoules LED 18W (unités)', cat:'Maintenance', magasin:'Magasin technique', stock:65, mini:20, maxi:100, pmp:3500 },
+  { ref:'LIN-001', desig:'Draps blancs 160×240 (pièces)', cat:'Linge', magasin:'Blanchisserie', stock:142, mini:80, maxi:300, pmp:6200 },
+];
+
+const TRANSPORTS = [
+  { id:'LIV-2025-041', fourn:'Laborex CI', objet:'Médicaments essentiels BC-0081', prevue:'2025-06-04', reelle:'2025-06-04', transp:'Transport propre', dest:'Pharmacie PUI', statut:'Livré' },
+  { id:'LIV-2025-042', fourn:'Beckman Coulter', objet:'Réactifs laboratoire BC-0082', prevue:'2025-06-07', reelle:'2025-06-08', transp:'DHL Express', dest:'Laboratoire', statut:'Livré partiel' },
+  { id:'LIV-2025-043', fourn:'GE Healthcare', objet:'Technicien maintenance BC-0084', prevue:'2025-06-16', reelle:'2025-06-17', transp:'Déplacement technicien', dest:'Maternité', statut:'Livré' },
+  { id:'LIV-2025-044', fourn:'CAMEG', objet:'Médicaments urgents BC-0085', prevue:TODAY, reelle:'', transp:'Transport propre CAMEG', dest:'Pharmacie PUI', statut:'Attendu' },
+  { id:'LIV-2025-045', fourn:'Sanofi CI', objet:'Vaccins BC-0086', prevue:'2025-06-28', reelle:'', transp:'Chaîne du froid', dest:'Pharmacie PUI', statut:'Planifié' },
+];
+
+// ── Journal d'audit Achats ─────────────────────────────────────────────────────
+const ACHATS_AUDIT = [];
+function achatsAudit(action, ref, detail){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  ACHATS_AUDIT.push({ts:new Date().toISOString(),action,ref,detail,auteur:s.nom||'Acheteur',role:s.role||'—'});
+}
+function getAcheteur(){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  return s.nom||'Responsable achats';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
+function fmtF(v){return fmt(v)+' FCFA'}
+function fmtDate(d){return d?new Date(d).toLocaleDateString('fr-FR'):'—'}
+
+function toast(msg,type=''){
+  let tc=document.getElementById('toast-container');
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  tc.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function updateKPIs(){
+  const cmdOuvertes=bonCommandes.filter(b=>!['Soldé','Annulé'].includes(b.statut)).length;
+  const engage=bonCommandes.filter(b=>b.statut!=='Soldé').reduce((s,b)=>s+b.montant,0);
+  const recepMois=receptions.filter(r=>r.date.startsWith('2025-06')).length;
+  const litiges=receptions.filter(r=>r.statut==='Litige').length;
+  const marchesActifs=MARCHES.filter(m=>m.statut==='Actif').length;
+  document.getElementById('kpi-cmd').textContent=cmdOuvertes;
+  document.getElementById('kpi-engage').textContent=fmtF(engage);
+  document.getElementById('kpi-recep').textContent=recepMois;
+  document.getElementById('kpi-litige').textContent=litiges;
+  document.getElementById('kpi-marche').textContent=marchesActifs;
+  const lb=document.getElementById('kpi-litige-badge');
+  lb.className='kpi-badge '+(litiges>0?'down':'up');
+  lb.textContent=litiges>0?'⚠ '+litiges+' litige(s)':'✓ Aucun litige';
+  // Alertes
+  const div=document.getElementById('alertes-achats');div.innerHTML='';
+  const urgents=bonCommandes.filter(b=>b.urgence==='Urgente'&&b.statut!=='Soldé');
+  const renouveler=MARCHES.filter(m=>m.statut==='À renouveler');
+  const stockMin=stocksMagasin.filter(s=>s.stock<=s.mini);
+  if(urgents.length) div.innerHTML+=`<div class="alert-box red"><span class="alert-icon">🚨</span><span><strong>${urgents.length} commande(s) urgente(s)</strong> en attente : ${urgents.map(b=>b.fourn).join(', ')}</span></div>`;
+  if(renouveler.length) div.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">⚠️</span><span><strong>${renouveler.length} marché(s) à renouveler</strong> prochainement : ${renouveler.map(m=>m.id).join(', ')}</span></div>`;
+  if(stockMin.length) div.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">📦</span><span><strong>${stockMin.length} article(s) sous stock minimum</strong> : ${stockMin.map(s=>s.desig.substring(0,30)).join(', ')}</span></div>`;
+}
+
+// ── Bons de commande ──────────────────────────────────────────────────────────
+let bcPage=1;const BC_PAGE=6;
+function statutBCBadge(s){
+  const m={Brouillon:'b-brouillon','En attente visa':'b-attente',Validé:'b-valide',Envoyé:'b-envoye','Reçu partiel':'b-recu',Soldé:'b-clos'};
+  return `<span class="badge ${m[s]||'b-brouillon'}">${s}</span>`;
+}
+function renderBC(){
+  const q=document.getElementById('bc-search').value.toLowerCase();
+  const fs=document.getElementById('f-bc-statut').value;
+  const data=bonCommandes.filter(b=>(!q||b.fourn.toLowerCase().includes(q)||b.id.toLowerCase().includes(q)||b.objet.toLowerCase().includes(q))&&(!fs||b.statut===fs));
+  const total=data.length;
+  const maxPage=Math.max(1,Math.ceil(total/BC_PAGE));
+  if(bcPage>maxPage) bcPage=maxPage;
+  const slice=data.slice((bcPage-1)*BC_PAGE,bcPage*BC_PAGE);
+  document.getElementById('bc-count').textContent=`${total} BC — Total engagé: ${fmtF(data.reduce((s,b)=>s+b.montant,0))}`;
+  document.getElementById('bc-total').textContent=fmtF(data.reduce((s,b)=>s+b.montant,0));
+  document.getElementById('bc-tbody').innerHTML=slice.map(b=>`
+    <tr onclick="voirBC('${b.id}')">
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${b.id}</td>
+      <td class="text-muted">${fmtDate(b.date)}</td>
+      <td style="font-weight:500">${b.fourn}</td>
+      <td style="font-size:12.5px;max-width:200px">${b.objet}</td>
+      <td><span class="compte-tag">${b.compte}</span></td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(b.montant)}</td>
+      <td style="font-size:12px">
+        ${b.marche?`<span class="badge b-marche" style="font-size:10.5px">${b.marche}</span>`:'<span style="color:var(--text-muted);font-size:12px">Hors marché</span>'}
+        ${b.urgence==='Urgente'?'<span class="badge b-urgent" style="font-size:10px;margin-left:4px">⚡ URGENT</span>':''}
+      </td>
+      <td>${statutBCBadge(b.statut)}</td>
+      <td>
+        ${b.statut==='En attente visa'?`<button class="btn btn-success btn-sm" onclick="event.stopPropagation();validerBC('${b.id}')">✓ Viser</button>`:
+          b.statut==='Brouillon'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();validerBC('${b.id}')">→ Soumettre</button>`:
+          `<button class="btn btn-secondary btn-sm btn-icon" onclick="event.stopPropagation();voirBC('${b.id}')">👁</button>`}
+      </td>
+    </tr>`).join('')||`<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Aucun bon de commande</td></tr>`;
+  document.getElementById('bc-pag-info').textContent=total?`${(bcPage-1)*BC_PAGE+1}–${Math.min(bcPage*BC_PAGE,total)} sur ${total}`:'';
+  const pg=document.getElementById('bc-pag-btns');pg.innerHTML='';
+  for(let i=1;i<=maxPage;i++){const b=document.createElement('button');b.className='pg-btn'+(i===bcPage?' active':'');b.textContent=i;b.onclick=()=>{bcPage=i;renderBC()};pg.appendChild(b);}
+}
+function validerBC(id){const b=bonCommandes.find(x=>x.id===id);if(b){b.statut=b.statut==='Brouillon'?'En attente visa':'Validé';renderBC();updateKPIs();toast(`BC ${id} — statut mis à jour.`,'success')}}
+function voirBC(id){const b=bonCommandes.find(x=>x.id===id);if(b) toast(`${b.id} — ${b.fourn} — ${fmtF(b.montant)} — ${b.statut}`,'success')}
+
+// ── Réceptions ────────────────────────────────────────────────────────────────
+function renderReceptionFlow(){
+  const steps=[
+    {icon:'📋',label:'Réception BC',color:'#1a4b6e'},{icon:'📦',label:'Déchargement',color:'#c8702a'},
+    {icon:'🔢',label:'Contrôle quantitatif',color:'#1e7a4e'},{icon:'🔍',label:'Contrôle qualitatif',color:'#6b21a8'},
+    {icon:'✅',label:'Bon de réception',color:'#0f766e'},{icon:'📊',label:'Mise en stock',color:'#1a4b6e'},
+  ];
+  document.getElementById('reception-flow').innerHTML=steps.map(s=>`
+    <div class="ts-step">
+      <div class="ts-icon" style="background:${s.color}18;border-color:${s.color}40;color:${s.color}">${s.icon}</div>
+      <div class="ts-label">${s.label}</div>
+    </div>`).join('');
+}
+
+function renderBR(){
+  const fs=document.getElementById('f-br-statut').value;
+  const fm=document.getElementById('f-br-mois').value;
+  const data=receptions.filter(r=>(!fs||r.statut===fs)&&(!fm||r.date.startsWith(fm)));
+  document.getElementById('br-count').textContent=`${data.length} réception(s)`;
+  const statBadge=s=>{const m={Conforme:'b-valide',Litige:'b-litige',Partiel:'b-attente'};return`<span class="badge ${m[s]||''}">${s}</span>`};
+  document.getElementById('br-tbody').innerHTML=data.map(r=>`
+    <tr>
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${r.id}</td>
+      <td class="text-muted">${fmtDate(r.date)}</td>
+      <td style="font-family:monospace;font-size:12px"><a href="#" onclick="return false" style="color:var(--accent)">${r.bcLie}</a></td>
+      <td style="font-weight:500">${r.fourn}</td>
+      <td style="font-size:12.5px">${r.articles}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(r.montant)}</td>
+      <td class="text-center">${r.qteRec===r.qteCmd?'✅':'⚠️'} ${r.qteRec}/${r.qteCmd}</td>
+      <td class="text-center">${r.qualite==='Conforme'?'✅':'⚠️'} ${r.qualite}</td>
+      <td>${statBadge(r.statut)}</td>
+      <td>${r.obs?`<span title="${r.obs}" style="cursor:help;color:var(--orange)">⚠️</span>`:''}</td>
+    </tr>`).join('');
+}
+
+// ── Marchés ───────────────────────────────────────────────────────────────────
+function renderMarches(){
+  const actifs=MARCHES.filter(m=>m.statut==='Actif').length;
+  const valeur=MARCHES.filter(m=>m.statut==='Actif').reduce((s,m)=>s+m.montant,0);
+  const echeance=MARCHES.filter(m=>{const d=new Date(m.fin);return(d-new Date())<60*86400000&&m.statut!=='Clos'}).length;
+  document.getElementById('m-actifs').textContent=actifs;
+  document.getElementById('m-valeur').textContent=fmtF(valeur);
+  document.getElementById('m-ao').textContent=AO_LIST.length;
+  document.getElementById('m-echeance').textContent=echeance;
+  document.getElementById('marche-tbody').innerHTML=MARCHES.map(m=>{
+    const pct=Math.min(m.exec,100);
+    const sc=m.statut==='Actif'?'b-valide':m.statut==='À renouveler'?'b-litige':'b-clos';
+    return`<tr>
+      <td style="font-family:monospace;font-size:12px;color:var(--accent);font-weight:700">${m.id}</td>
+      <td style="font-weight:500;max-width:200px">${m.objet}</td>
+      <td style="font-size:12.5px">${m.fourn}</td>
+      <td><span class="badge b-marche" style="font-size:10.5px">${m.type}</span></td>
+      <td class="text-muted">${fmtDate(m.debut)}</td>
+      <td class="text-muted">${fmtDate(m.fin)}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(m.montant)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${pct>80?'var(--orange)':pct>50?'var(--accent)':'var(--green)'};border-radius:3px"></div>
+          </div>
+          <span style="font-size:11.5px;font-weight:600">${pct}%</span>
+        </div>
+      </td>
+      <td><span class="badge ${sc}">${m.statut}</span></td>
+      <td><button class="btn btn-secondary btn-sm" onclick="toast('Marché ${m.id} — ${m.objet}','success')">👁</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('ao-tbody').innerHTML=AO_LIST.map(a=>`
+    <tr>
+      <td style="font-family:monospace;font-size:12px;font-weight:700;color:var(--accent)">${a.id}</td>
+      <td style="font-weight:500">${a.objet}</td>
+      <td class="text-muted">${fmtDate(a.date)}</td>
+      <td class="text-muted" style="font-weight:600">${fmtDate(a.limite)}</td>
+      <td class="text-center"><span style="font-weight:700;color:var(--accent)">${a.offres}</span></td>
+      <td class="text-right amount">${fmtF(a.seuil)}</td>
+      <td><span class="badge b-attente" style="font-size:11px">${a.phase}</span></td>
+      <td><button class="btn btn-primary btn-sm" onclick="toast('Ouverture des plis — AO ${a.id}','success')">📂 Dépouiller</button></td>
+    </tr>`).join('');
+}
+
+// ── Fournisseurs ──────────────────────────────────────────────────────────────
+function renderFournisseurs(){
+  const q=document.getElementById('fourn-search').value.toLowerCase();
+  const fc=document.getElementById('f-fourn-cat').value;
+  const data=fournisseurs.filter(f=>(!q||f.rs.toLowerCase().includes(q)||f.ninea.includes(q))&&(!fc||f.cat===fc));
+  document.getElementById('fourn-grid').innerHTML=data.map(f=>`
+    <div class="fourn-card" onclick="toast('${f.rs} — ${fmtF(f.ca)} CA — Score: ${f.score}/100','success')">
+      <h4>${f.rs}</h4>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px">${f.cat} · ${f.ville} · NINEA: ${f.ninea}</div>
+      <div class="fourn-stat"><span style="color:var(--text-muted)">Compte SYSCOHADA</span><span class="compte-tag">${f.compte}</span></div>
+      <div class="fourn-stat"><span style="color:var(--text-muted)">CA engagé</span><span style="font-weight:600;color:var(--accent)">${fmtF(f.ca)}</span></div>
+      <div class="fourn-stat"><span style="color:var(--text-muted)">Délai livraison</span><span>${f.delai} jours</span></div>
+      <div class="fourn-stat"><span style="color:var(--text-muted)">Taux conformité</span><span style="font-weight:700;color:${f.tauxConf>=90?'var(--green)':'var(--orange)'}">${f.tauxConf}%</span></div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div style="width:${f.score}%;height:100%;background:${f.score>=85?'var(--green)':f.score>=70?'var(--orange)':'var(--red)'};border-radius:3px"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${f.score>=85?'var(--green)':'var(--orange)'}">${f.score}/100</span>
+      </div>
+    </div>`).join('')||`<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--text-muted)">Aucun fournisseur trouvé</div>`;
+
+  document.getElementById('fourn-eval-tbody').innerHTML=data.map(f=>`
+    <tr>
+      <td style="font-weight:600">${f.rs}</td>
+      <td><span class="badge b-marche" style="font-size:10.5px">${f.cat}</span></td>
+      <td class="text-right">${f.nbCmd}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(f.ca)}</td>
+      <td>${f.delai} j</td>
+      <td><span style="font-weight:700;color:${f.tauxConf>=90?'var(--green)':'var(--orange)'}">${f.tauxConf}%</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:80px;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="width:${f.score}%;height:100%;background:${f.score>=85?'var(--green)':f.score>=70?'var(--orange)':'var(--red)'};border-radius:3px"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700">${f.score}</span>
+        </div>
+      </td>
+      <td><span class="badge ${f.score>=85?'b-valide':f.score>=70?'b-attente':'b-litige'}">${f.score>=85?'Préféré':f.score>=70?'Standard':'À améliorer'}</span></td>
+    </tr>`).join('');
+}
+
+// ── Stocks magasins ───────────────────────────────────────────────────────────
+function renderStocks(){
+  const fc=document.getElementById('f-st-cat').value;
+  const data=stocksMagasin.filter(s=>!fc||s.cat===fc);
+  const totalVal=data.reduce((s,x)=>s+x.stock*x.pmp,0);
+  const alertes=data.filter(s=>s.stock<=s.mini).length;
+  document.getElementById('st-refs').textContent=data.length;
+  document.getElementById('st-val').textContent=fmtF(data.reduce((s,x)=>s+x.stock*x.pmp,0));
+  document.getElementById('st-alertes').textContent=stocksMagasin.filter(s=>s.stock<=s.mini).length;
+  document.getElementById('stock-total-val').textContent=fmtF(totalVal);
+  document.getElementById('stock-tbody').innerHTML=data.map(s=>{
+    const pct=Math.min(Math.round(s.stock/s.maxi*100),100);
+    const sc=s.stock===0?'var(--red)':s.stock<=s.mini?'var(--orange)':'var(--green)';
+    const statut=s.stock===0?'Rupture':s.stock<=s.mini?'Alerte mini':'OK';
+    const sb=s.stock===0?'b-litige':s.stock<=s.mini?'b-attente':'b-valide';
+    return`<tr>
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${s.ref}</td>
+      <td style="font-weight:500;max-width:200px">${s.desig}</td>
+      <td><span class="badge b-marche" style="font-size:10.5px">${s.cat}</span></td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${s.magasin}</td>
+      <td class="text-right amount" style="color:${sc}">${fmt(s.stock)}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${fmt(s.mini)} / ${fmt(s.maxi)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div class="stock-bar"><div class="stock-bar-fill" style="width:${pct}%;background:${sc}"></div></div>
+          <span style="font-size:11px;color:var(--text-muted)">${pct}%</span>
+        </div>
+      </td>
+      <td class="text-right text-muted">${fmt(s.pmp)}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(s.stock*s.pmp)}</td>
+      <td><span class="badge ${sb}">${statut}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Transports ────────────────────────────────────────────────────────────────
+function renderTransports(){
+  const att=TRANSPORTS.filter(t=>t.statut==='Attendu').length;
+  const rec=TRANSPORTS.filter(t=>['Livré','Livré partiel'].includes(t.statut)).length;
+  const retard=TRANSPORTS.filter(t=>t.reelle&&t.reelle>t.prevue).length;
+  document.getElementById('tr-att').textContent=att;
+  document.getElementById('tr-rec').textContent=rec;
+  document.getElementById('tr-retard').textContent=retard;
+  const statBadge=s=>{const m={Livré:'b-valide','Livré partiel':'b-attente',Attendu:'b-envoye',Planifié:'b-brouillon'};return`<span class="badge ${m[s]||''}">${s}</span>`};
+  document.getElementById('transport-tbody').innerHTML=TRANSPORTS.map(t=>`
+    <tr>
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${t.id}</td>
+      <td style="font-weight:500">${t.fourn}</td>
+      <td style="font-size:12.5px">${t.objet}</td>
+      <td class="text-muted">${fmtDate(t.prevue)}</td>
+      <td class="text-muted">${t.reelle?fmtDate(t.reelle):'—'}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${t.transp}</td>
+      <td style="font-size:12.5px">${t.dest}</td>
+      <td>${statBadge(t.statut)}</td>
+    </tr>`).join('');
+}
+
+// ── Modals BC ─────────────────────────────────────────────────────────────────
+let ligneBC=0;
+function openBC(){
+  const annee=new Date().getFullYear();
+  document.getElementById('bc-date').value=TODAY;
+  document.getElementById('bc-num').value='BC-'+annee+'-'+String(bonCommandes.length+88).padStart(4,'0');
+  const demEl=document.getElementById('bc-demandeur');
+  if(demEl){ demEl.value=getAcheteur(); }
+  // Si arrivée depuis PUI (BUS stock alerte), pré-remplir l'objet
+  if(typeof MEDICORE_BUS!=='undefined'){
+    const alertes=MEDICORE_BUS.get('STOCK_ALERTE',5).filter(e=>!e.lu);
+    if(alertes.length){
+      const obEl=document.getElementById('bc-objet');
+      if(obEl&&!obEl.value) obEl.value='Réapprovisionnement : '+alertes.map(e=>e.payload.produit).join(', ');
+      const urgEl=document.getElementById('bc-urgence');
+      if(urgEl&&alertes.some(e=>e.payload.statut==='Rupture')){
+        for(let i=0;i<urgEl.options.length;i++){if(urgEl.options[i].value==='Urgente'){urgEl.selectedIndex=i;break;}}
+      }
+    }
+  }
+  document.getElementById('bc-lignes').innerHTML='';ligneBC=0;addLigneBC();
+  document.getElementById('modal-bc').classList.add('open');
+}
+function closeBC(){document.getElementById('modal-bc').classList.remove('open')}
+function addLigneBC(){
+  const id='bl-'+(++ligneBC);
+  const row=document.createElement('tr');row.id=id;
+  row.innerHTML=`<td><input type="text" placeholder="Désignation article" style="width:100%"></td>
+    <td><input type="number" value="1" min="1" style="width:60px" oninput="calcBC()"></td>
+    <td><input type="text" value="unité" style="width:65px"></td>
+    <td><input type="number" value="0" min="0" step="100" style="width:110px" oninput="calcBC()"></td>
+    <td id="${id}-tot" class="amount" style="padding:7px 10px;font-size:12.5px">0 FCFA</td>
+    <td><button class="remove-btn" onclick="document.getElementById('${id}').remove();calcBC()">✕</button></td>`;
+  document.getElementById('bc-lignes').appendChild(row);
+}
+function calcBC(){
+  let total=0;
+  document.querySelectorAll('#bc-lignes tr').forEach(row=>{
+    const nums=row.querySelectorAll('input[type="number"]');
+    const t=( parseFloat(nums[0]?.value)||0)*(parseFloat(nums[1]?.value)||0);
+    const tid=row.id+'-tot';
+    if(document.getElementById(tid)) document.getElementById(tid).textContent=fmtF(t);
+    total+=t;
+  });
+  document.getElementById('bc-total-modal').textContent=fmtF(total);
+}
+function saveBCBrouillon(){
+  const fourn=document.getElementById('bc-fourn').value;
+  if(!fourn){toast('Sélectionnez un fournisseur.','error');return}
+  const id=document.getElementById('bc-num').value;
+  const bc={id,date:TODAY,fourn,objet:document.getElementById('bc-objet').value||'Commande',compte:document.getElementById('bc-compte').value.split(' ')[0],service:document.getElementById('bc-service').value,montant:parseFloat(document.getElementById('bc-total-modal').textContent.replace(/[^\d]/g,''))||0,statut:'Brouillon',urgence:document.getElementById('bc-urgence').value,marche:document.getElementById('bc-marche').value||'',demandeur:getAcheteur()};
+  bonCommandes.push(bc);
+  achatsAudit('BC_BROUILLON',id,`${fourn} — ${bc.objet} — ${fmtF(bc.montant)}`);
+  closeBC();renderBC();updateKPIs();toast(`Brouillon ${id} enregistré.`,'success');
+}
+function submitBC(){
+  const fourn=document.getElementById('bc-fourn').value;
+  if(!fourn){toast('Sélectionnez un fournisseur.','error');return}
+  const id=document.getElementById('bc-num').value;
+  const bc={id,date:TODAY,fourn,objet:document.getElementById('bc-objet').value||'Commande',compte:document.getElementById('bc-compte').value.split(' ')[0],service:document.getElementById('bc-service').value,montant:parseFloat(document.getElementById('bc-total-modal').textContent.replace(/[^\d]/g,''))||0,statut:'En attente visa',urgence:document.getElementById('bc-urgence').value,marche:document.getElementById('bc-marche').value||'',demandeur:getAcheteur()};
+  bonCommandes.push(bc);
+  achatsAudit('BC_SOUMIS',id,`${fourn} — ${bc.objet} — ${fmtF(bc.montant)} — ${bc.urgence}`);
+  closeBC();renderBC();updateKPIs();toast(`BC ${id} soumis au circuit de validation.`,'success');
+}
+
+// ── Modal réception ──────────────────────────────────────────────────────────
+function openBR(){
+  const sel=document.getElementById('br-bc');
+  sel.innerHTML='<option value="">— BC validé —</option>'+bonCommandes.filter(b=>['Validé','Envoyé','Reçu partiel'].includes(b.statut)).map(b=>`<option value="${b.id}">${b.id} — ${b.fourn}</option>`).join('');
+  document.getElementById('br-date').value=TODAY;
+  document.getElementById('modal-br').classList.add('open');
+}
+function closeBR(){document.getElementById('modal-br').classList.remove('open')}
+function checkConformite(){
+  const qteCmd=parseInt(document.getElementById('br-qte-cmd').value)||0;
+  const qteRec=parseInt(document.getElementById('br-qte-rec').value)||0;
+  const qual=document.getElementById('br-qualite').value;
+  const div=document.getElementById('br-resultat');
+  if(!qteCmd){div.textContent='Sélectionnez un BC.';div.style.color='var(--text-muted)';return}
+  if(qteRec===qteCmd&&qual==='Conforme'){div.textContent='✅ Réception conforme — Bon de réception peut être validé.';div.style.color='var(--green)';}
+  else if(qteRec<qteCmd){div.textContent=`⚠️ Livraison partielle — ${qteCmd-qteRec} article(s) manquant(s). Relance fournisseur recommandée.`;div.style.color='var(--orange)';}
+  else if(qual!=='Conforme'){div.textContent='⚠️ Non-conformité qualitative détectée — Litige à ouvrir avec le fournisseur.';div.style.color='var(--red)';}
+}
+function validerBR(){
+  const bc=document.getElementById('br-bc').value;
+  const qteCmd=parseInt(document.getElementById('br-qte-cmd').value)||1;
+  const qteRec=parseInt(document.getElementById('br-qte-rec').value)||0;
+  const qual=document.getElementById('br-qualite').value;
+  if(!bc){toast('Sélectionnez un BC lié.','error');return}
+  const statut=qual!=='Conforme'?'Litige':qteRec<qteCmd?'Partiel':'Conforme';
+  const annee=new Date().getFullYear();
+  const id='BR-'+annee+'-'+String(receptions.length+65).padStart(4,'0');
+  const bcObj=bonCommandes.find(x=>x.id===bc);
+  receptions.push({id,date:TODAY,bcLie:bc,fourn:bcObj?.fourn||'—',articles:'Articles reçus',montant:bcObj?.montant||0,qteCmd,qteRec,qualite:qual,statut,obs:document.getElementById('br-obs').value,receptionnaire:getAcheteur()});
+  if(bcObj&&statut==='Conforme') bcObj.statut='Soldé';
+  achatsAudit('BR_VALIDE',id,`BC: ${bc} — ${bcObj?.fourn||'—'} — Statut: ${statut} — ${qteRec}/${qteCmd} reçus`);
+  closeBR();renderBR();updateKPIs();
+  toast(`Réception ${id} enregistrée — Statut : ${statut}.`,statut==='Conforme'?'success':statut==='Litige'?'error':'warn');
+}
+
+// ── Modal fournisseur ─────────────────────────────────────────────────────────
+function openFourn(){document.getElementById('modal-fourn').classList.add('open')}
+function closeFourn(){document.getElementById('modal-fourn').classList.remove('open')}
+function validerFourn(){
+  const rs=document.getElementById('f-rs').value;
+  if(!rs){toast('Saisir la raison sociale.','error');return}
+  const ninea=document.getElementById('f-ninea').value;
+  fournisseurs.push({id:'F-'+String(fournisseurs.length+7).padStart(3,'0'),rs,ninea,cat:document.getElementById('f-cat').value,pays:document.getElementById('f-pays').value,ville:document.getElementById('f-ville').value,tel:document.getElementById('f-tel').value,email:document.getElementById('f-email').value,delai:parseInt(document.getElementById('f-delai').value)||7,compte:document.getElementById('f-compte-sys').value,nbCmd:0,ca:0,tauxConf:100,score:80});
+  achatsAudit('FOURNISSEUR_REFERENCE','F-'+rs,`${rs} — NINEA: ${ninea} — ${document.getElementById('f-cat').value}`);
+  closeFourn();renderFournisseurs();toast(`Fournisseur ${rs} référencé.`,'success');
+}
+
+function openMarche(){
+  achatsAudit('MARCHE_OUVERT','—','Formulaire création marché consulté');
+  toast('Création marché : contacter le service juridique pour la procédure OHADA.','warn');
+}
+function openAO(){
+  achatsAudit('AO_LANCE','—','Lancement appel d\'offres initié');
+  toast('Appel d\'offres : procédure de passation SYSCOHADA — voir Direction des Marchés.','warn');
+}
+function openMvtStock(){
+  if(typeof window.location!=='undefined') window.location.href='pharmacie_pui.html';
+  else toast('Mouvement de stock — Module Pharmacie PUI.','success');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='receptions'){renderReceptionFlow();renderBR();}
+  if(name==='marches') renderMarches();
+  if(name==='fournisseurs') renderFournisseurs();
+  if(name==='stocks') renderStocks();
+  if(name==='transports') renderTransports();
+}
+
+function exportCSV(){
+  const h=['N° BC','Date','Fournisseur','Objet','Compte','Montant','Statut'];
+  const r=bonCommandes.map(b=>[b.id,b.date,b.fourn,b.objet,b.compte,b.montant,b.statut]);
+  const csv=[h,...r].map(row=>row.map(v=>`"${v}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='achats.csv';a.click();
+  toast('Export CSV généré.','success');
+}
+
+// ── Fermer modals ──────────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeBC();closeBR();closeFourn()}});
+['modal-bc','modal-br','modal-fourn'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) e.currentTarget.classList.remove('open')});
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  if(typeof initNav==='function'){
+    initNav('achats_logistique','Achats & Logistique','Marchés publics · Commandes · Réceptions · Stocks',
+      [{label:'Étape 2 — Finance & support',file:'#'},{label:'Achats & Logistique',file:''}]);
+  }
+  updateKPIs();renderBC();
+});
+</script>
+</body>
+</html>

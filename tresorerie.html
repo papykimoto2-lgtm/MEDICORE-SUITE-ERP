@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Trésorerie</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;--accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;--orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;--purple:#6b21a8;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:240px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .sidebar-logo span{font-family:'DM Serif Display',serif;font-size:18px;display:block}
+  .sidebar-logo small{font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:1px}
+  .sidebar-section{padding:16px 12px 8px;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;opacity:.5;font-weight:600}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:6px;margin:2px 8px;cursor:pointer;font-size:13.5px;opacity:.75;transition:all .15s;color:#fff;text-decoration:none}
+  .nav-item:hover{background:rgba(255,255,255,.1);opacity:1}
+  .nav-item.active{background:rgba(255,255,255,.18);opacity:1;font-weight:500}
+  .nav-item .icon{font-size:16px;width:20px;text-align:center}
+  .sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid rgba(255,255,255,.12);font-size:12px;opacity:.5}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;padding:28px 32px;overflow-y:auto}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .kpi-card.green::before{background:var(--green)}
+  .kpi-card.red::before{background:var(--red)}
+  .kpi-card.blue::before{background:var(--accent)}
+  .kpi-card.orange::before{background:var(--accent2)}
+  .kpi-label{font-size:11.5px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:22px;margin:6px 0 4px;color:var(--accent)}
+  .kpi-badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:20px}
+  .kpi-badge.up{background:var(--green-bg);color:var(--green)}
+  .kpi-badge.down{background:var(--red-bg);color:var(--red)}
+  .kpi-badge.warn{background:var(--orange-bg);color:var(--orange)}
+  .kpi-badge.neutral{background:var(--accent-light);color:var(--accent)}
+  .tabs{display:flex;margin-bottom:24px;border-bottom:2px solid var(--border)}
+  .tab-btn{padding:10px 20px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn:hover{color:var(--accent)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:600;font-size:14px}
+  .card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+  table{width:100%;border-collapse:collapse}
+  thead th{padding:11px 14px;text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;background:var(--surface-alt);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface-alt)}
+  tbody td{padding:11px 14px;font-size:13px;vertical-align:middle}
+  tfoot td{padding:12px 14px;font-weight:700;font-size:13px;background:var(--surface-alt);border-top:2px solid var(--border)}
+  .text-right{text-align:right}
+  .amount{font-variant-numeric:tabular-nums;font-weight:600}
+  .enc-color{color:var(--green)}
+  .dec-color{color:var(--red)}
+  .text-muted{color:var(--text-muted)}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:500;white-space:nowrap}
+  .badge-enc{background:var(--green-bg);color:var(--green)}
+  .badge-dec{background:var(--red-bg);color:var(--red)}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-sm{padding:5px 11px;font-size:12px}
+  .filter-row{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface-alt);flex-wrap:wrap}
+  .filter-row select,.filter-row input{width:auto;padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none}
+  .filter-row label{font-size:12.5px;font-weight:500;color:var(--text-muted);white-space:nowrap}
+  .overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,.45);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);width:640px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:22px 28px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent)}
+  .modal-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .modal-close:hover{background:var(--surface-alt)}
+  .modal-body{padding:24px 28px}
+  .modal-footer{padding:16px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12.5px;font-weight:500;color:var(--text-muted)}
+  label .req{color:var(--red)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .alert-box{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--radius);margin-bottom:14px;font-size:13px}
+  .alert-box.warn{background:var(--orange-bg);border:1px solid #f0c080;color:var(--orange)}
+  .alert-box.info{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent)}
+  .alert-box.ok{background:var(--green-bg);border:1px solid #a8d8be;color:var(--green)}
+  .alert-icon{font-size:18px;flex-shrink:0}
+  .compte-bq-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:20px}
+  .compte-bq-card{border:1px solid var(--border);border-radius:var(--radius);padding:18px;background:var(--surface-alt)}
+  .compte-bq-card h4{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px}
+  .bq-iban{font-size:11px;color:var(--text-muted);font-family:monospace;margin-bottom:12px}
+  .bq-solde{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:4px}
+  .bq-date{font-size:11.5px;color:var(--text-muted)}
+  .bq-actions{margin-top:12px;display:flex;gap:6px}
+  .prev-enc{background:#f0faf5;color:var(--green);font-weight:600;text-align:right;padding:9px 12px}
+  .prev-dec{background:#fdf3f3;color:var(--red);font-weight:600;text-align:right;padding:9px 12px}
+  .prev-section td{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:700;padding:8px 14px;background:var(--surface-alt)}
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .25s ease,toastOut .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}
+  .toast.error{background:var(--red)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+  .syscohada-tag{display:inline-block;background:var(--accent2);color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;margin-left:8px;vertical-align:middle}
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .search-bar input{border:none;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);width:200px;box-shadow:none;padding:0}
+</style>
+  <script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"><!-- nav généré par nav.js --></aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Gestion de la Trésorerie <span class="syscohada-tag">SYSCOHADA</span></h1>
+        <p>Prévisions · Encaissements / Décaissements · Suivi des flux — Comptes 51, 52, 53</p>
+      </div>
+      <div class="topbar-actions">
+        <select id="mois-sel" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);outline:none;" onchange="refreshAll()">
+          <option value="06-2025">Juin 2025</option>
+          <option value="05-2025">Mai 2025</option>
+          <option value="04-2025">Avril 2025</option>
+        </select>
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇ Exporter</button>
+        <button class="btn btn-primary" onclick="openMouvement()">＋ Nouveau mouvement</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="alertes-container"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Solde trésorerie global</div>
+          <div class="kpi-value" id="kpi-solde">—</div>
+          <span class="kpi-badge" id="kpi-solde-badge">Comptes 51/52/53</span>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Encaissements du mois</div>
+          <div class="kpi-value" id="kpi-enc">—</div>
+          <span class="kpi-badge up">▲ Entrées</span>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Décaissements du mois</div>
+          <div class="kpi-value" id="kpi-dec">—</div>
+          <span class="kpi-badge down">▼ Sorties</span>
+        </div>
+        <div class="kpi-card orange">
+          <div class="kpi-label">Flux net du mois</div>
+          <div class="kpi-value" id="kpi-flux">—</div>
+          <span class="kpi-badge" id="kpi-flux-badge">Variation</span>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('suivi',this)">Suivi des flux</button>
+        <button class="tab-btn" onclick="switchTab('prevision',this)">Budget de trésorerie</button>
+        <button class="tab-btn" onclick="switchTab('comptes',this)">Comptes bancaires</button>
+        <button class="tab-btn" onclick="switchTab('historique',this)">Historique</button>
+      </div>
+
+      <!-- ── SUIVI ── -->
+      <div id="tab-suivi" class="tab-panel active">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Flux mensuels — 6 mois</div><div class="card-subtitle">Encaissements vs Décaissements (FCFA)</div></div></div>
+            <div style="padding:20px" id="flux-chart"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Évolution du solde</div><div class="card-subtitle">Trésorerie nette cumulée (FCFA)</div></div></div>
+            <div style="padding:20px" id="solde-chart"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Mouvements de trésorerie</div><div class="card-subtitle" id="mvt-count">—</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="search-bar"><span>🔍</span><input type="text" id="mvt-search" placeholder="Libellé, référence…" oninput="renderMvt()"></div>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-type-mvt" onchange="renderMvt()">
+                <option value="">Tous</option><option value="Encaissement">Encaissements</option><option value="Décaissement">Décaissements</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Date</th><th>Référence</th><th>Compte</th><th>Tiers</th><th>Libellé</th><th>Catégorie</th>
+              <th class="text-right">Encaissement (FCFA)</th><th class="text-right">Décaissement (FCFA)</th><th class="text-right">Solde cumulé (FCFA)</th>
+            </tr></thead>
+            <tbody id="mvt-tbody"></tbody>
+            <tfoot><tr>
+              <td colspan="6">TOTAUX DU MOIS</td>
+              <td class="text-right enc-color" id="foot-enc">—</td>
+              <td class="text-right dec-color" id="foot-dec">—</td>
+              <td class="text-right" id="foot-flux">—</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── PRÉVISION ── -->
+      <div id="tab-prevision" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:20px">
+          <span class="alert-icon">📋</span>
+          <span>Budget de trésorerie sur 6 mois glissants — 2e semestre 2025. Conforme aux exigences UEMOA pour les établissements de santé publics en zone OHADA.</span>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Budget de trésorerie — Juil. à Déc. 2025</div><div class="card-subtitle">Prévisions des flux — FCFA</div></div>
+            <button class="btn btn-primary btn-sm" onclick="openPrevision()">✏ Modifier prévisions</button>
+          </div>
+          <div style="overflow-x:auto"><table id="prev-table" style="min-width:860px"></table></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:4px">
+          <div class="kpi-card blue"><div class="kpi-label">Solde prévisionnel Déc. 2025</div><div class="kpi-value" style="font-size:20px" id="prev-solde-fin">—</div><span class="kpi-badge neutral">📅 Fin exercice</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Mois le plus tendu</div><div class="kpi-value" style="font-size:20px" id="prev-mois-tendu">—</div><span class="kpi-badge warn">⚠ Risque liquidité</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Couverture charges fixes</div><div class="kpi-value" style="font-size:20px" id="prev-couverture">—</div><span class="kpi-badge up">✓ Mois de réserve</span></div>
+        </div>
+      </div>
+
+      <!-- ── COMPTES ── -->
+      <div id="tab-comptes" class="tab-panel">
+        <div class="alert-box ok" style="margin-bottom:20px">
+          <span class="alert-icon">✅</span>
+          <span>Tous les comptes bancaires sont à jour. Dernier relevé importé le <strong>15/06/2025</strong>.</span>
+        </div>
+        <div class="compte-bq-grid" id="comptes-grid"></div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Répartition de la trésorerie par compte</div></div>
+          <div style="padding:20px" id="repartition-comptes"></div>
+        </div>
+      </div>
+
+      <!-- ── HISTORIQUE ── -->
+      <div id="tab-historique" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Historique des mouvements</div><div class="card-subtitle">Tous les flux depuis le début de l'exercice</div></div>
+            <div style="display:flex;gap:8px">
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-hist-mois" onchange="renderHistorique()">
+                <option value="">Tous les mois</option>
+                <option value="2025-06">Juin 2025</option><option value="2025-05">Mai 2025</option>
+                <option value="2025-04">Avril 2025</option><option value="2025-03">Mars 2025</option>
+              </select>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-hist-compte" onchange="renderHistorique()">
+                <option value="">Tous les comptes</option>
+                <option value="BGFIBANK">BGFIBANK</option><option value="ECOBANK">ECOBANK</option>
+                <option value="BNI">BNI CI</option><option value="Caisse">Caisse</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Date</th><th>Référence</th><th>Compte</th><th>Tiers</th><th>Libellé</th><th>Catégorie</th>
+              <th class="text-right">Entrée (FCFA)</th><th class="text-right">Sortie (FCFA)</th><th class="text-right">Solde (FCFA)</th>
+            </tr></thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Mouvement -->
+<div class="overlay" id="modal-mvt">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">Nouveau mouvement de trésorerie</div><div class="modal-subtitle">Encaissement ou décaissement — Comptes 51/52/53</div></div>
+      <button class="modal-close" onclick="closeMouvement()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Type <span class="req">*</span></label>
+          <select id="m-type"><option value="Encaissement">Encaissement (entrée)</option><option value="Décaissement">Décaissement (sortie)</option></select></div>
+        <div class="form-group"><label>Date <span class="req">*</span></label><input type="date" id="m-date"></div>
+        <div class="form-group"><label>Compte bancaire <span class="req">*</span></label>
+          <select id="m-compte">
+            <option value="BGFIBANK">511 — BGFIBANK</option><option value="ECOBANK">512 — ECOBANK</option>
+            <option value="BNI">513 — BNI CI</option><option value="Caisse">530 — Caisse principale</option>
+          </select></div>
+        <div class="form-group"><label>Référence</label><input type="text" id="m-ref" placeholder="VIR-20250615, CHQ-1234"></div>
+        <div class="form-group"><label>Tiers</label><input type="text" id="m-tiers" placeholder="CNAM-CI, Laborex, Ministère…"></div>
+        <div class="form-group"><label>Catégorie <span class="req">*</span></label>
+          <select id="m-categorie">
+            <optgroup label="Encaissements">
+              <option value="Recettes soins">Recettes soins hospitaliers</option>
+              <option value="Subvention État">Subvention / Dotation État</option>
+              <option value="Remboursement AM">Remboursement Assurance Maladie</option>
+              <option value="Remboursement mutuelle">Remboursement mutuelle</option>
+              <option value="Rétrocession">Rétrocession pharmacie</option>
+            </optgroup>
+            <optgroup label="Décaissements">
+              <option value="Salaires">Salaires et charges sociales</option>
+              <option value="Fournisseurs médicaments">Fournisseurs médicaments</option>
+              <option value="Fournisseurs équipements">Fournisseurs équipements</option>
+              <option value="Charges fixes">Charges fixes (eau, élec.)</option>
+              <option value="Remboursement emprunt">Remboursement emprunt</option>
+            </optgroup>
+          </select></div>
+        <div class="form-group"><label>Montant (FCFA) <span class="req">*</span></label><input type="number" id="m-montant" min="0" placeholder="5 000 000"></div>
+        <div class="form-group full"><label>Libellé <span class="req">*</span></label><input type="text" id="m-libelle" placeholder="Description du mouvement"></div>
+        <div class="form-group full"><label>Observations</label><textarea id="m-obs" style="min-height:56px" placeholder="N° facture, contrat, notes…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMouvement()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerMouvement()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Prévisions -->
+<div class="overlay" id="modal-prev">
+  <div class="modal" style="width:720px">
+    <div class="modal-header">
+      <div><div class="modal-title">Modifier les prévisions</div><div class="modal-subtitle">Budget de trésorerie — 2e semestre 2025</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-prev').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="prev-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-prev').classList.remove('open')">Annuler</button>
+      <button class="btn btn-primary" onclick="savePrevisions()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const COMPTES_BQ = [
+  { code:'511', banque:'BGFIBANK', iban:'CI093 00201 12345678901 26', solde:98500000, date:'15/06/2025', couleur:'#1a4b6e' },
+  { code:'512', banque:'ECOBANK',  iban:'CI093 00108 98765432109 44', solde:45200000, date:'15/06/2025', couleur:'#c8702a' },
+  { code:'513', banque:'BNI CI',   iban:'CI093 00301 11223344556 12', solde:12800000, date:'14/06/2025', couleur:'#1e7a4e' },
+  { code:'530', banque:'Caisse principale', iban:'—', solde:3500000, date:'15/06/2025', couleur:'#6b21a8' },
+];
+
+let mouvements = [
+  { date:'2025-06-02', ref:'VIR-20250602', compte:'BGFIBANK', tiers:'CNAM',            libelle:'Remboursement prestations mai',         categorie:'Remboursement AM',       type:'Encaissement', montant:42500000 },
+  { date:'2025-06-05', ref:'VIR-20250605', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation juin',   categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
+  { date:'2025-06-07', ref:'CHQ-20250607', compte:'ECOBANK',  tiers:'Laborex CI',       libelle:'Règlement facture médicaments FA-0412',  categorie:'Fournisseurs médicaments',type:'Décaissement', montant:18400000 },
+  { date:'2025-06-10', ref:'VIR-20250610', compte:'BGFIBANK', tiers:'Mutuelle CI',      libelle:'Remboursement mutuelles juin',           categorie:'Remboursement mutuelle', type:'Encaissement', montant:9800000  },
+  { date:'2025-06-12', ref:'VIR-20250612', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires juin 2025',            categorie:'Salaires',               type:'Décaissement', montant:62800000 },
+  { date:'2025-06-12', ref:'VIR-20250612', compte:'BNI',      tiers:'CNPS',            libelle:'Cotisations sociales juin',              categorie:'Salaires',               type:'Décaissement', montant:18900000 },
+  { date:'2025-06-18', ref:'VIR-20250618', compte:'ECOBANK',  tiers:'Recettes soins',  libelle:'Encaissements consultations externes',   categorie:'Recettes soins',         type:'Encaissement', montant:14200000 },
+  { date:'2025-06-20', ref:'VIR-20250620', compte:'BGFIBANK', tiers:'CIE/SODECI',      libelle:'Factures eau et électricité T2',         categorie:'Charges fixes',          type:'Décaissement', montant:4100000  },
+  { date:'2025-06-22', ref:'VIR-20250622', compte:'BGFIBANK', tiers:'SGBCI',           libelle:'Remboursement mensuel emprunt',          categorie:'Remboursement emprunt',  type:'Décaissement', montant:8500000  },
+  { date:'2025-06-25', ref:'VIR-20250625', compte:'ECOBANK',  tiers:'Pharmacie ext.',  libelle:'Rétrocession médicaments onco juin',     categorie:'Rétrocession',           type:'Encaissement', montant:5600000  },
+  { date:'2025-05-03', ref:'VIR-20250503', compte:'BGFIBANK', tiers:'CNAM',            libelle:'Remboursement prestations avril',        categorie:'Remboursement AM',       type:'Encaissement', montant:39800000 },
+  { date:'2025-05-05', ref:'VIR-20250505', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation mai',    categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
+  { date:'2025-05-10', ref:'CHQ-20250510', compte:'ECOBANK',  tiers:'Laborex CI',      libelle:'Règlement médicaments essentiels',       categorie:'Fournisseurs médicaments',type:'Décaissement', montant:16200000 },
+  { date:'2025-05-12', ref:'VIR-20250512', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires mai 2025',             categorie:'Salaires',               type:'Décaissement', montant:62800000 },
+  { date:'2025-04-04', ref:'VIR-20250404', compte:'BGFIBANK', tiers:'CNAM',            libelle:'Remboursement prestations mars',         categorie:'Remboursement AM',       type:'Encaissement', montant:38100000 },
+  { date:'2025-04-05', ref:'VIR-20250405', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation avril',  categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
+  { date:'2025-04-12', ref:'VIR-20250412', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires avril 2025',           categorie:'Salaires',               type:'Décaissement', montant:62800000 },
+  { date:'2025-03-05', ref:'VIR-20250305', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation mars',   categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
+  { date:'2025-03-12', ref:'VIR-20250312', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires mars 2025',            categorie:'Salaires',               type:'Décaissement', montant:62800000 },
+];
+
+let previsions = [
+  { rubrique:'Dotation exploitation État',      type:'enc', vals:[65000000,65000000,65000000,65000000,65000000,65000000] },
+  { rubrique:'Remboursements CNAM/mutuelles',   type:'enc', vals:[52000000,50000000,53000000,51000000,54000000,56000000] },
+  { rubrique:'Recettes soins & consultations',  type:'enc', vals:[18000000,17000000,19000000,16000000,20000000,22000000] },
+  { rubrique:'Rétrocession pharmacie',          type:'enc', vals:[5500000,5200000,5800000,5000000,6000000,6200000] },
+  { rubrique:'Salaires & charges sociales',     type:'dec', vals:[81700000,81700000,81700000,81700000,81700000,81700000] },
+  { rubrique:'Fournisseurs médicaments',        type:'dec', vals:[20000000,18000000,21000000,19000000,22000000,20000000] },
+  { rubrique:'Fournisseurs équipements',        type:'dec', vals:[8000000,6000000,10000000,7000000,9000000,8000000] },
+  { rubrique:'Charges fixes (eau, élec.)',      type:'dec', vals:[4200000,4200000,4200000,4200000,4200000,4200000] },
+  { rubrique:'Remboursement emprunt SGBCI',     type:'dec', vals:[8500000,8500000,8500000,8500000,8500000,8500000] },
+];
+
+const MOIS_PREV = ['Juil.','Août','Sept.','Oct.','Nov.','Déc.'];
+const MOIS_HIST = ['Jan.','Fév.','Mars','Avr.','Mai','Juin'];
+const MOIS_FLUX = [
+  { label:'Jan.', enc:103100000, dec:81800000 },
+  { label:'Fév.', enc:98400000,  dec:79200000 },
+  { label:'Mars', enc:103200000, dec:82400000 },
+  { label:'Avr.', enc:103100000, dec:81200000 },
+  { label:'Mai',  enc:104800000, dec:83100000 },
+  { label:'Juin', enc:137100000, dec:119000000},
+];
+const SOLDE_HIST = [148200000,167400000,188200000,210100000,231800000,260000000];
+
+// ── Journal d'audit Trésorerie ────────────────────────────────────────────────
+const TRESO_AUDIT = [];
+function tresoAudit(action, ref, detail){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  TRESO_AUDIT.push({ts:new Date().toISOString(),action,ref,detail,auteur:s.nom||'Trésorier',role:s.role||'—'});
+}
+function getTresorier(){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  return s.nom||'DAF';
+}
+
+function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
+function fmtF(v){return fmt(v)+' FCFA'}
+function getMois(){return document.getElementById('mois-sel').value}
+function getMvtMois(){const m=getMois();const[mm,yyyy]=m.split('-');return mouvements.filter(mv=>mv.date.startsWith(`${yyyy}-${mm}`))}
+
+function updateKPIs(){
+  const tot=COMPTES_BQ.reduce((s,c)=>s+c.solde,0);
+  const mvts=getMvtMois();
+  const enc=mvts.filter(m=>m.type==='Encaissement').reduce((s,m)=>s+m.montant,0);
+  const dec=mvts.filter(m=>m.type==='Décaissement').reduce((s,m)=>s+m.montant,0);
+  const flux=enc-dec;
+  document.getElementById('kpi-solde').textContent=fmtF(tot);
+  document.getElementById('kpi-enc').textContent=fmtF(enc);
+  document.getElementById('kpi-dec').textContent=fmtF(dec);
+  document.getElementById('kpi-flux').textContent=fmtF(Math.abs(flux));
+  const sb=document.getElementById('kpi-solde-badge');
+  sb.className='kpi-badge '+(tot>50000000?'up':tot>10000000?'warn':'down');
+  sb.textContent=tot>50000000?'✓ Solide':tot>10000000?'⚠ Vigilance':'⚠ Tendu';
+  const fb=document.getElementById('kpi-flux-badge');
+  fb.className='kpi-badge '+(flux>=0?'up':'down');
+  fb.textContent=flux>=0?'▲ Positif':'▼ Négatif';
+  const alertes=[];
+  if(tot<30000000) alertes.push({type:'warn',msg:`Solde global inférieur à 30 M FCFA (${fmtF(tot)}). Risque de tension dans les 30 jours.`});
+  const caisse=COMPTES_BQ.find(c=>c.banque==='Caisse principale');
+  if(caisse&&caisse.solde<2000000) alertes.push({type:'warn',msg:`Caisse principale faible (${fmtF(caisse.solde)}). Prévoir approvisionnement.`});
+  if(!alertes.length) alertes.push({type:'ok',msg:'Trésorerie dans les normes. Aucune alerte active.'});
+  document.getElementById('alertes-container').innerHTML=alertes.map(a=>`<div class="alert-box ${a.type}"><span class="alert-icon">${a.type==='warn'?'⚠️':'✅'}</span><span>${a.msg}</span></div>`).join('');
+}
+
+function renderFluxChart(){
+  const maxV=Math.max(...MOIS_FLUX.map(m=>Math.max(m.enc,m.dec)));
+  const H=130;
+  document.getElementById('flux-chart').innerHTML=`
+    <div style="display:flex;align-items:flex-end;gap:6px;height:${H+28}px">
+      ${MOIS_FLUX.map(m=>{
+        const hE=Math.round(m.enc/maxV*H),hD=Math.round(m.dec/maxV*H);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="display:flex;gap:2px;align-items:flex-end;height:${H}px">
+            <div style="width:18px;background:var(--green);border-radius:3px 3px 0 0;height:${hE}px" title="Enc: ${fmtF(m.enc)}"></div>
+            <div style="width:18px;background:var(--red);border-radius:3px 3px 0 0;height:${hD}px" title="Déc: ${fmtF(m.dec)}"></div>
+          </div>
+          <div style="font-size:10.5px;color:var(--text-muted);font-weight:500">${m.label}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:14px;margin-top:6px">
+      <div style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-muted)"><div style="width:12px;height:12px;background:var(--green);border-radius:2px"></div>Encaissements</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-muted)"><div style="width:12px;height:12px;background:var(--red);border-radius:2px"></div>Décaissements</div>
+    </div>`;
+}
+
+function renderSoldeChart(){
+  const max=Math.max(...SOLDE_HIST);
+  const H=100;
+  const pts=SOLDE_HIST.map((s,i)=>({x:i/(SOLDE_HIST.length-1)*500,y:H-(s/max*(H-10))-5}));
+  document.getElementById('solde-chart').innerHTML=`
+    <svg width="100%" height="${H+30}" viewBox="0 0 500 ${H+30}" preserveAspectRatio="none">
+      <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a4b6e" stop-opacity=".2"/><stop offset="100%" stop-color="#1a4b6e" stop-opacity="0"/></linearGradient></defs>
+      <path d="${pts.map((p,i)=>(i===0?'M':'L')+p.x+','+p.y).join(' ')} L500,${H} L0,${H} Z" fill="url(#sg)"/>
+      <path d="${pts.map((p,i)=>(i===0?'M':'L')+p.x+','+p.y).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+      ${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4" fill="var(--accent)" stroke="#fff" stroke-width="2"/>`).join('')}
+      ${MOIS_HIST.map((m,i)=>`<text x="${i/(MOIS_HIST.length-1)*500}" y="${H+22}" text-anchor="middle" font-size="11" fill="#6b6b6b" font-family="DM Sans,sans-serif">${m}</text>`).join('')}
+    </svg>
+    <div style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:4px">Solde Juin 2025 : <strong style="color:var(--accent)">${fmtF(SOLDE_HIST[5])}</strong></div>`;
+}
+
+function renderMvt(){
+  const q=document.getElementById('mvt-search').value.toLowerCase();
+  const ft=document.getElementById('f-type-mvt').value;
+  const data=getMvtMois().filter(m=>(!q||m.libelle.toLowerCase().includes(q)||m.ref.toLowerCase().includes(q)||m.tiers.toLowerCase().includes(q))&&(!ft||m.type===ft)).sort((a,b)=>a.date.localeCompare(b.date));
+  let cumul=98200000;
+  const enc=data.filter(m=>m.type==='Encaissement').reduce((s,m)=>s+m.montant,0);
+  const dec=data.filter(m=>m.type==='Décaissement').reduce((s,m)=>s+m.montant,0);
+  const flux=enc-dec;
+  document.getElementById('mvt-count').textContent=`${data.length} mouvement(s) — Solde début : ${fmtF(98200000)}`;
+  document.getElementById('foot-enc').textContent=fmtF(enc);
+  document.getElementById('foot-dec').textContent=fmtF(dec);
+  document.getElementById('foot-flux').textContent=(flux>=0?'+':'')+fmtF(flux);
+  document.getElementById('foot-flux').style.color=flux>=0?'var(--green)':'var(--red)';
+  document.getElementById('mvt-tbody').innerHTML=data.map(m=>{
+    cumul+=m.type==='Encaissement'?m.montant:-m.montant;
+    return `<tr>
+      <td class="text-muted">${new Date(m.date).toLocaleDateString('fr-FR')}</td>
+      <td style="font-size:12px;font-family:monospace">${m.ref}</td>
+      <td><span style="font-size:11.5px;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:4px;font-weight:600">${m.compte}</span></td>
+      <td style="font-weight:500">${m.tiers}</td>
+      <td style="font-size:12.5px;max-width:200px">${m.libelle}</td>
+      <td><span class="badge ${m.type==='Encaissement'?'badge-enc':'badge-dec'}" style="font-size:11px">${m.categorie}</span></td>
+      <td class="text-right amount enc-color">${m.type==='Encaissement'?fmt(m.montant):''}</td>
+      <td class="text-right amount dec-color">${m.type==='Décaissement'?fmt(m.montant):''}</td>
+      <td class="text-right amount" style="color:${cumul>=0?'var(--accent)':'var(--red)'}">${fmt(cumul)}</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Aucun mouvement</td></tr>`;
+}
+
+function renderPrevision(){
+  const encP=previsions.filter(r=>r.type==='enc'),decP=previsions.filter(r=>r.type==='dec');
+  let sc=160000000;
+  const soldeM=MOIS_PREV.map((_,i)=>{const e=encP.reduce((s,r)=>s+r.vals[i],0),d=decP.reduce((s,r)=>s+r.vals[i],0);const sd=sc;sc+=e-d;return{enc:e,dec:d,soldeDeb:sd,soldeFin:sc};});
+  const soldeFin=soldeM[5].soldeFin;
+  const moisTendu=soldeM.reduce((min,m,i)=>m.soldeFin<soldeM[min].soldeFin?i:min,0);
+  const chMoy=decP.reduce((s,r)=>s+r.vals.reduce((a,b)=>a+b,0),0)/6;
+  document.getElementById('prev-solde-fin').textContent=fmtF(soldeFin);
+  document.getElementById('prev-mois-tendu').textContent=MOIS_PREV[moisTendu];
+  document.getElementById('prev-couverture').textContent=(soldeFin/chMoy).toFixed(1)+' mois';
+  const cols=MOIS_PREV.length;
+  const th=`<thead><tr><th style="min-width:200px">Rubrique</th>${MOIS_PREV.map(m=>`<th class="text-right">${m} 2025</th>`).join('')}<th class="text-right">TOTAL</th></tr></thead>`;
+  const encRows='<tr class="prev-section"><td colspan="'+(cols+2)+'">ENCAISSEMENTS PRÉVUS</td></tr>'+
+    encP.map(r=>`<tr><td style="padding:9px 14px;font-size:12.5px">${r.rubrique}</td>${r.vals.map(v=>`<td class="prev-enc">${fmt(v)}</td>`).join('')}<td class="prev-enc">${fmt(r.vals.reduce((a,b)=>a+b,0))}</td></tr>`).join('')+
+    `<tr style="background:var(--green-bg);font-weight:700"><td style="padding:10px 14px">= TOTAL ENCAISSEMENTS</td>${MOIS_PREV.map((_,i)=>`<td class="prev-enc" style="font-size:13px">${fmt(encP.reduce((s,r)=>s+r.vals[i],0))}</td>`).join('')}<td class="prev-enc">${fmt(encP.reduce((s,r)=>s+r.vals.reduce((a,b)=>a+b,0),0))}</td></tr>`;
+  const decRows='<tr class="prev-section"><td colspan="'+(cols+2)+'">DÉCAISSEMENTS PRÉVUS</td></tr>'+
+    decP.map(r=>`<tr><td style="padding:9px 14px;font-size:12.5px">${r.rubrique}</td>${r.vals.map(v=>`<td class="prev-dec">${fmt(v)}</td>`).join('')}<td class="prev-dec">${fmt(r.vals.reduce((a,b)=>a+b,0))}</td></tr>`).join('')+
+    `<tr style="background:var(--red-bg);font-weight:700"><td style="padding:10px 14px">= TOTAL DÉCAISSEMENTS</td>${MOIS_PREV.map((_,i)=>`<td class="prev-dec" style="font-size:13px">${fmt(decP.reduce((s,r)=>s+r.vals[i],0))}</td>`).join('')}<td class="prev-dec">${fmt(decP.reduce((s,r)=>s+r.vals.reduce((a,b)=>a+b,0),0))}</td></tr>`;
+  const soldeRows='<tr class="prev-section"><td colspan="'+(cols+2)+'">SOLDE DE TRÉSORERIE</td></tr>'+
+    `<tr style="background:var(--accent);color:#fff;font-weight:700"><td style="padding:12px 14px">= SOLDE FIN DE MOIS</td>${soldeM.map(m=>{const c=m.soldeFin<20000000?'#fca5a5':m.soldeFin<50000000?'#fde68a':'#86efac';return`<td style="text-align:right;padding:10px 12px;background:${c};color:#000;font-weight:700;font-size:13px">${fmt(m.soldeFin)}</td>`;}).join('')}<td></td></tr>`;
+  document.getElementById('prev-table').innerHTML=th+`<tbody>${encRows}${decRows}${soldeRows}</tbody>`;
+}
+
+function renderComptes(){
+  const total=COMPTES_BQ.reduce((s,c)=>s+c.solde,0);
+  document.getElementById('comptes-grid').innerHTML=COMPTES_BQ.map(c=>`
+    <div class="compte-bq-card" style="border-left:4px solid ${c.couleur}">
+      <h4>${c.code} — ${c.banque}</h4>
+      <div class="bq-iban">${c.iban}</div>
+      <div class="bq-solde" style="color:${c.couleur}">${fmtF(c.solde)}</div>
+      <div class="bq-date">Mise à jour : ${c.date}</div>
+      <div class="bq-actions">
+        <button class="btn btn-secondary btn-sm" onclick="toast('Relevé ${c.banque}.','success')">📄 Relevé</button>
+        <button class="btn btn-secondary btn-sm" onclick="toast('Rapprochement ${c.banque} lancé.','success')">🔗 Rapprocher</button>
+      </div>
+    </div>`).join('');
+  document.getElementById('repartition-comptes').innerHTML=COMPTES_BQ.map(c=>{
+    const pct=Math.round(c.solde/total*100);
+    return `<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div style="width:140px;font-size:13px;font-weight:500">${c.banque}</div>
+      <div style="flex:1;height:24px;background:var(--bg);border-radius:4px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${c.couleur};border-radius:4px;display:flex;align-items:center;padding-left:8px">
+          ${pct>15?`<span style="font-size:11.5px;font-weight:600;color:#fff">${pct}%</span>`:''}
+        </div>
+      </div>
+      <div style="width:160px;text-align:right;font-size:13px;font-weight:600;color:${c.couleur}">${fmtF(c.solde)}</div>
+    </div>`;
+  }).join('')+`<div style="display:flex;justify-content:flex-end;padding-top:10px;border-top:2px solid var(--border);font-size:13.5px;font-weight:700;color:var(--accent)">Total : ${fmtF(total)}</div>`;
+}
+
+function renderHistorique(){
+  const fm=document.getElementById('f-hist-mois').value,fc=document.getElementById('f-hist-compte').value;
+  const data=mouvements.filter(m=>(!fm||m.date.startsWith(fm))&&(!fc||m.compte===fc)).sort((a,b)=>a.date.localeCompare(b.date));
+  let cumul=98200000;
+  document.getElementById('hist-tbody').innerHTML=data.map(m=>{
+    cumul+=m.type==='Encaissement'?m.montant:-m.montant;
+    return `<tr>
+      <td class="text-muted">${new Date(m.date).toLocaleDateString('fr-FR')}</td>
+      <td style="font-size:12px;font-family:monospace">${m.ref}</td>
+      <td><span style="font-size:11.5px;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:4px;font-weight:600">${m.compte}</span></td>
+      <td style="font-weight:500">${m.tiers}</td>
+      <td style="font-size:12.5px">${m.libelle}</td>
+      <td><span class="badge ${m.type==='Encaissement'?'badge-enc':'badge-dec'}" style="font-size:11px">${m.categorie}</span></td>
+      <td class="text-right amount enc-color">${m.type==='Encaissement'?fmt(m.montant):''}</td>
+      <td class="text-right amount dec-color">${m.type==='Décaissement'?fmt(m.montant):''}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmt(cumul)}</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Aucun mouvement</td></tr>`;
+}
+
+function openMouvement(){
+  document.getElementById('m-date').value=new Date().toISOString().split('T')[0];
+  // Saisisseur = session
+  const saisEl=document.getElementById('m-saisie-par');
+  if(saisEl) saisEl.value=getTresorier();
+  document.getElementById('modal-mvt').classList.add('open');
+}
+function closeMouvement(){document.getElementById('modal-mvt').classList.remove('open')}
+
+function validerMouvement(){
+  const type=document.getElementById('m-type').value;
+  const montant=parseFloat(document.getElementById('m-montant').value)||0;
+  const libelle=document.getElementById('m-libelle').value;
+  const date=document.getElementById('m-date').value;
+  if(!montant||!libelle||!date){toast('Remplissez les champs obligatoires.','error');return}
+  const compte=document.getElementById('m-compte').value;
+  const annee=new Date().getFullYear();
+  const ref='MVT-'+annee+'-'+String(mouvements.length+1).padStart(4,'0');
+  const mvt={date,ref,compte,tiers:document.getElementById('m-tiers').value||'—',libelle,categorie:document.getElementById('m-categorie').value,type,montant,saisiePar:getTresorier()};
+  mouvements.push(mvt);
+  const cb=COMPTES_BQ.find(c=>c.banque.split(' ')[0]===compte||c.banque===compte);
+  if(cb) cb.solde+=type==='Encaissement'?montant:-montant;
+  tresoAudit('MOUVEMENT_ENREGISTRE',ref,`${type} — ${fmtF(montant)} — ${mvt.tiers} — ${compte}`);
+  closeMouvement();refreshAll();
+  toast(`Mouvement ${ref} enregistré — ${fmtF(montant)}.`,'success');
+}
+
+function openPrevision(){
+  document.getElementById('prev-modal-body').innerHTML=previsions.map((r,ri)=>`
+    <div style="margin-bottom:14px;padding:12px;border:1px solid var(--border);border-radius:6px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:${r.type==='enc'?'var(--green)':'var(--red)'}">${r.type==='enc'?'▲':'▼'} ${r.rubrique}</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
+        ${MOIS_PREV.map((m,i)=>`<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">${m}</div><input type="number" value="${r.vals[i]}" id="prev-${ri}-${i}" style="padding:6px 8px;font-size:12.5px;width:100%"></div>`).join('')}
+      </div>
+    </div>`).join('');
+  document.getElementById('modal-prev').classList.add('open');
+}
+
+function savePrevisions(){
+  previsions.forEach((r,ri)=>MOIS_PREV.forEach((_,i)=>{r.vals[i]=parseFloat(document.getElementById(`prev-${ri}-${i}`)?.value)||0;}));
+  document.getElementById('modal-prev').classList.remove('open');
+  tresoAudit('PREVISIONS_MISES_A_JOUR','PREV-'+new Date().getFullYear(),`Prévisions trésorerie mises à jour par ${getTresorier()}`);
+  renderPrevision();toast('Prévisions mises à jour.','success');
+}
+
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='comptes') renderComptes();
+  if(name==='historique') renderHistorique();
+  if(name==='prevision') renderPrevision();
+}
+
+function refreshAll(){updateKPIs();renderFluxChart();renderSoldeChart();renderMvt()}
+
+function exportCSV(){
+  const h=['Date','Référence','Compte','Tiers','Libellé','Catégorie','Type','Montant'];
+  const r=mouvements.map(m=>[m.date,m.ref,m.compte,m.tiers,m.libelle,m.categorie,m.type,m.montant]);
+  const csv=[h,...r].map(row=>row.map(v=>`"${v}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));a.download='tresorerie.csv';a.click();
+  tresoAudit('EXPORT_CSV','EXPORT',`${mouvements.length} mouvements exportés`);
+  toast('Export CSV généré.','success');
+}
+
+function toast(msg,type=''){
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMouvement();document.getElementById('modal-prev').classList.remove('open')}});
+document.getElementById('modal-mvt').addEventListener('click',e=>{if(e.target===e.currentTarget)closeMouvement()});
+document.getElementById('modal-prev').addEventListener('click',e=>{if(e.target===e.currentTarget)document.getElementById('modal-prev').classList.remove('open')});
+
+refreshAll();renderComptes();renderHistorique();renderPrevision();
+</script>
+
+<script>
+// Auto-init navigation MediCore
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof initNav === 'function') {
+    initNav('tresorerie', 'Trésorerie', '51 · 52 · 53 SYSCOHADA',
+      [{label:'Étape 2 — Finance & support',file:'#'},{label:'Trésorerie',file:''}]);
+  }
+});
+</script>
+</body>
+</html>

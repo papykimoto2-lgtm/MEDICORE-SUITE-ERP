@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — RH & Paie</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;
+    --accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;
+    --orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;
+    --purple:#6b21a8;--purple-bg:#f3e8ff;
+    --teal:#0f766e;--teal-bg:#ccfbf1;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:242px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;padding:28px 32px;overflow-y:auto}
+
+  /* KPIs */
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:26px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .kpi-card.blue::before{background:var(--accent)}
+  .kpi-card.green::before{background:var(--green)}
+  .kpi-card.orange::before{background:var(--accent2)}
+  .kpi-card.red::before{background:var(--red)}
+  .kpi-card.teal::before{background:var(--teal)}
+  .kpi-label{font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:22px;margin:5px 0 3px;color:var(--accent)}
+  .kpi-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:2px 7px;border-radius:20px}
+  .kpi-badge.up{background:var(--green-bg);color:var(--green)}
+  .kpi-badge.down{background:var(--red-bg);color:var(--red)}
+  .kpi-badge.warn{background:var(--orange-bg);color:var(--orange)}
+  .kpi-badge.neutral{background:var(--accent-light);color:var(--accent)}
+
+  /* Tabs */
+  .tabs{display:flex;margin-bottom:22px;border-bottom:2px solid var(--border);flex-wrap:wrap}
+  .tab-btn{padding:9px 17px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn:hover{color:var(--accent)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:600;font-size:14px}
+  .card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+  /* Tables */
+  table{width:100%;border-collapse:collapse}
+  thead th{padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;background:var(--surface-alt);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface-alt)}
+  tbody td{padding:10px 14px;font-size:13px;vertical-align:middle}
+  tfoot td{padding:11px 14px;font-weight:700;font-size:13px;background:var(--surface-alt);border-top:2px solid var(--border)}
+  .text-right{text-align:right}
+  .amount{font-variant-numeric:tabular-nums;font-weight:600}
+  .text-muted{color:var(--text-muted)}
+
+  /* Badges */
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+  .b-actif{background:var(--green-bg);color:var(--green)}
+  .b-conge{background:var(--accent-light);color:var(--accent)}
+  .b-maladie{background:var(--orange-bg);color:var(--orange)}
+  .b-suspendu{background:var(--red-bg);color:var(--red)}
+  .b-essai{background:var(--purple-bg);color:var(--purple)}
+  .b-medical{background:var(--teal-bg);color:var(--teal)}
+  .b-nonmed{background:var(--accent2-light);color:var(--accent2)}
+  .b-valide{background:var(--green-bg);color:var(--green)}
+  .b-attente{background:var(--orange-bg);color:var(--orange)}
+  .b-refuse{background:var(--red-bg);color:var(--red)}
+
+  /* Boutons */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-success{background:var(--green-bg);color:var(--green);border:1px solid #a8d8be}
+  .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #f3b4b4}
+  .btn-sm{padding:5px 10px;font-size:12px}
+
+  /* Filtres */
+  .filter-row{display:flex;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface-alt);flex-wrap:wrap}
+  .filter-row select,.filter-row input{width:auto;padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none;color:var(--text)}
+  .filter-row label{font-size:12.5px;font-weight:500;color:var(--text-muted);white-space:nowrap}
+
+  /* Search */
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .search-bar input{border:none;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);width:200px;box-shadow:none;padding:0}
+
+  /* Modal */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,.45);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);width:740px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:20px 26px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent)}
+  .modal-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .modal-close:hover{background:var(--surface-alt)}
+  .modal-body{padding:22px 26px}
+  .modal-footer{padding:14px 26px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+  /* Formulaire */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12.5px;font-weight:500;color:var(--text-muted)}
+  label .req{color:var(--red)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .section-label{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;padding-top:4px;border-top:1px solid var(--border)}
+
+  /* Fiche agent */
+  .agent-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0}
+  .agent-info{flex:1}
+  .agent-name{font-weight:600;font-size:14px}
+  .agent-meta{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+  /* Bulletin de paie */
+  .bulletin{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+  .bulletin-header{display:flex;justify-content:space-between;border-bottom:2px solid var(--accent);padding-bottom:12px;margin-bottom:16px}
+  .bulletin-section{margin-bottom:14px}
+  .bulletin-section h4{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:600;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+  .bulletin-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px solid var(--border)}
+  .bulletin-row:last-child{border-bottom:none}
+  .bulletin-row.bold{font-weight:700;background:var(--surface-alt);padding:7px 8px;border-radius:4px;margin-top:4px}
+  .bulletin-row.net{font-family:'DM Serif Display',serif;font-size:17px;color:var(--accent);background:var(--accent-light);padding:10px 12px;border-radius:6px;margin-top:8px}
+
+  /* Planning congés */
+  .planning-conges{overflow-x:auto}
+  .pc-grid{display:grid;min-width:900px}
+  .pc-header{display:grid;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);background:var(--surface-alt);border-bottom:1px solid var(--border)}
+  .pc-row{display:grid;border-bottom:1px solid var(--border);min-height:44px;align-items:center}
+  .pc-cell{padding:8px 10px;border-right:1px solid var(--border)}
+  .pc-cell:last-child{border-right:none}
+  .conge-block{border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* GTA */
+  .gta-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:16px}
+  .gta-day{padding:8px 6px;text-align:center;border-radius:5px;font-size:12px;cursor:pointer}
+  .gta-day.present{background:var(--green-bg);color:var(--green)}
+  .gta-day.absent{background:var(--red-bg);color:var(--red)}
+  .gta-day.conge{background:var(--accent-light);color:var(--accent)}
+  .gta-day.weekend{background:var(--surface-alt);color:var(--text-muted)}
+  .gta-day.astreinte{background:var(--purple-bg);color:var(--purple)}
+  .gta-day-label{font-size:10px;font-weight:600;margin-bottom:2px}
+  .gta-day-val{font-size:11.5px;font-weight:600}
+
+  /* Alertes */
+  .alert-box{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--radius);margin-bottom:12px;font-size:13px}
+  .alert-box.warn{background:var(--orange-bg);border:1px solid #f0c080;color:var(--orange)}
+  .alert-box.info{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent)}
+  .alert-box.red{background:var(--red-bg);border:1px solid #f3b4b4;color:var(--red)}
+  .alert-icon{font-size:16px;flex-shrink:0}
+
+  /* Pagination */
+  .pagination{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-muted)}
+  .pg-btns{display:flex;gap:4px}
+  .pg-btn{padding:4px 9px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;font-size:12.5px;font-family:'DM Sans',sans-serif}
+  .pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .pg-btn:hover:not(.active){background:var(--surface-alt)}
+
+  /* Toast */
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .25s ease,toastOut .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}
+  .toast.error{background:var(--red)}
+  .toast.warn{background:var(--orange)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+
+  .rh-tag{display:inline-block;background:var(--purple-bg);color:var(--purple);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;margin-left:8px;vertical-align:middle;border:1px solid rgba(107,33,168,.25)}
+  .compte-tag{font-family:monospace;font-size:11.5px;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:4px;font-weight:700}
+  .bar-h{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px}
+  .bar-h-fill{height:100%;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left"></div>
+      <div class="topbar-title">
+        <h1>Ressources Humaines & Paie <span class="rh-tag">CNPS</span></h1>
+        <p>Personnel · Contrats · Congés · GTA · Paie SYSCOHADA — Comptes 641 · 644 · 645 · 421 · 431</p>
+      </div>
+      <div class="topbar-actions">
+        <select id="mois-paie" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);outline:none;color:var(--text)" onchange="updateKPIs()">
+          <option value="06-2025">Juin 2025</option>
+          <option value="05-2025">Mai 2025</option>
+          <option value="04-2025">Avril 2025</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Exporter</button>
+        <button class="btn btn-primary" onclick="openAgent()">＋ Nouvel agent</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="alertes-rh"></div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Effectif total</div>
+          <div class="kpi-value" id="kpi-effectif">—</div>
+          <span class="kpi-badge neutral" id="kpi-eff-sub">Agents actifs</span>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Masse salariale</div>
+          <div class="kpi-value" id="kpi-masse">—</div>
+          <span class="kpi-badge up">641+644 FCFA</span>
+        </div>
+        <div class="kpi-card teal">
+          <div class="kpi-label">Charges sociales CNPS</div>
+          <div class="kpi-value" id="kpi-cnps">—</div>
+          <span class="kpi-badge neutral">Compte 645</span>
+        </div>
+        <div class="kpi-card orange">
+          <div class="kpi-label">Congés en cours</div>
+          <div class="kpi-value" id="kpi-conges">—</div>
+          <span class="kpi-badge warn">Agents absents</span>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Contrats à renouveler</div>
+          <div class="kpi-value" id="kpi-contrats">—</div>
+          <span class="kpi-badge" id="kpi-ctr-badge">⚠ < 60 jours</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('personnel',this)">Dossiers du personnel</button>
+        <button class="tab-btn" onclick="switchTab('paie',this)">Paie & Bulletins</button>
+        <button class="tab-btn" onclick="switchTab('conges',this)">Congés & Absences</button>
+        <button class="tab-btn" onclick="switchTab('gta',this)">GTA — Pointage</button>
+        <button class="tab-btn" onclick="switchTab('competences',this)">Compétences & Formations</button>
+        <button class="tab-btn" onclick="switchTab('cnps',this)">CNPS & Déclarations</button>
+      </div>
+
+      <!-- ── PERSONNEL ── -->
+      <div id="tab-personnel" class="tab-panel active">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Registre du personnel</div><div class="card-subtitle" id="pers-count">—</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="search-bar"><span>🔍</span><input type="text" id="pers-search" placeholder="Nom, matricule, service…" oninput="renderPersonnel()"></div>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-pers-cat" onchange="renderPersonnel()">
+                <option value="">Tout le personnel</option>
+                <option value="Médical">Personnel médical</option>
+                <option value="Non-médical">Personnel non-médical</option>
+                <option value="Paramédical">Paramédical</option>
+              </select>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-pers-statut" onchange="renderPersonnel()">
+                <option value="">Tous statuts</option>
+                <option value="Actif">Actif</option>
+                <option value="Congé">En congé</option>
+                <option value="Maladie">Arrêt maladie</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Matricule</th><th>Agent</th><th>Catégorie</th><th>Fonction</th>
+              <th>Service</th><th>Type contrat</th><th>Date entrée</th>
+              <th class="text-right">Salaire brut (FCFA)</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="pers-tbody"></tbody>
+          </table>
+          <div class="pagination">
+            <span id="pers-pag-info"></span>
+            <div class="pg-btns" id="pers-pag-btns"></div>
+          </div>
+        </div>
+
+        <!-- Répartition effectif -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Répartition par catégorie</div></div>
+            <div style="padding:16px" id="repartition-cat"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Répartition par service</div></div>
+            <div style="padding:16px" id="repartition-service"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAIE ── -->
+      <div id="tab-paie" class="tab-panel">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Bulletins générés</div><div class="kpi-value" style="font-size:20px" id="paie-nb">—</div><span class="kpi-badge neutral">Ce mois</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Net à payer total</div><div class="kpi-value" style="font-size:20px" id="paie-net">—</div><span class="kpi-badge up">Compte 421</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Retenues CNPS</div><div class="kpi-value" style="font-size:20px" id="paie-cnps-ret">—</div><span class="kpi-badge warn">Compte 431</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Impôt sur salaires</div><div class="kpi-value" style="font-size:20px" id="paie-impot">—</div><span class="kpi-badge neutral">ITS / IGR</span></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <!-- Liste bulletins -->
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Bulletins de paie</div></div>
+              <button class="btn btn-primary btn-sm" onclick="genererPaie()">⚙ Calculer la paie</button>
+            </div>
+            <div style="overflow-y:auto;max-height:480px">
+              <table>
+                <thead><tr><th>Agent</th><th class="text-right">Brut</th><th class="text-right">Net</th><th></th></tr></thead>
+                <tbody id="bulletins-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Bulletin détaillé -->
+          <div id="bulletin-detail">
+            <div style="text-align:center;padding:48px;color:var(--text-muted);font-size:13.5px">
+              <div style="font-size:36px;margin-bottom:10px">📄</div>
+              Sélectionnez un agent pour afficher son bulletin
+            </div>
+          </div>
+        </div>
+
+        <!-- Résumé comptable paie -->
+        <div class="card" style="margin-top:4px">
+          <div class="card-header"><div class="card-title">Écritures comptables SYSCOHADA — Paie du mois</div><div class="card-subtitle">Comptes 641 · 644 · 421 · 431 · 437 · 445</div></div>
+          <div style="padding:16px" id="ecritures-paie"></div>
+        </div>
+      </div>
+
+      <!-- ── CONGÉS ── -->
+      <div id="tab-conges" class="tab-panel">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Demandes en attente</div><div class="kpi-value" style="font-size:20px" id="cg-att">—</div><span class="kpi-badge neutral">À valider</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Agents en congé</div><div class="kpi-value" style="font-size:20px" id="cg-encours">—</div><span class="kpi-badge up">Aujourd'hui</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Jours posés (mois)</div><div class="kpi-value" style="font-size:20px" id="cg-jours">—</div><span class="kpi-badge warn">Jours ouvrés</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Solde moyen congés</div><div class="kpi-value" style="font-size:20px" id="cg-solde">—</div><span class="kpi-badge neutral">Jours restants</span></div>
+        </div>
+
+        <!-- Planning visuel congés -->
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Planning des congés — Juin 2025</div></div>
+            <button class="btn btn-primary btn-sm" onclick="openConge()">＋ Demande de congé</button>
+          </div>
+          <div class="planning-conges" id="planning-conges"></div>
+        </div>
+
+        <!-- Liste demandes -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Demandes de congés</div></div>
+          <table>
+            <thead><tr>
+              <th>Agent</th><th>Service</th><th>Type</th>
+              <th>Du</th><th>Au</th><th>Nb jours</th>
+              <th>Solde avant</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="conges-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── GTA ── -->
+      <div id="tab-gta" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:18px">
+          <span class="alert-icon">⏱</span>
+          <span>Gestion des Temps et des Activités (GTA) — Relevés de présence, plannings de garde, astreintes. Les données alimentent directement le calcul de la paie (heures supplémentaires, indemnités d'astreinte).</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Taux de présence</div><div class="kpi-value" style="font-size:20px" id="gta-pres">—</div><span class="kpi-badge up">Ce mois</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Heures sup. comptées</div><div class="kpi-value" style="font-size:20px" id="gta-hsup">—</div><span class="kpi-badge up">Payées</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Gardes réalisées</div><div class="kpi-value" style="font-size:20px" id="gta-gardes">—</div><span class="kpi-badge warn">Nuits + WE</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Astreintes</div><div class="kpi-value" style="font-size:20px" id="gta-astreintes">—</div><span class="kpi-badge neutral">Indemnisées</span></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:20px">
+          <div>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:10px">Sélectionner un agent</div>
+            <div id="gta-agent-liste" style="max-height:420px;overflow-y:auto"></div>
+          </div>
+          <div id="gta-detail">
+            <div style="text-align:center;padding:48px;color:var(--text-muted);font-size:13.5px">
+              <div style="font-size:36px;margin-bottom:10px">⏱</div>
+              Sélectionnez un agent pour afficher son pointage
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMPÉTENCES ── -->
+      <div id="tab-competences" class="tab-panel">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Formations planifiées</div><button class="btn btn-primary btn-sm" onclick="openFormation()">＋ Planifier</button></div>
+            <table>
+              <thead><tr><th>Formation</th><th>Date</th><th>Participants</th><th>Statut</th></tr></thead>
+              <tbody id="form-tbody"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Diplômes & Autorisations</div></div>
+            <table>
+              <thead><tr><th>Agent</th><th>Diplôme / Autorisation</th><th>Date expiry</th><th>Statut</th></tr></thead>
+              <tbody id="diplomes-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Plan de formation annuel 2025</div></div>
+          <div style="padding:16px" id="plan-formation"></div>
+        </div>
+      </div>
+
+      <!-- ── CNPS ── -->
+      <div id="tab-cnps" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:18px">
+          <span class="alert-icon">🏛️</span>
+          <span>Caisse Nationale de Prévoyance Sociale (CNPS) — Zone OHADA. Les cotisations patronales et salariales doivent être déclarées et versées mensuellement. Taux CNPS Côte d'Ivoire : patronal 12,8% + salarial 6,3% = 19,1% du salaire brut plafonné.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Cotisations patronales</div><div class="kpi-value" style="font-size:20px" id="cnps-patron">—</div><span class="kpi-badge neutral">12,8% brut</span></div>
+          <div class="kpi-card green"><div class="kpi-label">Cotisations salariales</div><div class="kpi-value" style="font-size:20px" id="cnps-salarie">—</div><span class="kpi-badge up">6,3% brut</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Total CNPS à verser</div><div class="kpi-value" style="font-size:20px" id="cnps-total">—</div><span class="kpi-badge neutral">Compte 431</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Déclarations CNPS</div><div class="card-subtitle">Historique des versements et déclarations mensuelles</div></div>
+            <button class="btn btn-primary btn-sm" onclick="genererDeclaration()">📋 Générer déclaration</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Période</th><th class="text-right">Masse salariale brute</th>
+              <th class="text-right">Cotis. patronales</th><th class="text-right">Cotis. salariales</th>
+              <th class="text-right">Total CNPS</th><th>Date versement</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="cnps-tbody"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Détail par agent — Cotisations CNPS</div></div>
+          <table>
+            <thead><tr>
+              <th>Agent</th><th>Catégorie</th><th class="text-right">Salaire brut</th>
+              <th class="text-right">Base CNPS</th><th class="text-right">Part patronale (12,8%)</th>
+              <th class="text-right">Part salariale (6,3%)</th>
+            </tr></thead>
+            <tbody id="cnps-detail-tbody"></tbody>
+            <tfoot><tr>
+              <td colspan="2">TOTAUX</td>
+              <td class="text-right" id="cnps-tot-brut">—</td>
+              <td class="text-right" id="cnps-tot-base">—</td>
+              <td class="text-right" id="cnps-tot-pat">—</td>
+              <td class="text-right" id="cnps-tot-sal">—</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouvel agent -->
+<div class="overlay" id="modal-agent">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">Dossier agent</div><div class="modal-subtitle">Enregistrement au registre du personnel</div></div>
+      <button class="modal-close" onclick="closeAgent()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Matricule (auto)</label><input type="text" id="a-mat" readonly style="background:var(--surface-alt)"></div>
+        <div class="form-group"><label>Date d'entrée <span class="req">*</span></label><input type="date" id="a-entree"></div>
+        <div class="form-group"><label>Nom <span class="req">*</span></label><input type="text" id="a-nom" placeholder="NOM"></div>
+        <div class="form-group"><label>Prénom <span class="req">*</span></label><input type="text" id="a-prenom" placeholder="Prénom"></div>
+        <div class="form-group"><label>Date de naissance</label><input type="date" id="a-ddn"></div>
+        <div class="form-group"><label>Sexe</label><select id="a-sexe"><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
+        <div class="section-label">Informations professionnelles</div>
+        <div class="form-group"><label>Catégorie <span class="req">*</span></label>
+          <select id="a-cat">
+            <option value="Médical">Personnel médical</option>
+            <option value="Paramédical">Paramédical</option>
+            <option value="Non-médical">Personnel non-médical</option>
+          </select></div>
+        <div class="form-group"><label>Fonction <span class="req">*</span></label>
+          <select id="a-fonction">
+            <option>Médecin généraliste</option><option>Médecin spécialiste</option>
+            <option>Infirmier(ère) diplômé(e)</option><option>Sage-femme</option>
+            <option>Laborantin</option><option>Pharmacien(ne)</option>
+            <option>Technicien biomédical</option><option>Administratif</option>
+            <option>Agent d'entretien</option><option>Cuisinier</option>
+          </select></div>
+        <div class="form-group"><label>Service / Pôle</label>
+          <select id="a-service">
+            <option>Médecine générale</option><option>Chirurgie</option>
+            <option>Maternité</option><option>Pharmacie</option>
+            <option>Laboratoire</option><option>Urgences</option><option>Administration</option>
+          </select></div>
+        <div class="form-group"><label>Type de contrat</label>
+          <select id="a-contrat">
+            <option value="CDI">CDI — Contrat à durée indéterminée</option>
+            <option value="CDD">CDD — Contrat à durée déterminée</option>
+            <option value="Stage">Contrat de stage</option>
+            <option value="Vacation">Vacation / Prestation</option>
+          </select></div>
+        <div class="form-group"><label>Date fin contrat (si CDD)</label><input type="date" id="a-fin-contrat"></div>
+        <div class="section-label">Rémunération</div>
+        <div class="form-group"><label>Salaire de base (FCFA) <span class="req">*</span></label><input type="number" id="a-salaire" min="0" step="5000" oninput="calcSalaireModal()"></div>
+        <div class="form-group"><label>Indemnités fixes (FCFA/mois)</label><input type="number" id="a-indem" value="0" oninput="calcSalaireModal()"></div>
+        <div class="form-group"><label>Brut mensuel estimé</label><input type="text" id="a-brut-estim" readonly style="background:var(--surface-alt);font-weight:600;color:var(--green)"></div>
+        <div class="form-group"><label>Compte SYSCOHADA</label>
+          <select id="a-compte"><option value="641">641 — Personnel médical</option><option value="644">644 — Personnel non-médical</option></select></div>
+        <div class="section-label">Informations CNPS</div>
+        <div class="form-group"><label>N° CNPS</label><input type="text" id="a-cnps" placeholder="CI-CNPS-XXXXXXX"></div>
+        <div class="form-group"><label>N° NNI (Identification nationale)</label><input type="text" id="a-nni" placeholder="NNI-CI-XXXXXXXX"></div>
+        <div class="form-group full"><label>Observations</label><textarea id="a-obs" style="min-height:50px" placeholder="Notes, diplômes, autorisations d'exercice…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAgent()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerAgent()">Enregistrer l'agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Demande congé -->
+<div class="overlay" id="modal-conge">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">
+      <div><div class="modal-title">Demande de congé</div><div class="modal-subtitle">Validation hiérarchique requise</div></div>
+      <button class="modal-close" onclick="closeConge()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Agent <span class="req">*</span></label><select id="cg-agent"><option value="">— Sélectionner —</option></select></div>
+        <div class="form-group"><label>Type de congé</label>
+          <select id="cg-type">
+            <option value="Annuel">Congé annuel</option>
+            <option value="Maladie">Congé maladie</option>
+            <option value="Maternité">Congé maternité</option>
+            <option value="Formation">Congé formation</option>
+            <option value="Sans solde">Congé sans solde</option>
+          </select></div>
+        <div class="form-group"><label>Solde disponible</label><input type="text" id="cg-solde-disp" readonly style="background:var(--surface-alt)"></div>
+        <div class="form-group"><label>Date début <span class="req">*</span></label><input type="date" id="cg-debut" oninput="calcJoursConge()"></div>
+        <div class="form-group"><label>Date fin <span class="req">*</span></label><input type="date" id="cg-fin" oninput="calcJoursConge()"></div>
+        <div class="form-group"><label>Nombre de jours</label><input type="text" id="cg-jours-calc" readonly style="background:var(--surface-alt);font-weight:600;color:var(--accent)"></div>
+        <div class="form-group full"><label>Motif / Observations</label><textarea id="cg-motif" style="min-height:50px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeConge()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerConge()">Soumettre la demande</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Données personnel ──────────────────────────────────────────────────────────
+let personnel = [
+  { mat:'MED-001', nom:'TOURÉ Mamadou',    cat:'Médical',     fonction:'Médecin spécialiste',   service:'Chirurgie',         contrat:'CDI',  entree:'2018-03-01', finContrat:'', salaire:850000, indem:150000, cnps:'CI-CNPS-001234', statut:'Actif' },
+  { mat:'MED-002', nom:'BAMBA Aïcha',      cat:'Médical',     fonction:'Médecin spécialiste',   service:'Maternité',         contrat:'CDI',  entree:'2019-06-15', finContrat:'', salaire:820000, indem:120000, cnps:'CI-CNPS-001235', statut:'Actif' },
+  { mat:'MED-003', nom:'COULIBALY Seydou', cat:'Médical',     fonction:'Médecin spécialiste',   service:'Médecine générale', contrat:'CDI',  entree:'2020-01-10', finContrat:'', salaire:810000, indem:120000, cnps:'CI-CNPS-001236', statut:'Congé' },
+  { mat:'MED-004', nom:'DIABATÉ Oumar',    cat:'Médical',     fonction:'Médecin spécialiste',   service:'Chirurgie',         contrat:'CDI',  entree:'2017-09-01', finContrat:'', salaire:870000, indem:180000, cnps:'CI-CNPS-001237', statut:'Actif' },
+  { mat:'PAR-001', nom:'KONÉ Mariam',      cat:'Paramédical', fonction:'Infirmier(ère) diplômé(e)', service:'Médecine générale', contrat:'CDI', entree:'2021-04-01', finContrat:'', salaire:420000, indem:60000,  cnps:'CI-CNPS-002001', statut:'Actif' },
+  { mat:'PAR-002', nom:'SORO Awa',         cat:'Paramédical', fonction:'Sage-femme',            service:'Maternité',         contrat:'CDI',  entree:'2020-07-01', finContrat:'', salaire:440000, indem:70000,  cnps:'CI-CNPS-002002', statut:'Actif' },
+  { mat:'PAR-003', nom:'DOSSO Ramatou',    cat:'Paramédical', fonction:'Laborantin',            service:'Laboratoire',       contrat:'CDI',  entree:'2022-02-14', finContrat:'', salaire:380000, indem:50000,  cnps:'CI-CNPS-002003', statut:'Actif' },
+  { mat:'PAR-004', nom:'YÉO Koffi',        cat:'Paramédical', fonction:'Technicien biomédical', service:'Maintenance',       contrat:'CDD',  entree:'2024-01-01', finContrat:'2025-08-15', salaire:320000, indem:40000, cnps:'CI-CNPS-002004', statut:'Actif' },
+  { mat:'ADM-001', nom:'GNONSOA Paul',     cat:'Non-médical', fonction:'Administratif',         service:'Administration',    contrat:'CDI',  entree:'2016-05-01', finContrat:'', salaire:280000, indem:30000,  cnps:'CI-CNPS-003001', statut:'Actif' },
+  { mat:'ADM-002', nom:'TRAORÉ Fatouma',   cat:'Non-médical', fonction:'Cuisinier',             service:'Restauration',      contrat:'CDI',  entree:'2019-03-01', finContrat:'', salaire:220000, indem:20000,  cnps:'CI-CNPS-003002', statut:'Actif' },
+  { mat:'ADM-003', nom:'OUATTARA Salimata',cat:'Non-médical', fonction:'Agent d\'entretien',    service:'Entretien',         contrat:'CDI',  entree:'2020-11-01', finContrat:'', salaire:200000, indem:15000,  cnps:'CI-CNPS-003003', statut:'Maladie' },
+  { mat:'MED-005', nom:'KONAN Adjoua',     cat:'Médical',     fonction:'Pharmacien(ne)',        service:'Pharmacie',         contrat:'CDI',  entree:'2021-08-01', finContrat:'', salaire:780000, indem:100000, cnps:'CI-CNPS-001238', statut:'Actif' },
+];
+
+let congesDemandes = [
+  { id:'CG-001', agent:'MED-003', nom:'COULIBALY Seydou', service:'Médecine générale', type:'Annuel',   debut:'2025-06-10', fin:'2025-06-24', jours:11, soldeAvant:22, statut:'Validé' },
+  { id:'CG-002', agent:'ADM-003', nom:'OUATTARA Salimata', service:'Entretien',       type:'Maladie',  debut:'2025-06-12', fin:'2025-06-28', jours:13, soldeAvant:18, statut:'Validé' },
+  { id:'CG-003', agent:'PAR-001', nom:'KONÉ Mariam',       service:'Médecine',        type:'Annuel',   debut:'2025-07-01', fin:'2025-07-14', jours:10, soldeAvant:15, statut:'En attente' },
+  { id:'CG-004', agent:'PAR-002', nom:'SORO Awa',          service:'Maternité',       type:'Maternité',debut:'2025-07-15', fin:'2025-10-14', jours:92, soldeAvant:8,  statut:'En attente' },
+  { id:'CG-005', agent:'MED-001', nom:'TOURÉ Mamadou',     service:'Chirurgie',       type:'Formation',debut:'2025-06-25', fin:'2025-06-27', jours:3,  soldeAvant:28, statut:'Refusé' },
+];
+
+const FORMATIONS = [
+  { titre:'Réanimation cardio-pulmonaire (RCP)', date:'2025-07-10', participants:12, statut:'Planifié' },
+  { titre:'Hygiène et prévention des infections', date:'2025-07-24', participants:20, statut:'Planifié' },
+  { titre:'Gestion des stupéfiants — Réglementation', date:'2025-08-05', participants:8, statut:'Planifié' },
+  { titre:'Informatique médicale — DPI', date:'2025-06-20', participants:15, statut:'Réalisé' },
+];
+
+const DIPLOMES = [
+  { agent:'TOURÉ Mamadou',    diplome:'Autorisation exercice — Chirurgie viscérale',    expiry:'2027-06-30', statut:'Valide' },
+  { agent:'BAMBA Aïcha',      diplome:'Spécialisation Gynécologie-Obstétrique',          expiry:'2028-01-15', statut:'Valide' },
+  { agent:'YÉO Koffi',        diplome:'Certification maintenance biomédicale ISO 13485', expiry:'2025-09-01', statut:'À renouveler' },
+  { agent:'KONAN Adjoua',     diplome:'Autorisation exercice pharmacie hospitalière',    expiry:'2026-04-30', statut:'Valide' },
+  { agent:'DOSSO Ramatou',    diplome:'Certification labo — ISO 15189',                  expiry:'2025-07-20', statut:'À renouveler' },
+];
+
+const CNPS_HISTORIQUE = [
+  { periode:'Mai 2025',   brut:6270000, patron:802560,  salarie:395010, total:1197570, versement:'2025-06-10', statut:'Versé' },
+  { periode:'Avril 2025', brut:6270000, patron:802560,  salarie:395010, total:1197570, versement:'2025-05-09', statut:'Versé' },
+  { periode:'Mars 2025',  brut:6120000, patron:783360,  salarie:385560, total:1168920, versement:'2025-04-08', statut:'Versé' },
+  { periode:'Juin 2025',  brut:6420000, patron:821760,  salarie:404460, total:1226220, versement:'',           statut:'À déclarer' },
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const fmt  = v => Math.round(v||0).toLocaleString('fr-FR');
+const fmtF = v => fmt(v)+' FCFA';
+const fmtDate = d => d?new Date(d).toLocaleDateString('fr-FR'):'—';
+const brut = p => (p.salaire||0)+(p.indem||0);
+const TAUX_CNPS_PATRON = 0.128;
+const TAUX_CNPS_SAL    = 0.063;
+const TAUX_ITS         = 0.15; // simplifié
+
+function toast(msg,type=''){
+  let tc=document.getElementById('toast-container');
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  tc.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+function catBadge(c){const m={Médical:'b-medical',Paramédical:'b-conge','Non-médical':'b-nonmed'};return`<span class="badge ${m[c]||''}">${c}</span>`}
+function statutBadge(s){const m={Actif:'b-actif',Congé:'b-conge',Maladie:'b-maladie',Suspendu:'b-suspendu'};return`<span class="badge ${m[s]||'b-actif'}">${s}</span>`}
+function congeStatutBadge(s){const m={Validé:'b-valide','En attente':'b-attente',Refusé:'b-refuse'};return`<span class="badge ${m[s]||''}">${s}</span>`}
+const COULEURS_CAT = {'Médical':'#0f766e','Paramédical':'#1a4b6e','Non-médical':'#c8702a'};
+const COULEURS_CONGE = {'Annuel':'#1a4b6e','Maladie':'#b92b2b','Maternité':'#6b21a8','Formation':'#0f766e','Sans solde':'#b05b00'};
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function updateKPIs(){
+  const actifs = personnel.filter(p=>p.statut!=='Désactivé');
+  const masse  = actifs.reduce((s,p)=>s+brut(p),0);
+  const cnpsMois = masse*(TAUX_CNPS_PATRON+TAUX_CNPS_SAL);
+  const enConge = personnel.filter(p=>p.statut==='Congé'||p.statut==='Maladie').length;
+  const today = new Date();
+  const ctrRenou = personnel.filter(p=>{
+    if(!p.finContrat) return false;
+    const diff = (new Date(p.finContrat)-today)/86400000;
+    return diff>0&&diff<60;
+  }).length;
+
+  document.getElementById('kpi-effectif').textContent = actifs.length;
+  document.getElementById('kpi-eff-sub').textContent  = `${personnel.filter(p=>p.cat==='Médical').length} méd. · ${personnel.filter(p=>p.cat==='Paramédical').length} param.`;
+  document.getElementById('kpi-masse').textContent    = fmtF(masse);
+  document.getElementById('kpi-cnps').textContent     = fmtF(cnpsMois);
+  document.getElementById('kpi-conges').textContent   = enConge;
+  document.getElementById('kpi-contrats').textContent = ctrRenou;
+  const cb = document.getElementById('kpi-ctr-badge');
+  cb.className='kpi-badge '+(ctrRenou>0?'down':'up');
+  cb.textContent=ctrRenou>0?`⚠ ${ctrRenou} à renouveler`:'✓ Aucun';
+
+  // Alertes
+  const div=document.getElementById('alertes-rh');div.innerHTML='';
+  if(ctrRenou>0){
+    const noms=personnel.filter(p=>{if(!p.finContrat)return false;return(new Date(p.finContrat)-today)/86400000<60&&(new Date(p.finContrat)-today)/86400000>0}).map(p=>p.nom);
+    div.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">⚠️</span><span><strong>${ctrRenou} contrat(s) à renouveler</strong> dans moins de 60 jours : ${noms.join(', ')}</span></div>`;
+  }
+  const diplomesAlert=DIPLOMES.filter(d=>d.statut==='À renouveler');
+  if(diplomesAlert.length) div.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">📋</span><span><strong>${diplomesAlert.length} autorisation(s)/diplôme(s) à renouveler</strong> : ${diplomesAlert.map(d=>d.agent).join(', ')}</span></div>`;
+}
+
+// ── Personnel ──────────────────────────────────────────────────────────────────
+let persPage=1;const PERS_PAGE=7;
+function renderPersonnel(){
+  const q=document.getElementById('pers-search').value.toLowerCase();
+  const fc=document.getElementById('f-pers-cat').value;
+  const fs=document.getElementById('f-pers-statut').value;
+  const data=personnel.filter(p=>(!q||p.nom.toLowerCase().includes(q)||p.mat.toLowerCase().includes(q)||p.service.toLowerCase().includes(q))&&(!fc||p.cat===fc)&&(!fs||p.statut===fs));
+  const total=data.length;
+  const maxPage=Math.max(1,Math.ceil(total/PERS_PAGE));
+  if(persPage>maxPage) persPage=maxPage;
+  const slice=data.slice((persPage-1)*PERS_PAGE,persPage*PERS_PAGE);
+  document.getElementById('pers-count').textContent=`${total} agent(s) — Masse : ${fmtF(data.reduce((s,p)=>s+brut(p),0))}`;
+  document.getElementById('pers-tbody').innerHTML=slice.map(p=>`
+    <tr onclick="showBulletin('${p.mat}')">
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${p.mat}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="agent-avatar" style="background:${COULEURS_CAT[p.cat]||'#888'};width:34px;height:34px;font-size:13px">${p.nom.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>
+          <div><div class="agent-name">${p.nom}</div><div class="agent-meta">${p.cnps}</div></div>
+        </div>
+      </td>
+      <td>${catBadge(p.cat)}</td>
+      <td style="font-size:12.5px">${p.fonction}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${p.service}</td>
+      <td><span class="badge ${p.contrat==='CDI'?'b-actif':p.contrat==='CDD'?'b-attente':'b-essai'}" style="font-size:10.5px">${p.contrat}${p.finContrat?` (${fmtDate(p.finContrat)})`:''}</span></td>
+      <td class="text-muted">${fmtDate(p.entree)}</td>
+      <td class="text-right amount" style="color:var(--green)">${fmtF(brut(p))}</td>
+      <td>${statutBadge(p.statut)}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showBulletin('${p.mat}')">📄</button></td>
+    </tr>`).join('')||`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Aucun agent</td></tr>`;
+  document.getElementById('pers-pag-info').textContent=total?`${(persPage-1)*PERS_PAGE+1}–${Math.min(persPage*PERS_PAGE,total)} sur ${total}`:'';
+  const pg=document.getElementById('pers-pag-btns');pg.innerHTML='';
+  for(let i=1;i<=maxPage;i++){const b=document.createElement('button');b.className='pg-btn'+(i===persPage?' active':'');b.textContent=i;b.onclick=()=>{persPage=i;renderPersonnel()};pg.appendChild(b);}
+
+  // Répartition
+  const cats=['Médical','Paramédical','Non-médical'];
+  const maxCat=Math.max(...cats.map(c=>personnel.filter(p=>p.cat===c).length));
+  document.getElementById('repartition-cat').innerHTML=cats.map(c=>{
+    const nb=personnel.filter(p=>p.cat===c).length;
+    const pct=Math.round(nb/maxCat*100);
+    return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="width:130px;font-size:13px;font-weight:500">${c}</div>
+      <div style="flex:1;height:18px;background:var(--bg);border-radius:3px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${COULEURS_CAT[c]};border-radius:3px;display:flex;align-items:center;padding-left:7px">
+          <span style="font-size:11px;font-weight:700;color:#fff">${pct>20?nb:''}</span>
+        </div>
+      </div>
+      <div style="width:30px;text-align:right;font-size:13px;font-weight:700;color:${COULEURS_CAT[c]}">${nb}</div>
+    </div>`;
+  }).join('');
+
+  const services=[...new Set(personnel.map(p=>p.service))];
+  const maxSvc=Math.max(...services.map(s=>personnel.filter(p=>p.service===s).length));
+  document.getElementById('repartition-service').innerHTML=services.map(s=>{
+    const nb=personnel.filter(p=>p.service===s).length;
+    const pct=Math.round(nb/maxSvc*100);
+    return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:140px;font-size:12.5px;font-weight:500">${s}</div>
+      <div style="flex:1;height:16px;background:var(--bg);border-radius:3px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:3px"></div>
+      </div>
+      <div style="width:24px;text-align:right;font-size:13px;font-weight:700;color:var(--accent)">${nb}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Paie ──────────────────────────────────────────────────────────────────────
+function renderPaie(){
+  const actifs=personnel.filter(p=>p.statut==='Actif'||p.statut==='Congé');
+  const totBrut=actifs.reduce((s,p)=>s+brut(p),0);
+  const totCnpsRet=actifs.reduce((s,p)=>s+brut(p)*TAUX_CNPS_SAL,0);
+  const totIts=actifs.reduce((s,p)=>s+Math.max(0,brut(p)-brut(p)*TAUX_CNPS_SAL)*TAUX_ITS,0);
+  const totNet=totBrut-totCnpsRet-totIts;
+  document.getElementById('paie-nb').textContent=actifs.length;
+  document.getElementById('paie-net').textContent=fmtF(totNet);
+  document.getElementById('paie-cnps-ret').textContent=fmtF(totCnpsRet);
+  document.getElementById('paie-impot').textContent=fmtF(totIts);
+
+  document.getElementById('bulletins-tbody').innerHTML=actifs.map(p=>{
+    const b=brut(p);
+    const cnpsSal=Math.round(b*TAUX_CNPS_SAL);
+    const its=Math.round(Math.max(0,b-cnpsSal)*TAUX_ITS);
+    const net=b-cnpsSal-its;
+    return`<tr onclick="showBulletin('${p.mat}')">
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="agent-avatar" style="background:${COULEURS_CAT[p.cat]};width:28px;height:28px;font-size:11px">${p.nom.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>
+          <div style="font-size:12.5px;font-weight:500">${p.nom}</div>
+        </div>
+      </td>
+      <td class="text-right" style="font-size:12.5px;color:var(--text-muted)">${fmt(b)}</td>
+      <td class="text-right amount" style="color:var(--green);font-size:12.5px">${fmt(net)}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showBulletin('${p.mat}')">📄</button></td>
+    </tr>`;
+  }).join('');
+
+  // Écritures comptables paie
+  document.getElementById('ecritures-paie').innerHTML=`
+    <table><thead><tr><th>Compte</th><th>Intitulé</th><th>Libellé</th><th class="text-right">Débit (FCFA)</th><th class="text-right">Crédit (FCFA)</th></tr></thead>
+    <tbody>
+      <tr><td><span class="compte-tag">641</span></td><td>Rémunérations personnel médical</td><td>Salaires bruts médical — Juin 2025</td><td class="text-right amount" style="color:var(--red)">${fmt(personnel.filter(p=>p.cat==='Médical').reduce((s,p)=>s+brut(p),0))}</td><td></td></tr>
+      <tr><td><span class="compte-tag">644</span></td><td>Rémunérations pers. non-médical</td><td>Salaires bruts non-médical — Juin 2025</td><td class="text-right amount" style="color:var(--red)">${fmt(personnel.filter(p=>p.cat!=='Médical').reduce((s,p)=>s+brut(p),0))}</td><td></td></tr>
+      <tr><td><span class="compte-tag">645</span></td><td>Charges de sécurité sociale</td><td>Part patronale CNPS 12,8% — Juin 2025</td><td class="text-right amount" style="color:var(--red)">${fmt(totBrut*TAUX_CNPS_PATRON)}</td><td></td></tr>
+      <tr><td><span class="compte-tag">421</span></td><td>Personnel — Rémunérations dues</td><td>Net à payer — Juin 2025</td><td></td><td class="text-right amount" style="color:var(--green)">${fmt(totNet)}</td></tr>
+      <tr><td><span class="compte-tag">431</span></td><td>Sécurité sociale & organismes</td><td>CNPS salarial + patronal — Juin 2025</td><td></td><td class="text-right amount" style="color:var(--green)">${fmt(totCnpsRet+totBrut*TAUX_CNPS_PATRON)}</td></tr>
+      <tr><td><span class="compte-tag">447</span></td><td>Autres impôts et taxes</td><td>ITS — Impôt sur les traitements et salaires</td><td></td><td class="text-right amount" style="color:var(--green)">${fmt(totIts)}</td></tr>
+    </tbody></table>`;
+}
+
+function showBulletin(mat){
+  const p=personnel.find(x=>x.mat===mat);if(!p) return;
+  const b=brut(p);
+  const cnpsSal=Math.round(b*TAUX_CNPS_SAL);
+  const cnpsPat=Math.round(b*TAUX_CNPS_PATRON);
+  const its=Math.round(Math.max(0,b-cnpsSal)*TAUX_ITS);
+  const net=b-cnpsSal-its;
+  document.getElementById('bulletin-detail').innerHTML=`
+    <div class="bulletin">
+      <div class="bulletin-header">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--accent)">Bulletin de paie — Juin 2025</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">CHU MediCore · Zone OHADA · SYSCOHADA</div>
+        </div>
+        <div style="text-align:right;font-size:12.5px">
+          <div style="font-weight:600">${p.nom}</div>
+          <div style="color:var(--text-muted)">${p.mat} · ${p.fonction}</div>
+          <div style="color:var(--text-muted)">${p.service}</div>
+        </div>
+      </div>
+      <div class="bulletin-section">
+        <h4>Éléments de rémunération</h4>
+        <div class="bulletin-row"><span>Salaire de base</span><span class="amount">${fmtF(p.salaire)}</span></div>
+        <div class="bulletin-row"><span>Indemnités et primes fixes</span><span class="amount">${fmtF(p.indem)}</span></div>
+        <div class="bulletin-row bold"><span>SALAIRE BRUT</span><span>${fmtF(b)}</span></div>
+      </div>
+      <div class="bulletin-section">
+        <h4>Retenues salariales</h4>
+        <div class="bulletin-row"><span>CNPS salarié (6,3%)</span><span class="amount" style="color:var(--red)">- ${fmtF(cnpsSal)}</span></div>
+        <div class="bulletin-row"><span>ITS — Impôt sur traitements et salaires (15%)</span><span class="amount" style="color:var(--red)">- ${fmtF(its)}</span></div>
+        <div class="bulletin-row bold"><span>TOTAL RETENUES</span><span style="color:var(--red)">- ${fmtF(cnpsSal+its)}</span></div>
+      </div>
+      <div class="bulletin-row net"><span>NET À PAYER</span><span>${fmtF(net)}</span></div>
+      <div class="bulletin-section" style="margin-top:14px">
+        <h4>Charges patronales (info)</h4>
+        <div class="bulletin-row"><span>CNPS patronal (12,8%)</span><span class="amount">${fmtF(cnpsPat)}</span></div>
+        <div class="bulletin-row"><span>Coût total employeur</span><span class="amount" style="font-weight:700">${fmtF(b+cnpsPat)}</span></div>
+      </div>
+      <div style="margin-top:14px;font-size:11.5px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:8px">
+        N° CNPS : ${p.cnps} · Compte 641/644 SYSCOHADA · Net viré sur compte bancaire
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+        <button class="btn btn-secondary btn-sm" onclick="toast('Bulletin imprimé.','success')">🖨 Imprimer</button>
+        <button class="btn btn-success btn-sm" onclick="toast('Bulletin envoyé par email.','success')">📧 Envoyer</button>
+      </div>
+    </div>`;
+}
+
+function genererPaie(){
+  toast('Paie de Juin 2025 calculée — '+personnel.filter(p=>p.statut==='Actif').length+' bulletins générés.','success');
+  renderPaie();
+}
+
+// ── Congés ────────────────────────────────────────────────────────────────────
+function renderConges(){
+  const att=congesDemandes.filter(c=>c.statut==='En attente').length;
+  const enCours=personnel.filter(p=>p.statut==='Congé'||p.statut==='Maladie').length;
+  const joursTotal=congesDemandes.filter(c=>c.statut==='Validé'&&c.debut.startsWith('2025-06')).reduce((s,c)=>s+c.jours,0);
+  document.getElementById('cg-att').textContent=att;
+  document.getElementById('cg-encours').textContent=enCours;
+  document.getElementById('cg-jours').textContent=joursTotal;
+  document.getElementById('cg-solde').textContent='18 j';
+
+  // Planning visuel
+  const COLS=30;const cols='80px '+Array(COLS).fill('1fr').join(' ');
+  let planHtml=`<div class="pc-grid" style="grid-template-columns:${cols}">
+    <div class="pc-header" style="grid-template-columns:${cols}">
+      <div class="pc-cell" style="font-size:11px;font-weight:700">Agent</div>
+      ${Array.from({length:COLS},(_,i)=>`<div class="pc-cell" style="text-align:center;font-size:10px;padding:5px 2px">${i+1}</div>`).join('')}
+    </div>`;
+
+  const agentsConge=[...new Set(congesDemandes.map(c=>c.nom))].slice(0,6);
+  agentsConge.forEach(nom=>{
+    const cgs=congesDemandes.filter(c=>c.nom===nom&&c.statut!=='Refusé');
+    const cells=Array(COLS).fill('');
+    cgs.forEach(cg=>{
+      const d=new Date(cg.debut),f=new Date(cg.fin);
+      for(let day=1;day<=COLS;day++){
+        const cur=new Date(2025,5,day);
+        if(cur>=d&&cur<=f) cells[day-1]=cg.type;
+      }
+    });
+    planHtml+=`<div class="pc-row" style="grid-template-columns:${cols}">
+      <div class="pc-cell" style="font-size:11.5px;font-weight:500">${nom.split(' ')[0]}</div>
+      ${cells.map(c=>c?`<div class="pc-cell" style="padding:4px 2px">
+        <div class="conge-block" style="background:${COULEURS_CONGE[c]||'#888'}22;color:${COULEURS_CONGE[c]||'#888'};border:1px solid ${COULEURS_CONGE[c]||'#888'}44;font-size:9px">${c.substring(0,3)}</div>
+      </div>`:`<div class="pc-cell"></div>`).join('')}
+    </div>`;
+  });
+  planHtml+=`</div>`;
+  document.getElementById('planning-conges').innerHTML=planHtml;
+
+  document.getElementById('conges-tbody').innerHTML=congesDemandes.map(c=>`
+    <tr>
+      <td style="font-weight:500">${c.nom}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${c.service}</td>
+      <td><span class="badge" style="background:${COULEURS_CONGE[c.type]||'#888'}18;color:${COULEURS_CONGE[c.type]||'#888'};border:1px solid ${COULEURS_CONGE[c.type]||'#888'}40;font-size:10.5px">${c.type}</span></td>
+      <td class="text-muted">${fmtDate(c.debut)}</td>
+      <td class="text-muted">${fmtDate(c.fin)}</td>
+      <td class="text-center amount">${c.jours}</td>
+      <td class="text-center">${c.soldeAvant} j</td>
+      <td>${congeStatutBadge(c.statut)}</td>
+      <td>
+        ${c.statut==='En attente'?`
+          <button class="btn btn-success btn-sm" onclick="validerDemandeConge('${c.id}','Validé')">✓</button>
+          <button class="btn btn-danger btn-sm" onclick="validerDemandeConge('${c.id}','Refusé')">✕</button>`:
+        `<span style="font-size:12px;color:var(--text-muted)">—</span>`}
+      </td>
+    </tr>`).join('');
+}
+
+function validerDemandeConge(id,statut){
+  const c=congesDemandes.find(x=>x.id===id);if(!c) return;
+  c.statut=statut;
+  if(statut==='Validé'){const p=personnel.find(x=>x.mat===c.agent);if(p) p.statut=c.type==='Maladie'?'Maladie':'Congé';}
+  renderConges();updateKPIs();
+  toast(`Congé ${c.id} — ${statut}.`,statut==='Validé'?'success':'error');
+}
+
+// ── GTA ────────────────────────────────────────────────────────────────────────
+function renderGTA(){
+  document.getElementById('gta-pres').textContent='92%';
+  document.getElementById('gta-hsup').textContent='148 h';
+  document.getElementById('gta-gardes').textContent='24';
+  document.getElementById('gta-astreintes').textContent='18';
+
+  document.getElementById('gta-agent-liste').innerHTML=personnel.filter(p=>p.statut==='Actif').map(p=>`
+    <div onclick="showGTADetail('${p.mat}')" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;margin-bottom:6px;cursor:pointer;background:var(--surface);transition:all .15s;display:flex;align-items:center;gap:10px"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div class="agent-avatar" style="background:${COULEURS_CAT[p.cat]};width:32px;height:32px;font-size:12px">${p.nom.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>
+      <div>
+        <div style="font-size:13px;font-weight:500">${p.nom}</div>
+        <div style="font-size:11.5px;color:var(--text-muted)">${p.service}</div>
+      </div>
+    </div>`).join('');
+}
+
+function showGTADetail(mat){
+  const p=personnel.find(x=>x.mat===mat);if(!p) return;
+  const jours=['L','M','M','J','V','S','D'];
+  const types=['present','present','present','present','present','weekend','weekend',
+    'present','present','conge','conge','present','weekend','weekend',
+    'present','astreinte','present','present','present','weekend','weekend',
+    'present','present','present','present','present','weekend','weekend',
+    'present','present'];
+  const heures={'present':8,'astreinte':12,'conge':0,'absent':0,'weekend':0};
+  const totalH=types.reduce((s,t)=>s+(heures[t]||0),0);
+  const hsup=Math.max(0,totalH-160);
+
+  document.getElementById('gta-detail').innerHTML=`
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header">
+        <div><div class="card-title">${p.nom} — Pointage Juin 2025</div><div class="card-subtitle">${p.fonction} · ${p.service}</div></div>
+        <div style="display:flex;gap:10px;font-size:13px">
+          <span><strong>${totalH}h</strong> <span style="color:var(--text-muted)">travaillées</span></span>
+          <span><strong style="color:var(--purple)">${hsup}h</strong> <span style="color:var(--text-muted)">sup.</span></span>
+        </div>
+      </div>
+      <div class="gta-grid">
+        ${jours.map(j=>`<div style="font-size:10px;font-weight:700;text-align:center;color:var(--text-muted);padding:4px 0">${j}</div>`).join('')}
+        ${types.map((t,i)=>`
+          <div class="gta-day ${t}">
+            <div class="gta-day-label">${i+1}</div>
+            <div class="gta-day-val">${t==='present'?'8h':t==='astreinte'?'12h':t==='conge'?'C':t==='weekend'?'—':'ABS'}</div>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px;padding:10px 16px;border-top:1px solid var(--border);flex-wrap:wrap;font-size:12px">
+        ${[['present','Présent'],['astreinte','Astreinte'],['conge','Congé'],['weekend','WE'],['absent','Absent']].map(([t,l])=>`
+          <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:3px" class="${t}"></div>${l}</div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Compétences ────────────────────────────────────────────────────────────────
+function renderCompetences(){
+  document.getElementById('form-tbody').innerHTML=FORMATIONS.map(f=>`
+    <tr>
+      <td style="font-weight:500;font-size:13px">${f.titre}</td>
+      <td class="text-muted">${fmtDate(f.date)}</td>
+      <td class="text-center">${f.participants}</td>
+      <td><span class="badge ${f.statut==='Réalisé'?'b-valide':'b-attente'}">${f.statut}</span></td>
+    </tr>`).join('');
+  document.getElementById('diplomes-tbody').innerHTML=DIPLOMES.map(d=>`
+    <tr>
+      <td style="font-weight:500">${d.agent}</td>
+      <td style="font-size:12.5px">${d.diplome}</td>
+      <td class="text-muted">${fmtDate(d.expiry)}</td>
+      <td><span class="badge ${d.statut==='Valide'?'b-valide':'b-litige'}" style="font-size:10.5px">${d.statut}</span></td>
+    </tr>`).join('');
+
+  const domaines=[
+    {d:'Soins médicaux & chirurgie',budget:8500000,realise:3200000,c:'#0f766e'},
+    {d:'Soins infirmiers & paramédical',budget:4200000,realise:1800000,c:'#1a4b6e'},
+    {d:'Qualité & Accréditation',budget:3000000,realise:2400000,c:'#1e7a4e'},
+    {d:'Management & Administration',budget:2500000,realise:800000,c:'#c8702a'},
+    {d:'Informatique médicale',budget:1800000,realise:1800000,c:'#6b21a8'},
+  ];
+  document.getElementById('plan-formation').innerHTML=domaines.map(d=>{
+    const pct=Math.round(d.realise/d.budget*100);
+    return`<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div style="width:220px;font-size:12.5px;font-weight:500">${d.d}</div>
+      <div style="flex:1">
+        <div style="height:18px;background:var(--bg);border-radius:3px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${d.c};border-radius:3px;display:flex;align-items:center;padding-left:7px">
+            <span style="font-size:11px;font-weight:700;color:#fff">${pct>20?pct+'%':''}</span>
+          </div>
+        </div>
+      </div>
+      <div style="width:180px;text-align:right;font-size:12px;color:var(--text-muted)">${fmt(d.realise/1000)}K / ${fmt(d.budget/1000)}K FCFA</div>
+    </div>`;
+  }).join('');
+}
+
+// ── CNPS ──────────────────────────────────────────────────────────────────────
+function renderCNPS(){
+  const totBrut=personnel.reduce((s,p)=>s+brut(p),0);
+  const baseCNPS=totBrut;
+  const patron=Math.round(baseCNPS*TAUX_CNPS_PATRON);
+  const salarie=Math.round(baseCNPS*TAUX_CNPS_SAL);
+  document.getElementById('cnps-patron').textContent=fmtF(patron);
+  document.getElementById('cnps-salarie').textContent=fmtF(salarie);
+  document.getElementById('cnps-total').textContent=fmtF(patron+salarie);
+
+  document.getElementById('cnps-tbody').innerHTML=CNPS_HISTORIQUE.map(h=>`
+    <tr>
+      <td style="font-weight:500">${h.periode}</td>
+      <td class="text-right amount">${fmtF(h.brut)}</td>
+      <td class="text-right amount" style="color:var(--red)">${fmtF(h.patron)}</td>
+      <td class="text-right amount" style="color:var(--orange)">${fmtF(h.salarie)}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(h.total)}</td>
+      <td class="text-muted">${h.versement?fmtDate(h.versement):'—'}</td>
+      <td><span class="badge ${h.statut==='Versé'?'b-valide':'b-attente'}">${h.statut}</span></td>
+    </tr>`).join('');
+
+  document.getElementById('cnps-detail-tbody').innerHTML=personnel.map(p=>{
+    const b=brut(p);
+    const base=b;
+    const pat=Math.round(base*TAUX_CNPS_PATRON);
+    const sal=Math.round(base*TAUX_CNPS_SAL);
+    return`<tr>
+      <td style="font-weight:500">${p.nom}</td>
+      <td>${catBadge(p.cat)}</td>
+      <td class="text-right amount">${fmtF(b)}</td>
+      <td class="text-right text-muted">${fmtF(base)}</td>
+      <td class="text-right amount" style="color:var(--red)">${fmtF(pat)}</td>
+      <td class="text-right amount" style="color:var(--orange)">${fmtF(sal)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('cnps-tot-brut').textContent=fmtF(totBrut);
+  document.getElementById('cnps-tot-base').textContent=fmtF(baseCNPS);
+  document.getElementById('cnps-tot-pat').textContent=fmtF(patron);
+  document.getElementById('cnps-tot-sal').textContent=fmtF(salarie);
+}
+
+function genererDeclaration(){toast('Déclaration CNPS Juin 2025 générée — prête pour transmission.','success')}
+
+// ── Modals ─────────────────────────────────────────────────────────────────────
+function openAgent(){
+  document.getElementById('a-entree').value=new Date().toISOString().split('T')[0];
+  document.getElementById('a-mat').value='AGT-2025-0'+String(personnel.length+13).padStart(2,'0');
+  document.getElementById('a-brut-estim').value='';
+  document.getElementById('modal-agent').classList.add('open');
+}
+function closeAgent(){document.getElementById('modal-agent').classList.remove('open')}
+function calcSalaireModal(){
+  const s=parseFloat(document.getElementById('a-salaire').value)||0;
+  const i=parseFloat(document.getElementById('a-indem').value)||0;
+  document.getElementById('a-brut-estim').value=fmtF(s+i);
+}
+function validerAgent(){
+  const nom=document.getElementById('a-nom').value;
+  const prenom=document.getElementById('a-prenom').value;
+  const salaire=parseFloat(document.getElementById('a-salaire').value)||0;
+  if(!nom||!prenom||!salaire){toast('Remplissez nom, prénom et salaire.','error');return}
+  personnel.push({
+    mat:document.getElementById('a-mat').value,
+    nom:nom.toUpperCase()+' '+prenom,
+    cat:document.getElementById('a-cat').value,
+    fonction:document.getElementById('a-fonction').value,
+    service:document.getElementById('a-service').value,
+    contrat:document.getElementById('a-contrat').value,
+    entree:document.getElementById('a-entree').value,
+    finContrat:document.getElementById('a-fin-contrat').value||'',
+    salaire,indem:parseFloat(document.getElementById('a-indem').value)||0,
+    cnps:document.getElementById('a-cnps').value||'—',statut:'Actif',
+  });
+  closeAgent();renderPersonnel();updateKPIs();
+  toast(`Agent ${nom.toUpperCase()} ${prenom} enregistré avec succès.`,'success');
+}
+
+function openConge(){
+  const sel=document.getElementById('cg-agent');
+  sel.innerHTML='<option value="">— Sélectionner —</option>'+personnel.filter(p=>p.statut==='Actif').map(p=>`<option value="${p.mat}">${p.nom}</option>`).join('');
+  document.getElementById('modal-conge').classList.add('open');
+}
+function closeConge(){document.getElementById('modal-conge').classList.remove('open')}
+document.getElementById('cg-agent').addEventListener('change',function(){
+  document.getElementById('cg-solde-disp').value=Math.floor(Math.random()*20+10)+' jours';
+});
+function calcJoursConge(){
+  const d=document.getElementById('cg-debut').value,f=document.getElementById('cg-fin').value;
+  if(d&&f){const jours=Math.max(0,Math.round((new Date(f)-new Date(d))/86400000)+1);document.getElementById('cg-jours-calc').value=jours+' jour(s)';}
+}
+function validerConge(){
+  const agent=document.getElementById('cg-agent').value;
+  const debut=document.getElementById('cg-debut').value;
+  const fin=document.getElementById('cg-fin').value;
+  if(!agent||!debut||!fin){toast('Remplissez tous les champs obligatoires.','error');return}
+  const p=personnel.find(x=>x.mat===agent);
+  const jours=Math.round((new Date(fin)-new Date(debut))/86400000)+1;
+  congesDemandes.push({id:'CG-00'+(congesDemandes.length+6),agent,nom:p?.nom||'—',service:p?.service||'—',type:document.getElementById('cg-type').value,debut,fin,jours,soldeAvant:18,statut:'En attente'});
+  closeConge();renderConges();updateKPIs();toast('Demande de congé soumise pour validation.','success');
+}
+function openFormation(){toast('Formulaire planification formation — bientôt disponible.','success')}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='paie') renderPaie();
+  if(name==='conges') renderConges();
+  if(name==='gta') renderGTA();
+  if(name==='competences') renderCompetences();
+  if(name==='cnps') renderCNPS();
+}
+
+function exportCSV(){
+  const h=['Matricule','Nom','Catégorie','Fonction','Service','Contrat','Entrée','Brut','Statut'];
+  const r=personnel.map(p=>[p.mat,p.nom,p.cat,p.fonction,p.service,p.contrat,p.entree,brut(p),p.statut]);
+  const csv=[h,...r].map(row=>row.map(v=>`"${v}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='personnel.csv';a.click();
+  toast('Export CSV généré.','success');
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAgent();closeConge()}});
+['modal-agent','modal-conge'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) e.currentTarget.classList.remove('open')});
+});
+
+// ── Init nav ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  if(typeof initNav==='function'){
+    initNav('rh_paie','RH & Paie','Personnel · Contrats · Congés · GTA · Paie CNPS',
+      [{label:'Module 1 — Finance',file:'#'},{label:'RH & Paie',file:''}]);
+    if(typeof MEDICORE_NAV!=='undefined'){
+      const grp=MEDICORE_NAV.modules.find(g=>g.groupe==='Finance & Comptabilité');
+      if(grp&&!grp.items.find(i=>i.id==='rh_paie')){
+        grp.items.push({id:'rh_paie',label:'RH & Paie',icon:'👥',file:'rh_paie.html',syscohada:'641·644·645·421·431',statut:'actif',alertes:1});
+      }
+    }
+  }
+  updateKPIs();renderPersonnel();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Facturation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f3ef;
+    --surface: #ffffff;
+    --surface-alt: #f9f8f5;
+    --border: #e2dfd8;
+    --accent: #1a4b6e;
+    --accent-light: #e8f0f7;
+    --accent2: #c8702a;
+    --accent2-light: #fdf0e6;
+    --text: #1c1c1c;
+    --text-muted: #6b6b6b;
+    --success: #1e7a4e;
+    --success-bg: #e8f5ef;
+    --warning: #b05b00;
+    --warning-bg: #fef3e2;
+    --danger: #b92b2b;
+    --danger-bg: #fdeaea;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ── Layout ── */
+  .shell { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 240px;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+  }
+  .sidebar-logo span {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    letter-spacing: -0.3px;
+    display: block;
+  }
+  .sidebar-logo small {
+    font-size: 11px;
+    opacity: 0.6;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .sidebar-section {
+    padding: 16px 12px 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    opacity: 0.5;
+    font-weight: 600;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    margin: 2px 8px;
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 400;
+    opacity: 0.75;
+    transition: all 0.15s;
+    text-decoration: none;
+    color: #fff;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+  .nav-item.active { background: rgba(255,255,255,0.18); opacity: 1; font-weight: 500; }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    font-size: 12px;
+    opacity: 0.5;
+  }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .topbar-title h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    letter-spacing: -0.4px;
+    color: var(--accent);
+  }
+  .topbar-title p { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
+
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  .content { flex: 1; padding: 28px 32px; overflow-y: auto; }
+
+  /* ── Cards KPI ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-value { font-family: 'DM Serif Display', serif; font-size: 28px; margin: 6px 0 4px; color: var(--accent); }
+  .kpi-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 20px;
+  }
+  .kpi-badge.up { background: var(--success-bg); color: var(--success); }
+  .kpi-badge.warn { background: var(--warning-bg); color: var(--warning); }
+  .kpi-badge.neutral { background: var(--accent-light); color: var(--accent); }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+  .tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--accent); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Table ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-title { font-weight: 600; font-size: 14px; color: var(--text); }
+  .card-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .search-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: text;
+  }
+  .search-bar input {
+    border: none; background: none; outline: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--text); width: 200px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    font-weight: 600;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-alt); }
+  tbody td { padding: 13px 16px; font-size: 13px; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .badge-payee { background: var(--success-bg); color: var(--success); }
+  .badge-attente { background: var(--warning-bg); color: var(--warning); }
+  .badge-retard { background: var(--danger-bg); color: var(--danger); }
+  .badge-brouillon { background: #f0f0f0; color: #555; }
+  .badge-t2a { background: var(--accent-light); color: var(--accent); }
+  .badge-ext { background: var(--accent2-light); color: var(--accent2); }
+  .badge-retro { background: #f3e8ff; color: #6b21a8; }
+
+  .amount { font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .patient-name { font-weight: 500; }
+  .text-muted { color: var(--text-muted); }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #163d5a; }
+  .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+  .btn-secondary:hover { background: var(--surface-alt); }
+  .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #f3b4b4; }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+  .btn-icon { padding: 6px 8px; }
+
+  /* ── Modal ── */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10, 20, 30, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+  .overlay.open { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    width: 680px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .modal-header {
+    padding: 22px 28px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--accent); }
+  .modal-subtitle { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 20px; color: var(--text-muted); line-height: 1;
+    padding: 0; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+  }
+  .modal-close:hover { background: var(--surface-alt); color: var(--text); }
+
+  .modal-body { padding: 24px 28px; }
+  .modal-footer {
+    padding: 16px 28px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  /* ── Form ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12.5px; font-weight: 500; color: var(--text-muted); }
+  label .req { color: var(--danger); }
+  input, select, textarea {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  .form-separator {
+    grid-column: 1 / -1;
+    border: none; border-top: 1px solid var(--border);
+    margin: 4px 0;
+  }
+  .section-label {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding-top: 4px;
+  }
+
+  /* ── Actes table in form ── */
+  .actes-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .actes-table th {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); font-weight: 600; padding: 8px 10px;
+    background: var(--surface-alt); border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .actes-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .actes-table td input, .actes-table td select {
+    padding: 6px 8px; font-size: 13px;
+  }
+  .actes-table tfoot td {
+    padding: 10px;
+    font-weight: 600;
+    background: var(--surface-alt);
+  }
+
+  .add-acte-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; font-size: 12.5px; font-weight: 500;
+    color: var(--accent); background: var(--accent-light);
+    border: 1px dashed #aac4d8; border-radius: 6px;
+    cursor: pointer; margin-top: 8px;
+  }
+  .add-acte-btn:hover { background: #d5e8f3; }
+
+  .remove-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 16px; padding: 0 4px;
+    line-height: 1;
+  }
+  .remove-btn:hover { color: var(--danger); }
+
+  /* ── Detail panel ── */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .detail-section { margin-bottom: 16px; }
+  .detail-section h4 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-muted); font-weight: 600; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .detail-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+  .detail-row .dl { color: var(--text-muted); }
+  .detail-row .dv { font-weight: 500; }
+
+  /* ── Tiers payant ── */
+  .tp-box {
+    background: var(--accent-light);
+    border: 1px solid #c0d8ea;
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .tp-box .tp-label { font-size: 11.5px; color: var(--text-muted); font-weight: 500; margin-bottom: 3px; }
+  .tp-box .tp-val { font-size: 13.5px; font-weight: 600; color: var(--accent); }
+  .tp-box .tp-title {
+    grid-column: 1 / -1;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--accent); font-weight: 600; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* ── Toast ── */
+  .toast-container {
+    position: fixed; top: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 999;
+  }
+  .toast {
+    background: var(--text); color: #fff;
+    padding: 12px 18px; border-radius: 8px;
+    font-size: 13px; box-shadow: var(--shadow-lg);
+    animation: toastIn 0.25s ease, toastOut 0.3s ease 2.5s forwards;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateX(30px); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: auto; }
+  }
+
+  .empty-state {
+    text-align: center; padding: 48px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 13.5px; }
+
+  .filter-row {
+    display: flex; gap: 10px; align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
+    flex-wrap: wrap;
+  }
+  .filter-row select {
+    width: auto; padding: 6px 10px; font-size: 12.5px;
+  }
+  .filter-row label { font-size: 12.5px; font-weight: 500; margin: 0; white-space: nowrap; }
+
+  .pagination {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .pagination-btns { display: flex; gap: 4px; }
+  .pg-btn {
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 5px;
+    background: var(--surface); cursor: pointer; font-size: 12.5px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .pg-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pg-btn:hover:not(.active) { background: var(--surface-alt); }
+
+  /* ── Mobile Facturation ──────────────────────────────────────────────────── */
+  @media(max-width:1024px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+    .tabs{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab-btn{white-space:nowrap;flex-shrink:0}
+    /* Tiers-payant répartition : 2 cols */
+    .tp-grid{grid-template-columns:1fr 1fr!important}
+  }
+  @media(max-width:768px){
+    .kpi-grid{grid-template-columns:1fr 1fr!important}
+    /* Filtres barre */
+    .filters-bar{flex-direction:column!important;gap:8px!important}
+    .filters-bar select,.filters-bar input{width:100%!important}
+    /* Table factures : masquer colonnes secondaires */
+    table.factures-table th:nth-child(4),
+    table.factures-table td:nth-child(4),
+    table.factures-table th:nth-child(7),
+    table.factures-table td:nth-child(7){display:none}
+    /* Détail : grid 1 col */
+    .detail-grid{grid-template-columns:1fr!important}
+    /* Actes facturés form */
+    #actes-body tr td:nth-child(3){display:none}
+  }
+  @media(max-width:480px){
+    .kpi-grid{grid-template-columns:1fr!important}
+    .kpi-value{font-size:20px!important}
+    /* Tiers payant vertical */
+    .tp-grid{grid-template-columns:1fr!important}
+    .tp-item{padding:6px 0!important}
+    /* Actes table simplifiée */
+    #actes-body tr td:first-child input{width:70px!important}
+    #actes-body tr td:nth-child(2) input{width:140px!important}
+    /* Relances table */
+    #relances-body td:nth-child(3){display:none}
+    /* Boutons modal footer */
+    .modal-footer{flex-direction:column!important;gap:6px!important}
+    .modal-footer .btn{width:100%!important;justify-content:center!important}
+    /* Tiers payant bloc compact */
+    .tp-section{padding:12px!important}
+  }
+</style>
+  <script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar"><!-- nav généré par nav.js --></aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Facturation</h1>
+        <p>Gestion des actes, tiers-payant et suivi des règlements</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇ Exporter CSV</button>
+        <button class="btn btn-primary" onclick="openModal()">＋ Nouvelle facture</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total facturé (mois)</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <span class="kpi-badge neutral">📅 Juin 2025</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Montant encaissé</div>
+          <div class="kpi-value" id="kpi-encaisse">—</div>
+          <span class="kpi-badge up">✓ Payées</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">En attente règlement</div>
+          <div class="kpi-value" id="kpi-attente">—</div>
+          <span class="kpi-badge warn">⏳ À recouvrer</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Factures en retard</div>
+          <div class="kpi-value" id="kpi-retard">—</div>
+          <span class="kpi-badge" id="kpi-retard-badge" style="background:var(--danger-bg);color:var(--danger);">⚠ Relance requise</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('liste', this)">Liste des factures</button>
+        <button class="tab-btn" onclick="switchTab('tierspayant', this)">Tiers-payant</button>
+        <button class="tab-btn" onclick="switchTab('relances', this)">Relances</button>
+      </div>
+
+      <!-- Tab: Liste -->
+      <div id="tab-liste" class="tab-panel active">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Factures émises</div>
+              <div class="card-subtitle" id="table-count">Chargement…</div>
+            </div>
+            <div class="search-bar">
+              <span>🔍</span>
+              <input type="text" placeholder="Rechercher patient, n° facture…" id="search-input" oninput="renderTable()">
+            </div>
+          </div>
+          <div class="filter-row">
+            <label>Statut :</label>
+            <select id="filter-statut" onchange="renderTable()">
+              <option value="">Tous</option>
+              <option value="Payée">Payée</option>
+              <option value="En attente">En attente</option>
+              <option value="En retard">En retard</option>
+              <option value="Brouillon">Brouillon</option>
+            </select>
+            <label>Type :</label>
+            <select id="filter-type" onchange="renderTable()">
+              <option value="">Tous</option>
+              <option value="Hospitalisation">Hospitalisation (CNAM-CI)</option>
+              <option value="Consultation externe">Consultation externe</option>
+              <option value="Rétrocession">Rétrocession</option>
+            </select>
+            <label>Période :</label>
+            <select id="filter-periode" onchange="renderTable()">
+              <option value="">Toutes</option>
+              <option value="2025-06">Juin 2025</option>
+              <option value="2025-05">Mai 2025</option>
+              <option value="2025-04">Avril 2025</option>
+            </select>
+          </div>
+          <div id="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>N° Facture</th>
+                  <th>Patient</th>
+                  <th>Type</th>
+                  <th>Date émission</th>
+                  <th>Échéance</th>
+                  <th>Montant TTC</th>
+                  <th>Part AM</th>
+                  <th>Part Patient</th>
+                  <th>Statut</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="pagination-info"></span>
+            <div class="pagination-btns" id="pagination-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Tiers-payant -->
+      <div id="tab-tierspayant" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Gestion du tiers-payant</div>
+              <div class="card-subtitle">Suivi des remboursements par caisse et mutuelle</div>
+            </div>
+          </div>
+          <div style="padding: 24px;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+              <div class="kpi-card" style="border-left: 4px solid var(--accent);">
+                <div class="kpi-label">CNAM / Sécurité Sociale</div>
+                <div class="kpi-value" style="font-size:22px;">74 250 000 FCFA</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">38 dossiers • Délai moy. 18j</div>
+              </div>
+              <div class="kpi-card" style="border-left: 4px solid var(--accent2);">
+                <div class="kpi-label">Mutuelles complémentaires</div>
+                <div class="kpi-value" style="font-size:22px;">28 400 000 FCFA</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">24 dossiers • Délai moy. 25j</div>
+              </div>
+              <div class="kpi-card" style="border-left: 4px solid var(--success);">
+                <div class="kpi-label">Remboursements reçus</div>
+                <div class="kpi-value" style="font-size:22px;">61 100 000 FCFA</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Ce mois • Taux 59,8%</div>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Organisme</th>
+                  <th>Type</th>
+                  <th>Factures transmises</th>
+                  <th>Montant demandé</th>
+                  <th>Montant reçu</th>
+                  <th>Solde</th>
+                  <th>Statut transmission</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>CNAM-CI</strong></td><td><span class="badge badge-t2a">Assurance maladie</span></td><td>38</td><td class="amount">74 250 000 FCFA</td><td class="amount" style="color:var(--success)">61 100 000 FCFA</td><td class="amount" style="color:var(--warning)">13 150 000 FCFA</td><td><span class="badge badge-attente">En traitement</span></td></tr>
+                <tr><td><strong>Mutuelle CI</strong></td><td><span class="badge badge-ext">Mutuelle</span></td><td>12</td><td class="amount">14 200 000 FCFA</td><td class="amount" style="color:var(--success)">14 200 000 FCFA</td><td class="amount" style="color:var(--success)">0 FCFA</td><td><span class="badge badge-payee">Soldé</span></td></tr>
+                <tr><td><strong>Assurance privée</strong></td><td><span class="badge badge-ext">Assurance privée</span></td><td>8</td><td class="amount">9 800 000 FCFA</td><td class="amount" style="color:var(--success)">6 400 000 FCFA</td><td class="amount" style="color:var(--warning)">3 400 000 FCFA</td><td><span class="badge badge-attente">En attente</span></td></tr>
+                <tr><td><strong>Wave / Mobile Money</strong></td><td><span class="badge badge-ext">Mobile Money</span></td><td>4</td><td class="amount">4 400 000 FCFA</td><td class="amount" style="color:var(--success)">0 FCFA</td><td class="amount" style="color:var(--danger)">4 400 000 FCFA</td><td><span class="badge badge-retard">Non transmis</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Relances -->
+      <div id="tab-relances" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Relances patients</div>
+              <div class="card-subtitle">Factures en retard de paiement (part patient)</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">📧 Envoyer toutes les relances</button>
+          </div>
+          <div style="padding:16px 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>N° Facture</th>
+                  <th>Date émission</th>
+                  <th>Retard</th>
+                  <th>Montant dû</th>
+                  <th>Nb. relances</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="relances-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouvelle Facture -->
+<div class="overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">Nouvelle facture</div>
+        <div class="modal-subtitle" id="modal-subtitle">Saisie des actes et informations de facturation</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="facture-form" onsubmit="return false;">
+        <div class="form-grid">
+
+          <div class="section-label">Informations patient</div>
+
+          <div class="form-group">
+            <label>N° de séjour / dossier <span class="req">*</span></label>
+            <input type="text" id="f-sejour" placeholder="ex: SJ-2025-04821" required>
+          </div>
+          <div class="form-group">
+            <label>Type de facturation <span class="req">*</span></label>
+            <select id="f-type" onchange="toggleTypeFacture()">
+              <option value="">— Sélectionner —</option>
+              <option value="Hospitalisation">Hospitalisation (CNAM-CI)</option>
+              <option value="Consultation externe">Consultation externe</option>
+              <option value="Rétrocession">Rétrocession (vente externe)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nom du patient <span class="req">*</span></label>
+            <input type="text" id="f-nom" placeholder="NOM Prénom" required>
+          </div>
+          <div class="form-group">
+            <label>N° de sécurité sociale <span class="req">*</span></label>
+            <input type="text" id="f-nss" placeholder="1 84 12 75 123 456 78" maxlength="21">
+          </div>
+          <div class="form-group">
+            <label>Date de naissance</label>
+            <input type="date" id="f-ddn">
+          </div>
+          <div class="form-group">
+            <label>Date d'émission <span class="req">*</span></label>
+            <input type="date" id="f-date" required>
+          </div>
+
+          <hr class="form-separator">
+          <div class="section-label" id="t2a-section-label">Données hospitalisation CNAM-CI</div>
+
+          <div class="form-group" id="t2a-ghm">
+            <label>Code acte CNAM-CI</label>
+            <input type="text" id="f-ghm" placeholder="ex: 06C021">
+          </div>
+          <div class="form-group" id="t2a-ghm2">
+            <label>Durée de séjour (jours)</label>
+            <input type="number" id="f-duree" min="0" placeholder="ex: 5">
+          </div>
+
+          <hr class="form-separator">
+          <div class="section-label">Actes facturés</div>
+          <div class="form-group full">
+            <table class="actes-table">
+              <thead>
+                <tr>
+                  <th>Code acte</th>
+                  <th>Libellé</th>
+                  <th>Nomenclature</th>
+                  <th>Qté</th>
+                  <th>Prix unit. (FCFA)</th>
+                  <th>Total (FCFA)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="actes-body">
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="5" style="text-align:right;font-size:13px;">Sous-total :</td>
+                  <td id="actes-subtotal" class="amount">0 FCFA</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="add-acte-btn" onclick="addActe()">＋ Ajouter un acte</div>
+          </div>
+
+          <hr class="form-separator">
+          <div class="section-label">Tiers-payant & règlement</div>
+
+          <div class="form-group">
+            <label>Organisme Assurance Maladie</label>
+            <select id="f-am">
+              <option value="CNAM">CNAM (Régime général)</option>
+              <option value="MSA">MSA (Agricole)</option>
+              <option value="RSI">SSI (Indépendants)</option>
+              <option value="Aucun">Aucun</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Taux de prise en charge AM (%)</label>
+            <input type="number" id="f-taux-am" value="80" min="0" max="100" oninput="calcTiersPayant()">
+          </div>
+          <div class="form-group">
+            <label>Mutuelle / Complémentaire</label>
+            <input type="text" id="f-mutuelle" placeholder="ex: Mutuelle CI, Assurance privée…">
+          </div>
+          <div class="form-group">
+            <label>Taux mutuelle (%)</label>
+            <input type="number" id="f-taux-mut" value="20" min="0" max="100" oninput="calcTiersPayant()">
+          </div>
+
+          <div class="form-group full">
+            <div class="tp-box" id="tp-summary">
+              <div class="tp-title">💡 Récapitulatif tiers-payant</div>
+              <div><div class="tp-label">Part CNAM-CI / Assurance</div><div class="tp-val" id="tp-am">0 FCFA</div></div>
+              <div><div class="tp-label">Part Mutuelle</div><div class="tp-val" id="tp-mut">0 FCFA</div></div>
+              <div><div class="tp-label">Part Patient (reste à charge)</div><div class="tp-val" id="tp-patient" style="color:var(--accent2)">0 FCFA</div></div>
+              <div><div class="tp-label">Total facture TTC</div><div class="tp-val" id="tp-total">0 FCFA</div></div>
+            </div>
+          </div>
+
+          <div class="form-group full">
+            <label>Observations / commentaires</label>
+            <textarea id="f-obs" placeholder="Informations complémentaires, dépassements, conventions..."></textarea>
+          </div>
+
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="saveDraft()">Enregistrer brouillon</button>
+      <button class="btn btn-primary" onclick="submitFacture()">Émettre la facture</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="overlay" id="detail-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="detail-title">Facture #—</div>
+        <div class="modal-subtitle" id="detail-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeDetail()">Fermer</button>
+      <button class="btn btn-secondary btn-sm" onclick="printFacture()">🖨 Imprimer</button>
+      <button class="btn btn-primary btn-sm" id="detail-pay-btn">✓ Marquer payée</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+const today = new Date().toISOString().split('T')[0];
+
+let factures = [
+  // Facturation CNAM-CI — montants en FCFA
+  { id:'FAC-2025-0041', sejour:'SJ-2025-04821', nom:'KONÉ Aminata', ipp:'IPP-205812', type:'Hospitalisation', date:'2025-06-10', echeance:'2025-07-10', duree:5, montant:185000, tauxAM:80, tauxMut:0, partAM:148000, partMut:0, partPatient:37000, am:'CNAM-CI', mutuelle:'', statut:'Payée', obs:'Hospitalisation chirurgie — appendicectomie', actes:[{code:'H-CHI-01',lib:'Appendicectomie cœlioscopie',nom:'CNAM-CI',qty:1,pu:165000},{code:'H-ANESTH',lib:'Anesthésie générale',nom:'Forfait',qty:1,pu:20000}] },
+  { id:'FAC-2025-0042', sejour:'SJ-2025-04822', nom:'TRAORÉ Moussa', ipp:'IPP-205814', type:'Consultation externe', date:'2025-06-11', echeance:'2025-07-11', duree:0, montant:12000, tauxAM:70, tauxMut:0, partAM:8400, partMut:0, partPatient:3600, am:'Mutuelle CI', mutuelle:'', statut:'Payée', obs:'Consultation spécialisée orthopédie', actes:[{code:'C-SPE-01',lib:'Consultation spécialisée',nom:'CNAM-CI',qty:1,pu:12000}] },
+  { id:'FAC-2025-0043', sejour:'SJ-2025-04823', nom:'OUATTARA Seydou', ipp:'IPP-205825', type:'Hospitalisation', date:'2025-06-12', echeance:'2025-07-12', duree:3, montant:95000, tauxAM:80, tauxMut:0, partAM:76000, partMut:0, partPatient:19000, am:'CNAM-CI', mutuelle:'', statut:'En attente', obs:'Polytraumatisme — soins intensifs', actes:[{code:'H-URG-01',lib:'Prise en charge urgence',nom:'CNAM-CI',qty:1,pu:45000},{code:'H-JOUR',lib:'Hospitalisation / jour',nom:'Forfait',qty:3,pu:15000+800/3*1}] },
+  { id:'FAC-2025-0044', sejour:'SJ-2025-04810', nom:'DIALLO Fatoumata', ipp:'IPP-205820', type:'Consultation externe', date:'2025-05-22', echeance:'2025-06-22', duree:0, montant:8000, tauxAM:70, tauxMut:0, partAM:5600, partMut:0, partPatient:2400, am:'CNAM-CI', mutuelle:'', statut:'En retard', obs:'Consultation obstétrique', actes:[{code:'C-MED-01',lib:'Consultation médecine générale',nom:'CNAM-CI',qty:1,pu:8000}] },
+  { id:'FAC-2025-0045', sejour:'SJ-2025-04800', nom:'YÉO Mariame', ipp:'IPP-205830', type:'Rétrocession', date:'2025-05-15', echeance:'2025-06-15', duree:0, montant:640000, tauxAM:65, tauxMut:0, partAM:416000, partMut:0, partPatient:224000, am:'CNAM-CI', mutuelle:'', statut:'En retard', obs:'Rétrocession oncologie — Herceptin', actes:[{code:'RETRO-01',lib:'Herceptin 150mg',nom:'Rétrocession',qty:2,pu:320000}] },
+  { id:'FAC-2025-0046', sejour:'SJ-2025-04824', nom:'SORO Aïcha', ipp:'IPP-205835', type:'Hospitalisation', date:'2025-06-15', echeance:'2025-07-15', duree:2, montant:420000, tauxAM:100, tauxMut:0, partAM:420000, partMut:0, partPatient:0, am:'CNAM-CI', mutuelle:'', statut:'En attente', obs:'ALD — exonération totale — prothèse hanche', actes:[{code:'H-ORT-01',lib:'Prothèse totale hanche',nom:'CNAM-CI',qty:1,pu:390000},{code:'DMI-PH',lib:'DMI — Prothèse hanche cimentée',nom:'Implant',qty:1,pu:30000}] },
+  { id:'FAC-2025-0047', sejour:'SJ-2025-04825', nom:'GNONSOA Marie', ipp:'IPP-205788', type:'Consultation externe', date:'2025-06-16', echeance:'2025-07-16', duree:0, montant:8000, tauxAM:70, tauxMut:0, partAM:5600, partMut:0, partPatient:2400, am:'Mutuelle CI', mutuelle:'', statut:'Brouillon', obs:'', actes:[{code:'C-MED-01',lib:'Consultation médecine générale',nom:'CNAM-CI',qty:1,pu:8000}] },
+];
+
+let acteCount = 0;
+let detailId = null;
+const PAGE_SIZE = 5;
+let currentPage = 1;
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+
+function updateKPIs() {
+  const fmtKpi = v => Math.round(v||0).toLocaleString('fr-FR') + ' FCFA';
+  const total = factures.filter(f => f.statut !== 'Brouillon').reduce((s,f)=>s+f.montant, 0);
+  const encaisse = factures.filter(f => f.statut === 'Payée').reduce((s,f)=>s+f.montant, 0);
+  const attente = factures.filter(f => f.statut === 'En attente').reduce((s,f)=>s+f.montant, 0);
+  const retard = factures.filter(f => f.statut === 'En retard').length;
+  document.getElementById('kpi-total').textContent = fmtKpi(total);
+  document.getElementById('kpi-encaisse').textContent = fmtKpi(encaisse);
+  document.getElementById('kpi-attente').textContent = fmtKpi(attente);
+  document.getElementById('kpi-retard').textContent = retard;
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
+function getFiltered() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const fStatut = document.getElementById('filter-statut').value;
+  const fType = document.getElementById('filter-type').value;
+  const fPeriode = document.getElementById('filter-periode').value;
+  return factures.filter(f => {
+    if (q && !f.nom.toLowerCase().includes(q) && !f.id.toLowerCase().includes(q)) return false;
+    if (fStatut && f.statut !== fStatut) return false;
+    if (fType && f.type !== fType) return false;
+    if (fPeriode && !f.date.startsWith(fPeriode)) return false;
+    return true;
+  });
+}
+
+function statutBadge(s) {
+  const map = { 'Payée':'badge-payee', 'En attente':'badge-attente', 'En retard':'badge-retard', 'Brouillon':'badge-brouillon' };
+  return `<span class="badge ${map[s]||''}">${s}</span>`;
+}
+function typeBadge(t) {
+  const map = { 'Hospitalisation':'badge-t2a', 'Consultation externe':'badge-ext', 'Rétrocession':'badge-retro' };
+  return `<span class="badge ${map[t]||''}">${t}</span>`;
+}
+function fmt(v) { return Math.round(v||0).toLocaleString('fr-FR') + ' FCFA'; }
+
+function renderTable() {
+  const data = getFiltered();
+  const total = data.length;
+  const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > maxPage) currentPage = maxPage;
+  const slice = data.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+
+  document.getElementById('table-count').textContent = `${total} facture${total>1?'s':''} trouvée${total>1?'s':''}`;
+
+  const tbody = document.getElementById('table-body');
+  if (!slice.length) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🧾</div><p>Aucune facture ne correspond aux filtres</p></div></td></tr>`;
+  } else {
+    tbody.innerHTML = slice.map(f => `
+      <tr onclick="openDetail('${f.id}')">
+        <td><strong>${f.id}</strong></td>
+        <td class="patient-name">${f.nom}</td>
+        <td>${typeBadge(f.type)}</td>
+        <td>${new Date(f.date).toLocaleDateString('fr-FR')}</td>
+        <td class="${f.statut==='En retard'?'amount':''}">${new Date(f.echeance).toLocaleDateString('fr-FR')}</td>
+        <td class="amount">${fmt(f.montant)}</td>
+        <td class="text-muted">${fmt(f.partAM)}</td>
+        <td class="text-muted">${fmt(f.partPatient)}</td>
+        <td>${statutBadge(f.statut)}</td>
+        <td><button class="btn btn-secondary btn-sm btn-icon" onclick="event.stopPropagation();openDetail('${f.id}')">👁</button></td>
+      </tr>
+    `).join('');
+  }
+
+  // Pagination
+  document.getElementById('pagination-info').textContent = total ? `Affichage ${(currentPage-1)*PAGE_SIZE+1}–${Math.min(currentPage*PAGE_SIZE,total)} sur ${total}` : '';
+  const pgBtns = document.getElementById('pagination-btns');
+  pgBtns.innerHTML = '';
+  for (let i = 1; i <= maxPage; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'pg-btn' + (i===currentPage?' active':'');
+    btn.textContent = i;
+    btn.onclick = () => { currentPage = i; renderTable(); };
+    pgBtns.appendChild(btn);
+  }
+}
+
+function renderRelances() {
+  const retard = factures.filter(f => f.statut === 'En retard');
+  const tbody = document.getElementById('relances-body');
+  if (!retard.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">✅</div><p>Aucune facture en retard</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = retard.map(f => {
+    const days = Math.floor((new Date() - new Date(f.echeance)) / 86400000);
+    return `<tr>
+      <td class="patient-name">${f.nom}</td>
+      <td>${f.id}</td>
+      <td>${new Date(f.date).toLocaleDateString('fr-FR')}</td>
+      <td style="color:var(--danger);font-weight:600">+${days} j</td>
+      <td class="amount">${fmt(f.partPatient || f.montant)}</td>
+      <td>1</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="sendRelance('${f.id}')">📧 Relancer</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'relances') renderRelances();
+}
+
+// ── Journal d'audit Facturation ──────────────────────────────────────────────
+const FACT_AUDIT = [];
+function factAudit(action, id, detail){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  FACT_AUDIT.push({ts:new Date().toISOString(),action,id,detail,auteur:s.nom||'DAF',role:s.role||'—'});
+}
+function getFacturiste(){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  return s.nom||'DAF';
+}
+
+// ── Modal Nouvelle Facture ────────────────────────────────────────────────────
+
+function openModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('f-date').value = today;
+  document.getElementById('actes-body').innerHTML = '';
+  acteCount = 0;
+  // Pré-remplir depuis patient actif
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    const p=MEDICORE_PATIENT.get();
+    if(p){
+      const nomEl=document.getElementById('f-nom');
+      if(nomEl&&!nomEl.value) nomEl.value=p.nom||'';
+      const nssEl=document.getElementById('f-nss');
+      if(nssEl&&!nssEl.value) nssEl.value=p.ipp||'';
+      const sejourEl=document.getElementById('f-sejour');
+      if(sejourEl&&!sejourEl.value) sejourEl.value='SJ-'+new Date().getFullYear()+'-'+(p.id||'').replace(/\D/g,'').slice(-5);
+    }
+  }
+  addActe();
+  calcTiersPayant();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function addActe() {
+  const id = 'acte-' + (++acteCount);
+  const row = document.createElement('tr');
+  row.id = id;
+  row.innerHTML = `
+    <td><input type="text" placeholder="CNAM-CI" onchange="calcTiersPayant()" style="width:90px"></td>
+    <td><input type="text" placeholder="Libellé de l'acte" onchange="calcTiersPayant()" style="width:180px"></td>
+    <td>
+      <select onchange="calcTiersPayant()" style="width:110px">
+        <option>CNAM-CI</option><option>Forfait hospitalier</option><option>LISTE EN SUS</option><option>Forfait</option>
+      </select>
+    </td>
+    <td><input type="number" value="1" min="1" style="width:60px" oninput="calcActeRow('${id}');calcTiersPayant()"></td>
+    <td><input type="number" value="0" min="0" step="0.01" style="width:90px" oninput="calcActeRow('${id}');calcTiersPayant()"></td>
+    <td id="${id}-total" class="amount" style="white-space:nowrap">0 FCFA</td>
+    <td><button class="remove-btn" onclick="removeActe('${id}')">✕</button></td>
+  `;
+  document.getElementById('actes-body').appendChild(row);
+}
+
+function calcActeRow(id) {
+  const row = document.getElementById(id);
+  if (!row) return 0;
+  const inputs = row.querySelectorAll('input[type="number"]');
+  const qty = parseFloat(inputs[0].value)||0;
+  const pu = parseFloat(inputs[1].value)||0;
+  const total = qty * pu;
+  document.getElementById(id+'-total').textContent = Math.round(total).toLocaleString('fr-FR')+' FCFA';
+  return total;
+}
+
+function removeActe(id) {
+  document.getElementById(id)?.remove();
+  calcTiersPayant();
+}
+
+function calcTiersPayant() {
+  let subtotal = 0;
+  document.querySelectorAll('#actes-body tr').forEach(row => {
+    const id = row.id;
+    subtotal += calcActeRow(id);
+  });
+  document.getElementById('actes-subtotal').textContent = Math.round(subtotal).toLocaleString('fr-FR')+' FCFA';
+
+  const tauxAM = parseFloat(document.getElementById('f-taux-am').value)||0;
+  const tauxMut = parseFloat(document.getElementById('f-taux-mut').value)||0;
+  const partAM = subtotal * tauxAM / 100;
+  const partMut = subtotal * tauxMut / 100;
+  const partPat = Math.max(0, subtotal - partAM - partMut);
+  document.getElementById('tp-am').textContent = fmt(partAM);
+  document.getElementById('tp-mut').textContent = fmt(partMut);
+  document.getElementById('tp-patient').textContent = fmt(partPat);
+  document.getElementById('tp-total').textContent = fmt(subtotal);
+}
+
+function toggleTypeFacture() {
+  // Afficher/masquer les champs hospitalisation selon le type
+}
+
+function collectFactureData(statut) {
+  const date = document.getElementById('f-date').value;
+  const echeance = new Date(new Date(date).getTime() + 30*86400000).toISOString().split('T')[0];
+  const subtotal = parseFloat(document.getElementById('tp-total').textContent.replace(/[€\s]/g,'').replace(',','.')) || 0;
+  const tauxAM = parseFloat(document.getElementById('f-taux-am').value)||0;
+  const tauxMut = parseFloat(document.getElementById('f-taux-mut').value)||0;
+
+  const actes = [];
+  document.querySelectorAll('#actes-body tr').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    actes.push({
+      code: inputs[0]?.value||'',
+      lib: inputs[1]?.value||'',
+      nom: sel?.value||'',
+      qty: parseFloat(inputs[2]?.value)||1,
+      pu: parseFloat(inputs[3]?.value)||0,
+    });
+  });
+
+  return {
+    id: 'FAC-'+new Date().getFullYear()+'-' + String(factures.length+42).padStart(4,'0'),
+    sejour: document.getElementById('f-sejour').value,
+    nom: document.getElementById('f-nom').value,
+    nss: document.getElementById('f-nss').value,
+    ipp: document.getElementById('f-nss').value,
+    type: document.getElementById('f-type').value || 'Consultation externe',
+    date, echeance,
+    ghm: document.getElementById('f-ghm').value,
+    duree: parseInt(document.getElementById('f-duree').value)||0,
+    montant: subtotal,
+    tauxAM, tauxMut,
+    partAM: subtotal * tauxAM/100,
+    partMut: subtotal * tauxMut/100,
+    partPatient: Math.max(0, subtotal - subtotal*tauxAM/100 - subtotal*tauxMut/100),
+    am: document.getElementById('f-am').value,
+    mutuelle: document.getElementById('f-mutuelle').value,
+    statut,
+    obs: document.getElementById('f-obs').value,
+    emetteur: getFacturiste(),
+    actes,
+  };
+}
+
+function saveDraft() {
+  const nom = document.getElementById('f-nom').value;
+  if (!nom) { toast('Veuillez renseigner le nom du patient.', 'error'); return; }
+  const f = collectFactureData('Brouillon');
+  factures.push(f);
+  factAudit('BROUILLON', f.id, `${f.nom} — ${fmt(f.montant)} — ${f.am}`);
+  closeModal();
+  renderTable();
+  updateKPIs();
+  toast(`Brouillon ${f.id} enregistré.`, 'success');
+}
+
+function submitFacture() {
+  const nom = document.getElementById('f-nom').value;
+  const sejour = document.getElementById('f-sejour').value;
+  if (!nom || !sejour) { toast('Veuillez renseigner le numéro de séjour et le nom du patient.', 'error'); return; }
+  const f = collectFactureData('En attente');
+  factures.push(f);
+  factAudit('FACTURE_EMISE', f.id, `${f.nom} — ${fmt(f.montant)} — ${f.am} — ${f.type}`);
+  closeModal();
+  renderTable();
+  updateKPIs();
+  toast(`Facture ${f.id} émise avec succès.`, 'success');
+}
+
+// ── Detail ────────────────────────────────────────────────────────────────────
+
+function openDetail(id) {
+  const f = factures.find(x => x.id === id);
+  if (!f) return;
+  detailId = id;
+  document.getElementById('detail-title').textContent = f.id;
+  document.getElementById('detail-subtitle').textContent = `${f.nom} — ${f.type} — ${new Date(f.date).toLocaleDateString('fr-FR')}`;
+  const payBtn = document.getElementById('detail-pay-btn');
+  payBtn.style.display = f.statut === 'Payée' ? 'none' : '';
+  payBtn.onclick = () => markPaid(id);
+
+  const actesRows = f.actes.map(a =>
+    `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-size:12.5px">${a.code}</td>
+      <td style="padding:7px 10px;font-size:12.5px">${a.lib}</td>
+      <td style="padding:7px 10px;font-size:12.5px"><span class="badge badge-t2a">${a.nom}</span></td>
+      <td style="padding:7px 10px;font-size:12.5px">${a.qty}</td>
+      <td style="padding:7px 10px;font-size:12.5px" class="amount">${fmt(a.pu)}</td>
+      <td style="padding:7px 10px;font-size:12.5px" class="amount">${fmt(a.qty*a.pu)}</td>
+    </tr>`).join('');
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-grid">
+      <div>
+        <div class="detail-section">
+          <h4>Patient</h4>
+          <div class="detail-row"><span class="dl">Nom</span><span class="dv">${f.nom}</span></div>
+          <div class="detail-row"><span class="dl">IPP</span><span class="dv">${f.nss||'—'}</span></div>
+          <div class="detail-row"><span class="dl">N° séjour</span><span class="dv">${f.sejour}</span></div>
+        </div>
+        <div class="detail-section">
+          <h4>Facturation</h4>
+          <div class="detail-row"><span class="dl">Type</span><span class="dv">${typeBadge(f.type)}</span></div>
+          ${f.ghm ? `<div class="detail-row"><span class="dl">Code acte</span><span class="dv">${f.ghm}</span></div>` : ''}
+          ${f.duree ? `<div class="detail-row"><span class="dl">Durée séjour</span><span class="dv">${f.duree} jours</span></div>` : ''}
+          <div class="detail-row"><span class="dl">Date émission</span><span class="dv">${new Date(f.date).toLocaleDateString('fr-FR')}</span></div>
+          <div class="detail-row"><span class="dl">Échéance</span><span class="dv">${new Date(f.echeance).toLocaleDateString('fr-FR')}</span></div>
+          <div class="detail-row"><span class="dl">Statut</span><span class="dv">${statutBadge(f.statut)}</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="detail-section">
+          <h4>Tiers-payant</h4>
+          <div class="detail-row"><span class="dl">Organisme AM</span><span class="dv">${f.am}</span></div>
+          <div class="detail-row"><span class="dl">Taux AM</span><span class="dv">${f.tauxAM} %</span></div>
+          <div class="detail-row"><span class="dl">Mutuelle</span><span class="dv">${f.mutuelle||'—'}</span></div>
+          <div class="detail-row"><span class="dl">Taux mutuelle</span><span class="dv">${f.tauxMut} %</span></div>
+        </div>
+        <div class="detail-section">
+          <h4>Répartition financière</h4>
+          <div class="detail-row"><span class="dl">Montant total TTC</span><span class="dv amount">${fmt(f.montant)}</span></div>
+          <div class="detail-row"><span class="dl">Part AM</span><span class="dv amount">${fmt(f.partAM)}</span></div>
+          <div class="detail-row"><span class="dl">Part mutuelle</span><span class="dv amount">${fmt(f.partMut)}</span></div>
+          <div class="detail-row"><span class="dl">Part patient</span><span class="dv amount" style="color:var(--accent2)">${fmt(f.partPatient)}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-section" style="margin-top:16px">
+      <h4>Actes facturés</h4>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--surface-alt)">
+            <th style="padding:8px 10px;font-size:11px;text-align:left;text-transform:uppercase;color:var(--text-muted)">Code</th>
+            <th style="padding:8px 10px;font-size:11px;text-align:left;text-transform:uppercase;color:var(--text-muted)">Libellé</th>
+            <th style="padding:8px 10px;font-size:11px;text-align:left;text-transform:uppercase;color:var(--text-muted)">Nomenclature</th>
+            <th style="padding:8px 10px;font-size:11px;text-align:left;text-transform:uppercase;color:var(--text-muted)">Qté</th>
+            <th style="padding:8px 10px;font-size:11px;text-align:left;text-transform:uppercase;color:var(--text-muted)">P.U.</th>
+            <th style="padding:8px 10px;font-size:11px;text-align:left;text-transform:uppercase;color:var(--text-muted)">Total</th>
+          </tr>
+        </thead>
+        <tbody>${actesRows}</tbody>
+      </table>
+    </div>
+    ${f.obs ? `<div class="detail-section"><h4>Observations</h4><p style="font-size:13px;color:var(--text-muted)">${f.obs}</p></div>` : ''}
+  `;
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+
+function markPaid(id) {
+  const f = factures.find(x => x.id === id);
+  if (f) {
+    f.statut = 'Payée';
+    f.paiePar = getFacturiste();
+    f.paieTs = new Date().toISOString();
+    factAudit('PAIEMENT', id, `${f.nom} — ${fmt(f.montant)} — ${f.am}`);
+    // BUS → Comptabilité générale : écriture 411/512 à passer
+    if(typeof MEDICORE_BUS!=='undefined'){
+      MEDICORE_BUS.publish('PAIEMENT_RECU',{factureId:id,patient:f.nom,montant:f.montant,am:f.am,compte411:f.am,compte512:'BGFIBANK'});
+    }
+    renderTable(); updateKPIs(); closeDetail();
+    toast(`Facture ${id} marquée comme payée.`, 'success');
+  }
+}
+
+function sendRelance(id) {
+  const f = factures.find(x => x.id === id);
+  factAudit('RELANCE', id, f ? `${f.nom} — Retard paiement` : id);
+  toast(`Relance envoyée pour la facture ${id}.`, 'success');
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+
+function exportCSV() {
+  const headers = ['N° Facture','Patient','Type','Date','Échéance','Montant TTC','Part AM','Part Patient','Statut'];
+  const rows = factures.map(f => [f.id,f.nom,f.type,f.date,f.echeance,f.montant,f.partAM,f.partPatient,f.statut]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(';')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'factures_export.csv'; a.click();
+  toast('Export CSV généré.', 'success');
+}
+
+function printFacture() {
+  toast('Impression en cours…', 'success');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function toast(msg, type='') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDetail(); } });
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('detail-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeDetail(); });
+
+updateKPIs();
+renderTable();
+</script>
+
+<script>
+// Auto-init navigation MediCore
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof initNav === 'function') {
+    initNav('facturation', 'Facturation', '411 · 706 · 707 · CNAM-CI',
+      [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Facturation',file:''}]);
+  }
+});
+</script>
+</body>
+</html>

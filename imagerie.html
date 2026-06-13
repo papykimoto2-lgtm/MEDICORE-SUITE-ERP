@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Imagerie Médicale</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="nav.js"></script>
+<script src="qr.js"></script>
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;
+    --accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;
+    --orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;
+    --purple:#6b21a8;--purple-bg:#f3e8ff;
+    --teal:#0f766e;--teal-bg:#ccfbf1;
+    --slate:#334155;--slate-bg:#f1f5f9;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:242px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;padding:28px 32px;overflow-y:auto}
+
+  /* KPIs */
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:26px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .kpi-card.blue::before{background:var(--accent)}
+  .kpi-card.green::before{background:var(--green)}
+  .kpi-card.orange::before{background:var(--accent2)}
+  .kpi-card.red::before{background:var(--red)}
+  .kpi-card.teal::before{background:var(--teal)}
+  .kpi-label{font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:22px;margin:5px 0 3px;color:var(--accent)}
+  .kpi-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:2px 7px;border-radius:20px}
+  .kpi-badge.up{background:var(--green-bg);color:var(--green)}
+  .kpi-badge.down{background:var(--red-bg);color:var(--red)}
+  .kpi-badge.warn{background:var(--orange-bg);color:var(--orange)}
+  .kpi-badge.neutral{background:var(--accent-light);color:var(--accent)}
+
+  /* Tabs */
+  .tabs{display:flex;margin-bottom:22px;border-bottom:2px solid var(--border);flex-wrap:wrap}
+  .tab-btn{padding:9px 17px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn:hover{color:var(--accent)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:600;font-size:14px}
+  .card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+  /* Tables */
+  table{width:100%;border-collapse:collapse}
+  thead th{padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;background:var(--surface-alt);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface-alt)}
+  tbody td{padding:10px 14px;font-size:13px;vertical-align:middle}
+  tfoot td{padding:11px 14px;font-weight:700;font-size:13px;background:var(--surface-alt);border-top:2px solid var(--border)}
+  .text-right{text-align:right}
+  .amount{font-variant-numeric:tabular-nums;font-weight:600}
+  .text-muted{color:var(--text-muted)}
+
+  /* Badges */
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+  .b-attend{background:var(--orange-bg);color:var(--orange)}
+  .b-encours{background:var(--accent-light);color:var(--accent)}
+  .b-valide{background:var(--green-bg);color:var(--green)}
+  .b-transmis{background:var(--teal-bg);color:var(--teal)}
+  .b-urgent{background:var(--red-bg);color:var(--red);font-weight:700}
+  .b-programme{background:#f0f0f0;color:#555}
+  .b-radio{background:var(--accent-light);color:var(--accent)}
+  .b-echo{background:var(--green-bg);color:var(--green)}
+  .b-scanner{background:var(--purple-bg);color:var(--purple)}
+  .b-irm{background:var(--teal-bg);color:var(--teal)}
+  .b-mammo{background:var(--accent2-light);color:var(--accent2)}
+
+  /* Boutons */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-success{background:var(--green-bg);color:var(--green);border:1px solid #a8d8be}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .btn-xs{padding:3px 8px;font-size:11px}
+
+  /* Filtres */
+  .filter-row{display:flex;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface-alt);flex-wrap:wrap}
+  .filter-row select,.filter-row input{width:auto;padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none;color:var(--text)}
+  .filter-row label{font-size:12.5px;font-weight:500;color:var(--text-muted);white-space:nowrap}
+
+  /* Search */
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .search-bar input{border:none;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);width:200px;box-shadow:none;padding:0}
+
+  /* Modal */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,.45);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);width:700px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:20px 26px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent)}
+  .modal-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .modal-close:hover{background:var(--surface-alt)}
+  .modal-body{padding:22px 26px}
+  .modal-footer{padding:14px 26px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+  /* Formulaire */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12.5px;font-weight:500;color:var(--text-muted)}
+  label .req{color:var(--red)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .section-label{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;padding-top:4px;border-top:1px solid var(--border)}
+
+  /* Visionneuse PACS simulée */
+  .pacs-viewer{background:#0a0a0a;border-radius:var(--radius);position:relative;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .pacs-controls{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.7);padding:8px 12px;display:flex;gap:8px;align-items:center}
+  .pacs-btn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;transition:background .15s}
+  .pacs-btn:hover{background:rgba(255,255,255,.3)}
+  .pacs-info{position:absolute;top:8px;left:8px;color:#0f0;font-family:monospace;font-size:11px;line-height:1.6;background:rgba(0,0,0,.5);padding:6px 8px;border-radius:4px}
+  .pacs-watermark{color:#333;font-size:12px;letter-spacing:2px;text-transform:uppercase;user-select:none}
+
+  /* Équipements grid */
+  .equip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:20px}
+  .equip-card{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .equip-icon{font-size:28px;margin-bottom:8px}
+  .equip-name{font-weight:600;font-size:13.5px;color:var(--accent);margin-bottom:4px}
+  .equip-stat{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border)}
+  .equip-stat:last-child{border-bottom:none}
+
+  /* Planning créneaux */
+  .planning-slots{display:grid;grid-template-columns:80px repeat(8,1fr);gap:3px;padding:16px}
+  .slot-header{font-size:11px;font-weight:600;color:var(--text-muted);text-align:center;padding:4px}
+  .slot-time{font-size:11.5px;color:var(--text-muted);text-align:right;padding-right:8px;display:flex;align-items:center;justify-content:flex-end}
+  .slot-cell{border-radius:4px;min-height:36px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;cursor:pointer;transition:opacity .15s;padding:3px 5px;text-align:center}
+  .slot-cell:hover{opacity:.8}
+  .slot-libre{background:var(--green-bg);color:var(--green);border:1px solid rgba(30,122,78,.2)}
+  .slot-occupe{color:#fff;border:none}
+  .slot-pause{background:var(--surface-alt);color:var(--text-muted);border:1px dashed var(--border)}
+
+  /* Compte-rendu */
+  .cr-imagerie{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+  .cr-header{border-bottom:2px solid var(--accent);padding-bottom:12px;margin-bottom:16px}
+  .cr-section-title{font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:600;margin-bottom:6px;margin-top:14px}
+  .cr-text{font-size:13.5px;line-height:1.7;color:var(--text)}
+  .cr-conclusion{background:var(--accent-light);border-left:3px solid var(--accent);padding:10px 14px;border-radius:0 6px 6px 0;font-size:13.5px;margin-top:8px}
+
+  /* Alertes */
+  .alert-box{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--radius);margin-bottom:12px;font-size:13px}
+  .alert-box.warn{background:var(--orange-bg);border:1px solid #f0c080;color:var(--orange)}
+  .alert-box.info{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent)}
+  .alert-icon{font-size:16px;flex-shrink:0}
+
+  /* Pagination */
+  .pagination{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-muted)}
+  .pg-btns{display:flex;gap:4px}
+  .pg-btn{padding:4px 9px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;font-size:12.5px;font-family:'DM Sans',sans-serif}
+  .pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  /* Toast */
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .25s ease,toastOut .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}
+  .toast.error{background:var(--red)}
+  .toast.warn{background:var(--orange)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+
+  .img-tag{display:inline-block;background:var(--purple-bg);color:var(--purple);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;margin-left:8px;vertical-align:middle;border:1px solid rgba(107,33,168,.25)}
+  .compte-tag{font-family:monospace;font-size:11.5px;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:4px;font-weight:700}
+
+  /* ── Mobile Imagerie ─────────────────────────────────────────────────────── */
+  @media(max-width:1024px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+    .equip-grid{grid-template-columns:repeat(2,1fr)!important}
+    .tabs{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab-btn{white-space:nowrap;flex-shrink:0}
+    /* Planning scroll horizontal */
+    #planning-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .planning-header,.planning-row{min-width:700px}
+    /* PACS grid 2 cols */
+    [style*="grid-template-columns:1fr 1fr;grid-template-rows"]{
+      grid-template-columns:1fr 1fr!important
+    }
+  }
+  @media(max-width:768px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+    .equip-grid{grid-template-columns:1fr!important}
+    .filter-row{flex-wrap:wrap!important;gap:8px!important}
+    .filter-row select,.filter-row input{width:100%!important;min-width:0!important}
+    /* CR imagerie layout */
+    .cr-imagerie .cr-header>div:last-child{text-align:left!important;margin-top:8px}
+    /* PACS viewer */
+    .pacs-viewer{aspect-ratio:16/10!important}
+    /* Modal CR plein écran sur mobile */
+    #modal-cr .modal{width:100vw!important}
+  }
+  @media(max-width:480px){
+    .kpi-grid{grid-template-columns:1fr!important}
+    .kpi-value{font-size:22px!important}
+    .equip-stat{font-size:12px!important}
+    .slot-cell{font-size:10px!important;padding:4px 2px!important}
+    .cr-text{font-size:13px!important}
+    .cr-conclusion{font-size:13px!important;padding:12px!important}
+  }
+</style>
+  <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left"></div>
+      <div class="topbar-title">
+        <h1>Imagerie Médicale <span class="img-tag">PACS</span></h1>
+        <p>Demandes · Programmation · PACS · Comptes rendus · Équipements — Radiologie · Échographie · Scanner · IRM</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openPACS()">🖥 Visionneuse PACS</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇ Exporter</button>
+        <button class="btn btn-primary" onclick="openDemande()">＋ Nouvelle demande</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="alertes-img"></div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Demandes aujourd'hui</div>
+          <div class="kpi-value" id="kpi-dem">—</div>
+          <span class="kpi-badge neutral">📋 Planifiées</span>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Examens urgents</div>
+          <div class="kpi-value" id="kpi-urg">—</div>
+          <span class="kpi-badge down">🚨 Priorité</span>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">CR transmis DPI</div>
+          <div class="kpi-value" id="kpi-cr">—</div>
+          <span class="kpi-badge up">✓ Validés</span>
+        </div>
+        <div class="kpi-card orange">
+          <div class="kpi-label">Équipements actifs</div>
+          <div class="kpi-value" id="kpi-equip">—</div>
+          <span class="kpi-badge neutral">Opérationnels</span>
+        </div>
+        <div class="kpi-card teal">
+          <div class="kpi-label">Délai moyen rendu</div>
+          <div class="kpi-value" id="kpi-delai">—</div>
+          <span class="kpi-badge neutral">⏱ Heures</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('demandes',this)">Demandes & Worklist</button>
+        <button class="tab-btn" onclick="switchTab('planning',this)">Planning & Créneaux</button>
+        <button class="tab-btn" onclick="switchTab('cr',this)">Comptes rendus</button>
+        <button class="tab-btn" onclick="switchTab('pacs',this)">PACS — Images</button>
+        <button class="tab-btn" onclick="switchTab('equipements',this)">Équipements</button>
+        <button class="tab-btn" onclick="switchTab('facturation',this)">Facturation CNAM-CI</button>
+      </div>
+
+      <!-- ── DEMANDES ── -->
+      <div id="tab-demandes" class="tab-panel active">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Worklist — Demandes d'imagerie</div><div class="card-subtitle" id="dem-count">—</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="search-bar"><span>🔍</span><input type="text" id="dem-search" placeholder="Patient, N° demande, examen…" oninput="renderDemandes()"></div>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-dem-type" onchange="renderDemandes()">
+                <option value="">Tous types</option>
+                <option value="Radiologie">Radiologie</option>
+                <option value="Échographie">Échographie</option>
+                <option value="Scanner">Scanner (TDM)</option>
+                <option value="IRM">IRM</option>
+                <option value="Mammographie">Mammographie</option>
+              </select>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-dem-statut" onchange="renderDemandes()">
+                <option value="">Tous statuts</option>
+                <option value="En attente">En attente</option>
+                <option value="En cours">En cours</option>
+                <option value="CR à rédiger">CR à rédiger</option>
+                <option value="Validé">Validé</option>
+                <option value="Transmis">Transmis DPI</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>N° Demande</th><th>Patient</th><th>Prescripteur</th>
+              <th>Type examen</th><th>Examen</th><th>Équipement</th>
+              <th>Priorité</th><th>Date/Heure</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="dem-tbody"></tbody>
+          </table>
+          <div class="pagination">
+            <span id="dem-pag-info"></span>
+            <div class="pg-btns" id="dem-pag-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PLANNING ── -->
+      <div id="tab-planning" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Planning des créneaux d'imagerie</div><div class="card-subtitle">Disponibilités par équipement — Aujourd'hui</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-plan-equip" onchange="renderPlanning()">
+                <option value="">Tous les équipements</option>
+                <option value="Radio 1">Radiologie — Salle 1</option>
+                <option value="Echo 1">Échographie — Salle 1</option>
+                <option value="Scanner">Scanner (TDM)</option>
+                <option value="IRM">IRM 3T</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="openDemande()">＋ Planifier</button>
+            </div>
+          </div>
+          <div id="planning-container"></div>
+        </div>
+
+        <!-- Statistiques occupation -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:4px" id="planning-stats"></div>
+      </div>
+
+      <!-- ── COMPTES RENDUS ── -->
+      <div id="tab-cr" class="tab-panel">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px">
+          <!-- Liste CR -->
+          <div>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:10px">Comptes rendus</div>
+            <div id="cr-liste" style="max-height:600px;overflow-y:auto"></div>
+          </div>
+          <!-- CR détaillé -->
+          <div id="cr-detail">
+            <div style="text-align:center;padding:60px;color:var(--text-muted)">
+              <div style="font-size:40px;margin-bottom:12px">📋</div>
+              Sélectionnez un compte rendu
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PACS ── -->
+      <div id="tab-pacs" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:18px">
+          <span class="alert-icon">🖥</span>
+          <span>Système PACS (Picture Archiving and Communication System) — Stockage et visualisation des images médicales. Intégration HL7/DICOM avec les automates d'imagerie. Les images sont archivées conformément à la réglementation (10 ans minimum).</span>
+        </div>
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:20px">
+          <!-- Liste études -->
+          <div>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:10px">Études disponibles</div>
+            <div class="search-bar" style="margin-bottom:10px"><span>🔍</span><input type="text" id="pacs-search" placeholder="Patient, examen…" oninput="renderPACSListe()" style="width:100%"></div>
+            <div id="pacs-liste" style="max-height:520px;overflow-y:auto"></div>
+          </div>
+          <!-- Visionneuse -->
+          <div id="pacs-viewer-container">
+            <div style="text-align:center;padding:60px;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+              <div style="font-size:40px;margin-bottom:12px">🖼</div>
+              Sélectionnez une étude pour visualiser les images
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ÉQUIPEMENTS ── -->
+      <div id="tab-equipements" class="tab-panel">
+        <div class="equip-grid" id="equip-grid"></div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Maintenance & Calibration</div><div class="card-subtitle">Historique et planification des interventions</div></div>
+          <table>
+            <thead><tr>
+              <th>Équipement</th><th>Type intervention</th><th>Date dernière</th>
+              <th>Prochaine</th><th>Technicien</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="maintenance-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── FACTURATION ── -->
+      <div id="tab-facturation" class="tab-panel">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Actes CNAM-CI facturés</div><div class="kpi-value" style="font-size:20px" id="fact-nb">—</div><span class="kpi-badge neutral">Ce mois</span></div>
+          <div class="kpi-card green"><div class="kpi-label">CA imagerie (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-ca">—</div><span class="kpi-badge up">FCFA</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">En attente remboursement</div><div class="kpi-value" style="font-size:20px" id="fact-att">—</div><span class="kpi-badge warn">AM/mutuelle</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Coût moyen / examen</div><div class="kpi-value" style="font-size:20px" id="fact-cout">—</div><span class="kpi-badge neutral">FCFA</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Actes d'imagerie — Nomenclature CNAM-CI</div></div>
+          <table>
+            <thead><tr>
+              <th>Code CNAM-CI</th><th>Libellé acte</th><th>Type</th>
+              <th class="text-right">Tarif (FCFA)</th><th class="text-right">Nb actes</th>
+              <th class="text-right">CA (FCFA)</th>
+            </tr></thead>
+            <tbody id="ccam-tbody"></tbody>
+            <tfoot><tr>
+              <td colspan="4">TOTAL</td>
+              <td class="text-right" id="ccam-total-nb">—</td>
+              <td class="text-right" id="ccam-total-ca">—</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouvelle demande -->
+<div class="overlay" id="modal-dem">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">Nouvelle demande d'imagerie</div><div class="modal-subtitle">Prescription d'examen — Planification PACS</div></div>
+      <button class="modal-close" onclick="closeDemande()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>N° demande (auto)</label><input type="text" id="d-num" readonly style="background:var(--surface-alt);color:var(--text-muted)"></div>
+        <div class="form-group"><label>Date/Heure <span class="req">*</span></label><input type="datetime-local" id="d-date"></div>
+        <div class="form-group"><label>Patient <span class="req">*</span></label>
+          <input type="text" id="d-patient" placeholder="NOM Prénom — N° dossier" list="patients-list">
+          <datalist id="patients-list">
+            <option value="KONÉ Aminata — D205812">
+            <option value="TRAORÉ Moussa — D205814">
+            <option value="DIALLO Fatoumata — D205820">
+            <option value="OUATTARA Seydou — D205825">
+          </datalist></div>
+        <div class="form-group"><label>Prescripteur <span class="req">*</span></label>
+          <select id="d-presc">
+            <option>Dr. TOURÉ Mamadou</option><option>Dr. BAMBA Aïcha</option>
+            <option>Dr. COULIBALY Seydou</option><option>Dr. DIABATÉ Oumar</option>
+          </select></div>
+        <div class="form-group"><label>Type d'examen <span class="req">*</span></label>
+          <select id="d-type" onchange="updateExamensList()">
+            <option value="Radiologie">Radiologie standard</option>
+            <option value="Échographie">Échographie</option>
+            <option value="Scanner">Scanner (TDM)</option>
+            <option value="IRM">IRM</option>
+            <option value="Mammographie">Mammographie</option>
+          </select></div>
+        <div class="form-group"><label>Examen spécifique <span class="req">*</span></label>
+          <select id="d-examen">
+            <option>Radiographie thorax face</option>
+            <option>Radiographie abdomen sans prépa.</option>
+            <option>Radiographie osseuse</option>
+          </select></div>
+        <div class="form-group"><label>Équipement</label>
+          <select id="d-equip">
+            <option value="Radio 1">Radiologie — Salle 1</option>
+            <option value="Echo 1">Échographie — Salle 1</option>
+            <option value="Scanner">Scanner (TDM)</option>
+            <option value="IRM">IRM 3T</option>
+            <option value="Mammo">Mammographe</option>
+          </select></div>
+        <div class="form-group"><label>Priorité</label>
+          <select id="d-priorite">
+            <option value="Normale">Normale</option>
+            <option value="Urgente">Urgente</option>
+            <option value="STAT">STAT (immédiat)</option>
+          </select></div>
+        <div class="form-group full"><label>Indication clinique / Renseignements <span class="req">*</span></label>
+          <textarea id="d-indication" style="min-height:70px" placeholder="Symptômes, hypothèse diagnostique, antécédents pertinents, grossesse éventuelle…"></textarea></div>
+        <div class="form-group"><label>Injection produit de contraste</label>
+          <select id="d-contraste">
+            <option value="Non">Non</option>
+            <option value="Oui — IV">Oui — Intraveineux</option>
+            <option value="Oui — Oral">Oui — Oral</option>
+          </select></div>
+        <div class="form-group"><label>Code acte CNAM-CI</label>
+          <input type="text" id="d-ccam" placeholder="ex: ZBQK002"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDemande()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerDemande()">Planifier l'examen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal visionneuse PACS -->
+<div class="overlay" id="modal-pacs">
+  <div class="modal" style="width:860px;background:#0a0a0a;border:1px solid #222">
+    <div class="modal-header" style="background:#111;border-bottom:1px solid #222;padding:12px 20px">
+      <div>
+        <div class="modal-title" style="color:#fff;font-size:17px" id="pacs-modal-title">Visionneuse PACS</div>
+        <div style="font-size:12px;color:#666;margin-top:2px" id="pacs-modal-info">—</div>
+      </div>
+      <button class="modal-close" style="color:#888" onclick="closePACS()">✕</button>
+    </div>
+    <div style="padding:16px;background:#0a0a0a">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="pacs-viewer" id="pacs-main" onclick="toast('Image plein écran — DICOM viewer','success')">
+          <div class="pacs-info" id="pacs-dicom-info">
+            Patient: —<br>Examen: —<br>Date: —<br>W/L: 400/40<br>Zoom: 1.0x
+          </div>
+          <canvas id="pacs-canvas" width="380" height="280" style="border-radius:6px"></canvas>
+          <div class="pacs-controls">
+            <button class="pacs-btn" onclick="pacsZoom(1.2)">🔍+</button>
+            <button class="pacs-btn" onclick="pacsZoom(0.8)">🔍-</button>
+            <button class="pacs-btn" onclick="toast('Mesure distance activée','success')">📏</button>
+            <button class="pacs-btn" onclick="toast('Annotation ajoutée','success')">✏️</button>
+            <button class="pacs-btn" onclick="toast('Fenêtrage ajusté','success')">⚖️ W/L</button>
+            <button class="pacs-btn" onclick="toast('Image inversée','success')">⬛ Inv.</button>
+            <div style="flex:1"></div>
+            <button class="pacs-btn" onclick="toast('Image téléchargée en DICOM','success')">⬇ DICOM</button>
+            <button class="pacs-btn" onclick="toast('Rapport lié ouvert','success')">📋 CR</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px">
+          <div class="pacs-viewer" style="aspect-ratio:unset;min-height:130px" onclick="toast('Série 2','success')">
+            <canvas class="pacs-thumb" width="175" height="125" style="border-radius:4px"></canvas>
+            <div style="position:absolute;bottom:4px;left:6px;color:#0f0;font-size:10px;font-family:monospace">Série 2/4</div>
+          </div>
+          <div class="pacs-viewer" style="aspect-ratio:unset;min-height:130px" onclick="toast('Série 3','success')">
+            <canvas class="pacs-thumb" width="175" height="125" style="border-radius:4px"></canvas>
+            <div style="position:absolute;bottom:4px;left:6px;color:#0f0;font-size:10px;font-family:monospace">Série 3/4</div>
+          </div>
+          <div class="pacs-viewer" style="aspect-ratio:unset;min-height:130px" onclick="toast('Série 4','success')">
+            <canvas class="pacs-thumb" width="175" height="125" style="border-radius:4px"></canvas>
+            <div style="position:absolute;bottom:4px;left:6px;color:#0f0;font-size:10px;font-family:monospace">Série 4/4</div>
+          </div>
+          <div class="pacs-viewer" style="aspect-ratio:unset;min-height:130px;flex-direction:column;gap:6px">
+            <div style="color:#888;font-size:11px;font-family:monospace;text-align:center">
+              <div style="color:#0f0;font-size:16px;margin-bottom:4px">📊</div>
+              Coupes: 124<br>Épaisseur: 1.2mm<br>FOV: 380mm<br>kV: 120 / mAs: 280
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Barre de séries -->
+      <div style="display:flex;gap:6px;overflow-x:auto;padding:6px 0" id="pacs-series-bar"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal CR -->
+<div class="overlay" id="modal-cr">
+  <div class="modal" style="width:640px">
+    <div class="modal-header">
+      <div><div class="modal-title">Rédiger un compte rendu</div><div class="modal-subtitle" id="cr-modal-subtitle">—</div></div>
+      <button class="modal-close" onclick="closeCR()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Radiologue <span class="req">*</span></label>
+          <select id="cr-radio">
+            <option>Dr. MENSAH Eric — Radiologue</option>
+            <option>Dr. ASSOUMOU Claire — Radiologue</option>
+          </select></div>
+        <div class="form-group"><label>Date validation</label><input type="date" id="cr-date"></div>
+        <div class="form-group full"><label>Technique</label>
+          <input type="text" id="cr-technique" placeholder="ex: Examen TDM thorax-abdomen avec injection de PDC iodé IV…"></div>
+        <div class="form-group full"><label>Description <span class="req">*</span></label>
+          <textarea id="cr-description" style="min-height:100px" placeholder="Résultats de l'examen, observations, mesures…"></textarea></div>
+        <div class="form-group full"><label>Conclusion <span class="req">*</span></label>
+          <textarea id="cr-conclusion" style="min-height:70px" placeholder="Conclusion diagnostique, recommandations…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCR()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerCR()">Valider & Transmettre DPI</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const TODAY = new Date().toISOString().split('T')[0];
+let currentCRId = null;
+
+// ── Données ────────────────────────────────────────────────────────────────────
+let demandes = [
+  { id:'IMG-2025-0141', patient:'OUATTARA Seydou — D205825', presc:'Dr. DIABATÉ Oumar',   type:'Scanner',     examen:'TDM thorax-abdomen-pelvis avec PDC',     equip:'Scanner', priorite:'STAT',    date:TODAY+' 08:30', statut:'CR à rédiger', ccam:'ZBQK002' },
+  { id:'IMG-2025-0142', patient:'TRAORÉ Moussa — D205814',   presc:'Dr. TOURÉ Mamadou',   type:'Radiologie',  examen:'Radiographie thorax face et profil',     equip:'Radio 1', priorite:'Normale',  date:TODAY+' 09:00', statut:'Transmis',     ccam:'ZBQK001' },
+  { id:'IMG-2025-0143', patient:'KONÉ Aminata — D205812',    presc:'Dr. COULIBALY Seydou',type:'Échographie', examen:'Écho abdominale complète',               equip:'Echo 1',  priorite:'Urgente', date:TODAY+' 09:45', statut:'En cours',     ccam:'ZCQM001' },
+  { id:'IMG-2025-0144', patient:'DIALLO Fatoumata — D205820',presc:'Dr. BAMBA Aïcha',     type:'Échographie', examen:'Écho obstétricale 3e trimestre',         equip:'Echo 1',  priorite:'Normale',  date:TODAY+' 10:30', statut:'En attente',   ccam:'ZCQM002' },
+  { id:'IMG-2025-0145', patient:'YÉO Mariame — D205830',     presc:'Dr. TOURÉ Mamadou',   type:'Radiologie',  examen:'Radiographie abdomen sans préparation',  equip:'Radio 1', priorite:'Normale',  date:TODAY+' 11:00', statut:'En attente',   ccam:'ZBQK003' },
+  { id:'IMG-2025-0146', patient:'SORO Aïcha — D205835',      presc:'Dr. COULIBALY Seydou',type:'IRM',         examen:'IRM cérébrale sans et avec injection',   equip:'IRM',     priorite:'Urgente', date:TODAY+' 14:00', statut:'En attente',   ccam:'CBQK001' },
+  { id:'IMG-2025-0138', patient:'GNONSOA Marie — D205788',   presc:'Dr. BAMBA Aïcha',     type:'Mammographie',examen:'Mammographie bilatérale + écho sein',    equip:'Mammo',   priorite:'Normale',  date:'2025-06-18 09:00', statut:'Transmis', ccam:'QEQE001' },
+  { id:'IMG-2025-0139', patient:'BAMBA Issouf — D205795',    presc:'Dr. TOURÉ Mamadou',   type:'Radiologie',  examen:'Radiographie fémur face et profil',      equip:'Radio 1', priorite:'Urgente', date:'2025-06-19 08:00', statut:'Transmis', ccam:'ZBQK004' },
+];
+
+const CR_DATA = [
+  {
+    id:'CR-2025-0141', demId:'IMG-2025-0141', patient:'OUATTARA Seydou',
+    type:'Scanner', examen:'TDM thorax-abdomen-pelvis',
+    radio:'Dr. MENSAH Eric', date:TODAY,
+    technique:'Examen TDM thorax-abdomen-pelvis réalisé sans puis avec injection intraveineuse de produit de contraste iodé (80 mL Iohexol 350). Coupes de 2,5 mm. Reconstructions multiplanaires.',
+    description:'THORAX : Parenchyme pulmonaire sans anomalie focale. Pas d\'épanchement pleural. Médiastin de morphologie habituelle. Pas d\'adénopathie médiastinale.\nABDOMEN : Foie de taille normale, homogène. Voies biliaires non dilatées. Vésicule biliaire sans calcul. Rate et pancréas normaux. Reins symétriques sans anomalie. Pas d\'adénopathie rétropéritonéale.\nPELVIS : Pas d\'anomalie décelée.',
+    conclusion:'Absence d\'anomalie visible au TDM thoraco-abdomino-pelvien avec injection. Pas de lésion en rapport avec le contexte clinique.',
+    statut:'Validé',
+  },
+  {
+    id:'CR-2025-0142', demId:'IMG-2025-0142', patient:'TRAORÉ Moussa',
+    type:'Radiologie', examen:'Radiographie thorax F+P',
+    radio:'Dr. ASSOUMOU Claire', date:TODAY,
+    technique:'Clichés thoraciques de face et de profil en inspiration.',
+    description:'Champs pulmonaires clairs et bien aérés. Pas de syndrome alvéolaire ni interstitiel. Silhouette cardiaque de taille normale. Coupoles diaphragmatiques régulières. Pas d\'épanchement pleural.',
+    conclusion:'Examen radiographique thoracique normal.',
+    statut:'Transmis',
+  },
+];
+
+const EQUIPEMENTS = [
+  { nom:'Radiologie — Salle 1',  type:'Radiologie',   icon:'☢️',  marque:'Siemens Ysio Max',     statut:'Opérationnel', exam_jour:22, maintenance:'2025-09-01', taux:78 },
+  { nom:'Radiologie — Salle 2',  type:'Radiologie',   icon:'☢️',  marque:'GE Discovery XR656',   statut:'Opérationnel', exam_jour:18, maintenance:'2025-08-15', taux:65 },
+  { nom:'Échographie — Salle 1', type:'Échographie',  icon:'🔊',  marque:'GE Logiq E10',         statut:'Opérationnel', exam_jour:15, maintenance:'2025-07-20', taux:80 },
+  { nom:'Échographie — Salle 2', type:'Échographie',  icon:'🔊',  marque:'Philips EPIQ Elite',   statut:'En maintenance',exam_jour:0,  maintenance:'2025-06-22', taux:0  },
+  { nom:'Scanner (TDM)',         type:'Scanner',      icon:'🌀',  marque:'Siemens SOMATOM go.Top',statut:'Opérationnel', exam_jour:12, maintenance:'2025-10-01', taux:90 },
+  { nom:'IRM 3T',                type:'IRM',          icon:'🧲',  marque:'Philips Ingenia 3.0T', statut:'Opérationnel', exam_jour:8,  maintenance:'2025-11-15', taux:72 },
+  { nom:'Mammographe',           type:'Mammographie', icon:'🩻',  marque:'Hologic 3D Dimensions',statut:'Opérationnel', exam_jour:6,  maintenance:'2025-08-30', taux:55 },
+  { nom:'Amplificateur de bloc', type:'Radiologie',   icon:'💡',  marque:'Philips BV Pulsera',   statut:'Opérationnel', exam_jour:4,  maintenance:'2025-09-15', taux:40 },
+];
+
+const MAINTENANCE_HIST = [
+  { equip:'Scanner (TDM)',        type:'Maintenance préventive',       date:'2025-05-15', prochaine:'2025-10-01', tech:'Siemens Healthineers CI', statut:'Effectuée' },
+  { equip:'IRM 3T',               type:'Calibration magnétique',       date:'2025-04-20', prochaine:'2025-11-15', tech:'Philips Medical CI',      statut:'Effectuée' },
+  { equip:'Échographie — Salle 2',type:'Réparation sonde',             date:'2025-06-20', prochaine:'2025-07-01', tech:'GE Healthcare',            statut:'En cours' },
+  { equip:'Radiologie — Salle 1', type:'Contrôle dosimétrique',        date:'2025-03-10', prochaine:'2025-09-01', tech:'AIEA / CRIIRAD',           statut:'Planifiée' },
+  { equip:'Mammographe',          type:'Contrôle qualité mensuel',     date:'2025-06-01', prochaine:'2025-07-01', tech:'Hologic service',          statut:'Planifiée' },
+];
+
+// Nomenclature CNAM-CI imagerie — tarifs FCFA (pas de cotation CCAM France)
+const CNAMCI_IMG = [
+  { code:'ZBQK002', lib:'TDM thorax-abdomen-pelvis avec injection', type:'Scanner',      tarif:85000,  nb:18 },
+  { code:'ZBQK001', lib:'Radiographie thorax face',                  type:'Radiologie',   tarif:15000,  nb:124 },
+  { code:'ZCQM001', lib:'Échographie abdominale complète',           type:'Échographie',  tarif:28000,  nb:68 },
+  { code:'ZCQM002', lib:'Échographie obstétricale 3e trim.',         type:'Échographie',  tarif:32000,  nb:42 },
+  { code:'CBQK001', lib:'IRM cérébrale sans + avec injection',       type:'IRM',          tarif:120000, nb:14 },
+  { code:'QEQE001', lib:'Mammographie bilatérale',                   type:'Mammographie', tarif:42000,  nb:28 },
+  { code:'ZBQK003', lib:'Radiographie abdomen sans préparation',     type:'Radiologie',   tarif:14000,  nb:56 },
+  { code:'ZBQK004', lib:'Radiographie osseuse (2 incidences)',       type:'Radiologie',   tarif:16000,  nb:88 },
+];
+
+// ── Journal d'audit Imagerie ──────────────────────────────────────────────────
+const IMG_AUDIT = [];
+function imgAudit(action, id, detail){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  IMG_AUDIT.push({ts:new Date().toISOString(),action,id,detail,auteur:s.nom||'Radiologue',role:s.role||'—'});
+}
+function getRadiologue(){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  return s.nom||'Dr. MENSAH Eric — Radiologue';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const fmt  = v => Math.round(v||0).toLocaleString('fr-FR');
+const fmtF = v => fmt(v)+' FCFA';
+const fmtDate = d => d?new Date(d.split(' ')[0]).toLocaleDateString('fr-FR')+(d.includes(' ')?' '+d.split(' ')[1]:''):'—';
+
+function toast(msg,type=''){
+  let tc=document.getElementById('toast-container');
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  tc.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+function typeBadge(t){
+  const m={Radiologie:'b-radio',Échographie:'b-echo',Scanner:'b-scanner',IRM:'b-irm',Mammographie:'b-mammo'};
+  const icons={Radiologie:'☢️',Échographie:'🔊',Scanner:'🌀',IRM:'🧲',Mammographie:'🩻'};
+  return`<span class="badge ${m[t]||''}">${icons[t]||''} ${t}</span>`;
+}
+
+function statutBadge(s){
+  const m={'En attente':'b-attend','En cours':'b-encours','CR à rédiger':'b-attend',Validé:'b-valide',Transmis:'b-transmis'};
+  return`<span class="badge ${m[s]||''}">${s}</span>`;
+}
+
+function prioriteBadge(p){
+  if(p==='STAT') return`<span style="background:var(--red);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">🔴 STAT</span>`;
+  if(p==='Urgente') return`<span style="background:var(--orange-bg);color:var(--orange);border:1px solid #f0c080;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">⚡ Urgente</span>`;
+  return`<span style="background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);padding:2px 8px;border-radius:10px;font-size:11px">Normale</span>`;
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function updateKPIs(){
+  const today=demandes.filter(d=>d.date.startsWith(TODAY));
+  const urg=demandes.filter(d=>d.priorite==='STAT'||d.priorite==='Urgente').length;
+  const cr=demandes.filter(d=>d.statut==='Transmis').length;
+  const equip=EQUIPEMENTS.filter(e=>e.statut==='Opérationnel').length;
+  document.getElementById('kpi-dem').textContent=today.length;
+  document.getElementById('kpi-urg').textContent=urg;
+  document.getElementById('kpi-cr').textContent=cr;
+  document.getElementById('kpi-equip').textContent=equip+'/'+EQUIPEMENTS.length;
+    const now2=new Date();
+  const enCours=demandes.filter(d=>d.statut!=='Transmis');
+  if(enCours.length){
+    const mins=enCours.reduce((acc,d)=>{
+      const parts=(d.date||'').split(' ');
+      const hm=(parts[1]||'08:00').split(':').map(Number);
+      const t=new Date(); t.setHours(hm[0]||8,hm[1]||0,0,0);
+      return acc+(now2-t)/60000;
+    },0)/enCours.length;
+    const m=Math.round(Math.max(0,mins));
+    document.getElementById('kpi-delai').textContent=m>=60?Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'00'):m+' min';
+  } else { document.getElementById('kpi-delai').textContent='—'; }
+
+  const alertDiv=document.getElementById('alertes-img');alertDiv.innerHTML='';
+  const stat=demandes.filter(d=>d.priorite==='STAT'&&d.statut!=='Transmis');
+  const maint=EQUIPEMENTS.filter(e=>e.statut==='En maintenance');
+  if(stat.length) alertDiv.innerHTML+=`<div class="alert-box" style="background:var(--red-bg);border:1px solid #f3b4b4;color:var(--red)"><span class="alert-icon">🚨</span><span><strong>${stat.length} examen(s) STAT</strong> en attente : ${stat.map(d=>d.patient.split('—')[0].trim()).join(', ')}</span></div>`;
+  if(maint.length) alertDiv.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">⚠️</span><span><strong>${maint.length} équipement(s) en maintenance</strong> : ${maint.map(e=>e.nom).join(', ')}</span></div>`;
+}
+
+// ── Demandes ──────────────────────────────────────────────────────────────────
+let demPage=1;const DEM_PAGE=6;
+function renderDemandes(){
+  const q=document.getElementById('dem-search').value.toLowerCase();
+  const ft=document.getElementById('f-dem-type').value;
+  const fs=document.getElementById('f-dem-statut').value;
+  const data=demandes.filter(d=>(!q||d.patient.toLowerCase().includes(q)||d.id.toLowerCase().includes(q)||d.examen.toLowerCase().includes(q))&&(!ft||d.type===ft)&&(!fs||d.statut===fs));
+  const total=data.length;
+  const maxPage=Math.max(1,Math.ceil(total/DEM_PAGE));
+  if(demPage>maxPage) demPage=maxPage;
+  const slice=data.slice((demPage-1)*DEM_PAGE,demPage*DEM_PAGE);
+  document.getElementById('dem-count').textContent=`${total} examen(s) — ${demandes.filter(d=>d.statut==='En attente').length} en attente`;
+  document.getElementById('dem-tbody').innerHTML=slice.map(d=>`
+    <tr onclick="openCRfromDem('${d.id}')">
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${d.id}</td>
+      <td style="font-weight:500">${d.patient}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${d.presc}</td>
+      <td>${typeBadge(d.type)}</td>
+      <td style="font-size:12.5px;max-width:180px">${d.examen}</td>
+      <td style="font-size:12px"><span class="compte-tag" style="font-size:10.5px">${d.equip}</span></td>
+      <td>${prioriteBadge(d.priorite)}</td>
+      <td class="text-muted">${fmtDate(d.date)}</td>
+      <td>${statutBadge(d.statut)}</td>
+      <td style="white-space:nowrap">
+        ${d.statut==='En attente'?`<button class="btn btn-success btn-xs" onclick="event.stopPropagation();demarrerExamen('${d.id}')">▶ Démarrer</button>`:
+          d.statut==='En cours'?`<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();ouvrirCR('${d.id}')">📋 CR</button>`:
+          d.statut==='CR à rédiger'?`<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();ouvrirCR('${d.id}')">✍ Rédiger</button>`:
+          d.statut==='Validé'?`<button class="btn btn-success btn-xs" onclick="event.stopPropagation();transmettreDPI('${d.id}')">→ DPI</button>`:
+          `<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openPACSStudy('${d.id}')">🖼 PACS</button>`}
+      </td>
+    </tr>`).join('')||`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Aucune demande</td></tr>`;
+  document.getElementById('dem-pag-info').textContent=total?`${(demPage-1)*DEM_PAGE+1}–${Math.min(demPage*DEM_PAGE,total)} sur ${total}`:'';
+  const pg=document.getElementById('dem-pag-btns');pg.innerHTML='';
+  for(let i=1;i<=maxPage;i++){const b=document.createElement('button');b.className='pg-btn'+(i===demPage?' active':'');b.textContent=i;b.onclick=()=>{demPage=i;renderDemandes()};pg.appendChild(b);}
+}
+
+function demarrerExamen(id){
+  const d=demandes.find(x=>x.id===id);
+  if(d){d.statut='En cours';imgAudit('EXAMEN_DEMARRE',id,`${d.examen} — ${d.equip}`);}
+  renderDemandes();updateKPIs();toast(`Examen ${id} démarré.`,'success');
+}
+function transmettreDPI(id){
+  const d=demandes.find(x=>x.id===id);
+  if(d){d.statut='Transmis';imgAudit('CR_TRANSMIS_DPI',id,`CR transmis au DPI — ${d.patient}`);}
+  renderDemandes();updateKPIs();toast(`CR ${id} transmis au DPI.`,'success');
+}
+function openCRfromDem(id){const d=demandes.find(x=>x.id===id);if(d&&['CR à rédiger','Validé','Transmis'].includes(d.statut)) showCRDetail(id);}
+
+// ── Planning ──────────────────────────────────────────────────────────────────
+const HEURES_PLAN=['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00'];
+const EQUIPEMENTS_PLAN=['Radio 1','Echo 1','Scanner','IRM'];
+const COULEURS_EQUIP={'Radio 1':'#1a4b6e','Echo 1':'#1e7a4e','Scanner':'#6b21a8','IRM':'#0f766e','Mammo':'#c8702a'};
+
+const PLANNING_DATA={
+  'Radio 1':  [1,1,0,0,1,1,0,0],
+  'Echo 1':   [1,1,1,0,1,1,1,0],
+  'Scanner':  [1,1,0,1,1,0,1,1],
+  'IRM':      [0,1,1,0,0,1,1,0],
+};
+
+const PLANNING_PATIENTS={
+  'Radio 1':  [null,null,'KONÉ A.',null,null,'BAMBA I.',null,null],
+  'Echo 1':   [null,'DIALLO F.','KONÉ A.',null,null,'YÉO M.','OUATTARA S.',null],
+  'Scanner':  ['OUATTARA S.','—',null,'SORO A.','—',null,'—','TRAORÉ M.'],
+  'IRM':      [null,'SORO A.','—',null,null,'—','KONÉ A.',null],
+};
+
+function renderPlanning(){
+  const fe=document.getElementById('f-plan-equip').value;
+  const equips=fe?[fe]:EQUIPEMENTS_PLAN;
+  const cols=`120px repeat(${HEURES_PLAN.length},1fr)`;
+  let html=`<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:${cols};gap:3px;padding:16px;min-width:800px">
+    <div style="font-size:11px;font-weight:600;color:var(--text-muted)">Équipement</div>
+    ${HEURES_PLAN.map(h=>`<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-align:center;padding:4px">${h}</div>`).join('')}
+  `;
+  equips.forEach(eq=>{
+    const data=PLANNING_DATA[eq]||[];
+    const patients=PLANNING_PATIENTS[eq]||[];
+    const couleur=COULEURS_EQUIP[eq]||'#888';
+    html+=`<div style="font-size:12px;font-weight:600;color:${couleur};display:flex;align-items:center;padding:4px">${eq}</div>`;
+    data.forEach((occ,i)=>{
+      const pat=patients[i];
+      if(occ===0) html+=`<div class="slot-cell slot-libre" onclick="openDemande()" title="Créneau libre — Cliquer pour réserver">Libre</div>`;
+      else if(occ===1) html+=`<div class="slot-cell slot-occupe" style="background:${couleur}" title="${pat||'Occupé'}">${pat||'Occupé'}</div>`;
+      else html+=`<div class="slot-cell slot-pause">Pause</div>`;
+    });
+  });
+  html+=`</div></div>`;
+  document.getElementById('planning-container').innerHTML=html;
+
+  document.getElementById('planning-stats').innerHTML=EQUIPEMENTS_PLAN.map(eq=>{
+    const occ=PLANNING_DATA[eq]?.filter(x=>x===1).length||0;
+    const total=HEURES_PLAN.length;
+    const pct=Math.round(occ/total*100);
+    const couleur=COULEURS_EQUIP[eq];
+    return`<div class="kpi-card" style="border-left:4px solid ${couleur}">
+      <div class="kpi-label">${eq}</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:${couleur}">${pct}%</div>
+      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin:6px 0">
+        <div style="width:${pct}%;height:100%;background:${couleur};border-radius:3px"></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted)">${occ}/${total} créneaux</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Comptes rendus ────────────────────────────────────────────────────────────
+function renderCRListe(){
+  document.getElementById('cr-liste').innerHTML=CR_DATA.map(cr=>`
+    <div onclick="showCRDetail(null,'${cr.id}')" style="padding:12px;border:1px solid var(--border);border-radius:7px;margin-bottom:8px;cursor:pointer;background:var(--surface);transition:all .15s"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-weight:600;font-size:13px;margin-bottom:2px">${cr.patient}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px">${cr.examen} · ${cr.date}</div>
+      <div style="display:flex;gap:6px">
+        ${typeBadge(cr.type)}
+        <span class="badge ${cr.statut==='Transmis'?'b-transmis':'b-valide'}">${cr.statut}</span>
+      </div>
+    </div>`).join('');
+}
+
+function showCRDetail(demId, crId){
+  let cr=null;
+  if(crId) cr=CR_DATA.find(x=>x.id===crId);
+  else if(demId) cr=CR_DATA.find(x=>x.demId===demId);
+  if(!cr){toast('Compte rendu non disponible.','warn');return;}
+  document.getElementById('cr-detail').innerHTML=`
+    <div class="cr-imagerie">
+      <div class="cr-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--accent)">${cr.examen}</div>
+            <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px">${cr.id} · ${cr.patient} · ${cr.date}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            ${typeBadge(cr.type)}
+            <span class="badge ${cr.statut==='Transmis'?'b-transmis':'b-valide'}">${cr.statut}</span>
+          </div>
+        </div>
+      </div>
+      <div class="cr-section-title">Technique</div>
+      <div class="cr-text">${cr.technique}</div>
+      <div class="cr-section-title">Description</div>
+      <div class="cr-text">${cr.description.replace(/\n/g,'<br>')}</div>
+      <div class="cr-section-title">Conclusion</div>
+      <div class="cr-conclusion">${cr.conclusion}</div>
+      <div style="margin-top:14px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:8px">
+        Radiologue : ${cr.radio} · Validé le ${cr.date}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+        <button class="btn btn-secondary btn-sm" onclick="toast('CR imprimé.','success')">🖨 Imprimer</button>
+        <button class="btn btn-secondary btn-sm" onclick="openPACSStudy('${cr.demId||''}')">🖼 Images PACS</button>
+        <button class="btn btn-success btn-sm" onclick="toast('CR transmis au DPI — ${cr.patient}.','success')">→ DPI</button>
+      </div>
+    </div>`;
+}
+
+// ── PACS ──────────────────────────────────────────────────────────────────────
+function renderPACSListe(){
+  const q=document.getElementById('pacs-search').value.toLowerCase();
+  const data=demandes.filter(d=>d.statut==='Transmis'||d.statut==='Validé'||d.statut==='CR à rédiger');
+  const filtered=data.filter(d=>!q||d.patient.toLowerCase().includes(q)||d.examen.toLowerCase().includes(q));
+  document.getElementById('pacs-liste').innerHTML=filtered.map(d=>`
+    <div onclick="openPACSStudy('${d.id}')" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;margin-bottom:6px;cursor:pointer;background:var(--surface);transition:all .15s"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-weight:600;font-size:13px">${d.patient.split('—')[0].trim()}</div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">${d.id} · ${d.date}</div>
+      <div style="margin-top:5px">${typeBadge(d.type)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:3px">${d.examen}</div>
+    </div>`).join('');
+}
+
+function openPACSStudy(demId){
+  const d=demandes.find(x=>x.id===demId);
+  if(!d) return;
+  document.getElementById('pacs-modal-title').textContent=`PACS — ${d.examen}`;
+  document.getElementById('pacs-modal-info').textContent=`${d.patient} · ${d.date} · ${d.equip}`;
+  document.getElementById('pacs-dicom-info').innerHTML=`Patient: ${d.patient.split('—')[0].trim()}<br>Examen: ${d.examen}<br>Date: ${d.date}<br>W/L: 400/40<br>Zoom: 1.0x`;
+  renderPACSCanvases(d.type);
+  // Barre de séries
+  document.getElementById('pacs-series-bar').innerHTML=Array.from({length:4},(_,i)=>`
+    <div style="background:#111;border:1px solid #333;border-radius:4px;padding:4px;cursor:pointer;text-align:center;min-width:70px" onclick="toast('Série ${i+1} chargée','success')">
+      <canvas width="60" height="45" style="display:block;border-radius:3px" id="pacs-mini-${i}"></canvas>
+      <div style="color:#888;font-size:10px;margin-top:3px">Série ${i+1}</div>
+    </div>`).join('');
+  setTimeout(()=>{
+    for(let i=0;i<4;i++){const cv=document.getElementById(`pacs-mini-${i}`);if(cv) drawMedicalImage(cv,d.type,true);}
+  },50);
+  document.getElementById('modal-pacs').classList.add('open');
+}
+
+let pacsZoomLevel=1;
+function pacsZoom(factor){
+  pacsZoomLevel*=factor;
+  const cv=document.getElementById('pacs-canvas');
+  if(cv){cv.style.transform=`scale(${pacsZoomLevel})`;const di=document.getElementById('pacs-dicom-info');if(di) di.innerHTML=di.innerHTML.replace(/Zoom:.*x/,'Zoom: '+pacsZoomLevel.toFixed(1)+'x');}
+  toast(`Zoom: ${pacsZoomLevel.toFixed(1)}×`,'');
+}
+
+function renderPACSCanvases(type){
+  pacsZoomLevel=1;
+  const cv=document.getElementById('pacs-canvas');
+  if(cv){cv.style.transform='scale(1)';drawMedicalImage(cv,type,false);}
+  setTimeout(()=>{
+    document.querySelectorAll('.pacs-thumb').forEach(c=>drawMedicalImage(c,type,true));
+  },50);
+}
+
+function drawMedicalImage(canvas,type,small){
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width,h=canvas.height;
+  ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,w,h);
+
+  if(type==='Radiologie'){
+    // Silhouette thorax simulée
+    const grad=ctx.createRadialGradient(w/2,h/2,10,w/2,h/2,w*0.4);
+    grad.addColorStop(0,'#888');grad.addColorStop(.5,'#555');grad.addColorStop(1,'#111');
+    ctx.fillStyle=grad;ctx.beginPath();ctx.ellipse(w/2,h/2,w*0.35,h*0.42,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#aaa';ctx.lineWidth=small?1:2;
+    ctx.beginPath();ctx.moveTo(w/2,h*0.2);ctx.lineTo(w/2,h*0.8);ctx.stroke();
+    for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(w*0.3,h*(0.3+i*0.07));ctx.lineTo(w*0.7,h*(0.3+i*0.07));ctx.strokeStyle=`rgba(180,180,180,0.3)`;ctx.stroke();}
+  } else if(type==='Scanner'||type==='IRM'){
+    const g=ctx.createRadialGradient(w/2,h/2,5,w/2,h/2,w*0.45);
+    g.addColorStop(0,type==='IRM'?'#778':'#666');g.addColorStop(.4,type==='IRM'?'#556':'#444');g.addColorStop(1,'#111');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(w/2,h/2,Math.min(w,h)*0.42,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(120,120,180,0.3)';ctx.beginPath();ctx.arc(w/2-w*0.1,h/2,Math.min(w,h)*0.12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(80,80,80,0.8)';ctx.beginPath();ctx.arc(w/2+w*0.12,h/2+h*0.05,Math.min(w,h)*0.08,0,Math.PI*2);ctx.fill();
+  } else if(type==='Échographie'){
+    ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='rgba(0,100,150,0.5)';ctx.beginPath();ctx.arc(w*0.4,h*0.45,w*0.28,0,Math.PI*2);ctx.fill();
+    for(let i=0;i<8;i++){
+      ctx.strokeStyle=`rgba(0,180,220,${0.1+i*0.05})`;
+      ctx.lineWidth=1;ctx.beginPath();
+      ctx.arc(w*0.1,h*0.05,w*(0.15+i*0.12),0,Math.PI*0.7);ctx.stroke();
+    }
+  } else {
+    const gm=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,w*0.4);
+    gm.addColorStop(0,'#777');gm.addColorStop(1,'#222');
+    ctx.fillStyle=gm;ctx.beginPath();ctx.arc(w/2,h/2,w*0.38,0,Math.PI*2);ctx.fill();
+  }
+
+  if(!small){
+    ctx.fillStyle='rgba(0,255,0,0.6)';ctx.font='10px monospace';
+    ctx.fillText(`${type} — DICOM`,8,h-8);
+  }
+}
+
+// ── Équipements ────────────────────────────────────────────────────────────────
+function renderEquipements(){
+  document.getElementById('equip-grid').innerHTML=EQUIPEMENTS.map(e=>`
+    <div class="equip-card" style="border-left:4px solid ${e.statut==='Opérationnel'?'var(--green)':'var(--orange)'}">
+      <div class="equip-icon">${e.icon}</div>
+      <div class="equip-name">${e.nom}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${e.marque}</div>
+      <div class="equip-stat"><span style="color:var(--text-muted)">Statut</span><span class="badge ${e.statut==='Opérationnel'?'b-valide':'b-attend'}" style="font-size:10.5px">${e.statut}</span></div>
+      <div class="equip-stat"><span style="color:var(--text-muted)">Examens/j</span><span style="font-weight:700;color:var(--accent)">${e.exam_jour}</span></div>
+      <div class="equip-stat"><span style="color:var(--text-muted)">Taux occupation</span><span style="font-weight:600">${e.taux}%</span></div>
+      <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px">
+        <div style="width:${e.taux}%;height:100%;background:${e.taux>80?'var(--orange)':e.taux>50?'var(--green)':'var(--accent)'};border-radius:2px"></div>
+      </div>
+      <div class="equip-stat" style="margin-top:6px"><span style="color:var(--text-muted)">Maint. prévue</span><span style="font-size:12px">${new Date(e.maintenance).toLocaleDateString('fr-FR')}</span></div>
+    </div>`).join('');
+
+  document.getElementById('maintenance-tbody').innerHTML=MAINTENANCE_HIST.map(m=>`
+    <tr>
+      <td style="font-weight:500">${m.equip}</td>
+      <td style="font-size:12.5px">${m.type}</td>
+      <td class="text-muted">${new Date(m.date).toLocaleDateString('fr-FR')}</td>
+      <td class="text-muted">${new Date(m.prochaine).toLocaleDateString('fr-FR')}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${m.tech}</td>
+      <td><span class="badge ${m.statut==='Effectuée'?'b-valide':m.statut==='En cours'?'b-encours':'b-attend'}">${m.statut}</span></td>
+    </tr>`).join('');
+}
+
+// ── Facturation ────────────────────────────────────────────────────────────────
+function renderFacturation(){
+  const totNb=CNAMCI_IMG.reduce((s,a)=>s+a.nb,0);
+  const totCA=CNAMCI_IMG.reduce((s,a)=>s+a.nb*a.tarif,0);
+  document.getElementById('fact-nb').textContent=totNb;
+  document.getElementById('fact-ca').textContent=fmtF(totCA);
+  document.getElementById('fact-att').textContent=fmtF(totCA*0.42);
+  document.getElementById('fact-cout').textContent=fmtF(Math.round(totCA/totNb));
+  const typeBadgeS=t=>`<span class="badge ${t==='Scanner'?'b-scanner':t==='IRM'?'b-irm':t==='Échographie'?'b-echo':t==='Mammographie'?'b-mammo':'b-radio'}" style="font-size:10.5px">${t}</span>`;
+  document.getElementById('ccam-tbody').innerHTML=CNAMCI_IMG.map(a=>`
+    <tr>
+      <td><span class="compte-tag">${a.code}</span></td>
+      <td style="font-weight:500">${a.lib}</td>
+      <td>${typeBadgeS(a.type)}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(a.tarif)}</td>
+      <td class="text-right">${fmt(a.nb)}</td>
+      <td class="text-right amount" style="color:var(--green)">${fmtF(a.nb*a.tarif)}</td>
+    </tr>`).join('');
+  document.getElementById('ccam-total-nb').textContent=fmt(totNb);
+  document.getElementById('ccam-total-ca').textContent=fmtF(totCA);
+}
+
+// ── Modals ─────────────────────────────────────────────────────────────────────
+const EXAMENS_MAP={
+  Radiologie:['Radiographie thorax face','Radiographie thorax face et profil','Radiographie abdomen sans préparation','Radiographie osseuse (2 incidences)','Radiographie crâne','Radiographie rachis lombaire'],
+  Échographie:['Échographie abdominale complète','Échographie pelvienne','Échographie obstétricale 3e trimestre','Échographie cervicale','Échographie cardiaque (ETT)'],
+  Scanner:['TDM thorax sans injection','TDM thorax-abdomen-pelvis avec PDC','TDM cérébral sans injection','TDM cérébral avec injection','TDM rachis lombaire'],
+  IRM:['IRM cérébrale sans + avec injection','IRM rachis lombaire','IRM du genou','IRM abdominale','IRM pelvienne'],
+  Mammographie:['Mammographie bilatérale','Mammographie bilatérale + écho sein','Mammographie de surveillance'],
+};
+function updateExamensList(){
+  const type=document.getElementById('d-type').value;
+  const examens=EXAMENS_MAP[type]||[];
+  const sel=document.getElementById('d-examen');
+  sel.innerHTML=examens.map(e=>`<option>${e}</option>`).join('');
+}
+function openDemande(){
+  const now=new Date();
+  document.getElementById('d-date').value=now.toISOString().slice(0,16);
+  document.getElementById('d-num').value='IMG-'+now.getFullYear()+'-0'+String(demandes.length+141).padStart(3,'0');
+  // Pré-remplir depuis patient actif
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    const p=MEDICORE_PATIENT.get();
+    if(p){
+      document.getElementById('d-patient').value=(p.nom||'')+(p.id?' — '+p.id:'');
+      if(p.service){
+        // Pré-sélectionner équipement selon service si possible
+      }
+    }
+  }
+  // Prescripteur = utilisateur connecté
+  document.getElementById('d-presc').value=getRadiologue();
+  document.getElementById('d-presc').readOnly=true;
+  updateExamensList();
+  document.getElementById('modal-dem').classList.add('open');
+}
+function closeDemande(){document.getElementById('modal-dem').classList.remove('open')}
+function validerDemande(){
+  const patient=document.getElementById('d-patient').value;
+  const indication=document.getElementById('d-indication').value;
+  if(!patient||!indication){toast('Remplissez patient et indication clinique.','error');return}
+  const id=document.getElementById('d-num').value;
+  const newDem={id,patient,presc:document.getElementById('d-presc').value,type:document.getElementById('d-type').value,examen:document.getElementById('d-examen').value,equip:document.getElementById('d-equip').value,priorite:document.getElementById('d-priorite').value,date:document.getElementById('d-date').value,statut:'En attente',ccam:document.getElementById('d-ccam').value||'—'};
+  demandes.unshift(newDem);
+  imgAudit('DEMANDE_PLANIFIEE', id, `${patient} — ${newDem.examen} — ${newDem.priorite}`);
+  closeDemande();renderDemandes();updateKPIs();
+  toast(`Examen ${id} planifié.`,'success');
+}
+
+function ouvrirCR(demId){
+  const d=demandes.find(x=>x.id===demId);
+  if(!d) return;
+  document.getElementById('cr-modal-subtitle').textContent=`${d.patient} — ${d.examen}`;
+  document.getElementById('cr-date').value=TODAY;
+  document.getElementById('modal-cr').dataset.demId=demId;
+  // Pré-sélectionner le radiologue connecté
+  const radio=getRadiologue();
+  const sel=document.getElementById('cr-radio');
+  let found=false;
+  for(let i=0;i<sel.options.length;i++){if(sel.options[i].text.includes(radio.split(' ')[1]||radio)){sel.selectedIndex=i;found=true;break;}}
+  if(!found){const opt=new Option(radio,radio);sel.add(opt);sel.value=radio;}
+  document.getElementById('modal-cr').classList.add('open');
+}
+function closeCR(){document.getElementById('modal-cr').classList.remove('open')}
+function validerCR(){
+  const demId=document.getElementById('modal-cr').dataset.demId;
+  const desc=document.getElementById('cr-description').value;
+  const concl=document.getElementById('cr-conclusion').value;
+  if(!desc||!concl){toast('Description et conclusion obligatoires.','error');return}
+  const d=demandes.find(x=>x.id===demId);if(!d) return;
+  const radio=document.getElementById('cr-radio').value;
+  const horodate=new Date().toISOString();
+  CR_DATA.push({id:'CR-'+demId,demId,patient:d.patient.split('—')[0].trim(),type:d.type,examen:d.examen,radio,date:TODAY,horodate,technique:document.getElementById('cr-technique').value||'Examen standard.',description:desc,conclusion:concl,statut:'Validé'});
+  d.statut='Validé';
+  imgAudit('CR_VALIDE', demId, `${d.examen} — Radiologue: ${radio}`);
+  closeCR();renderDemandes();updateKPIs();renderCRListe();
+  toast('Compte rendu validé — prêt pour transmission au DPI.','success');
+}
+
+function openPACS(demId){document.getElementById('modal-pacs').classList.add('open');renderPACSCanvases(demId?demandes.find(x=>x.id===demId)?.type||'Radiologie':'Radiologie')}
+function closePACS(){document.getElementById('modal-pacs').classList.remove('open')}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='planning'){renderPlanning()}
+  if(name==='cr'){renderCRListe()}
+  if(name==='pacs'){renderPACSListe()}
+  if(name==='equipements') renderEquipements();
+  if(name==='facturation') renderFacturation();
+}
+
+function exportCSV(){
+  const h=['N° Demande','Patient','Prescripteur','Type','Examen','Priorité','Date','Statut'];
+  const r=demandes.map(d=>[d.id,d.patient,d.presc,d.type,d.examen,d.priorite,d.date,d.statut]);
+  const csv=[h,...r].map(row=>row.map(v=>`"${v}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='imagerie.csv';a.click();
+  toast('Export CSV généré.','success');
+}
+
+// ── Init nav ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  if(typeof initNav==='function'){
+    initNav('imagerie','Imagerie Médicale','Demandes · PACS · CR · Équipements',
+      [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Imagerie Médicale',file:''}]);
+    if(typeof MEDICORE_NAV!=='undefined'){
+      const grp=MEDICORE_NAV.modules.find(g=>g.groupe==='Modules Métiers');
+      if(grp&&!grp.items.find(i=>i.id==='imagerie')){
+        grp.items.push({id:'imagerie',label:'Imagerie Médicale',icon:'🩻',file:'imagerie.html',syscohada:'CNAM-CI/PACS',statut:'actif',alertes:1});
+      }
+    }
+  }
+  updateKPIs();renderDemandes();
+});
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDemande();closePACS();closeCR();}});
+['modal-dem','modal-pacs','modal-cr'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open')});
+});
+</script>
+</body>
+</html>

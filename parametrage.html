@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Paramétrage</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;
+    --accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;
+    --orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;
+    --purple:#6b21a8;--purple-bg:#f3e8ff;
+    --teal:#0f766e;--teal-bg:#ccfbf1;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:242px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;overflow:auto}
+
+  /* Layout paramétrage : nav verticale + corps */
+  .param-layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 56px)}
+  .param-nav{border-right:1px solid var(--border);background:var(--surface);padding:12px 0;position:sticky;top:0;height:calc(100vh - 56px);overflow-y:auto}
+  .param-nav-group{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);font-weight:600;padding:14px 18px 6px}
+  .param-link{display:flex;align-items:center;gap:10px;padding:9px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;border-left:3px solid transparent;transition:all .12s}
+  .param-link:hover{background:var(--surface-alt);color:var(--text)}
+  .param-link.active{background:var(--accent-light);color:var(--accent);border-left-color:var(--accent);font-weight:600}
+  .param-link .ic{font-size:15px;width:20px;text-align:center}
+
+  .param-body{padding:28px 32px;max-width:920px}
+  .panel{display:none}
+  .panel.active{display:block;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .panel-head{margin-bottom:18px}
+  .panel-title{font-family:'DM Serif Display',serif;font-size:24px;color:var(--accent)}
+  .panel-sub{font-size:13px;color:var(--text-muted);margin-top:3px}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden}
+  .card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-head h3{font-size:14px;font-weight:600;color:var(--text)}
+  .card-head .sub{font-size:12px;color:var(--text-muted);margin-top:1px}
+  .card-body{padding:18px}
+
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-group{display:flex;flex-direction:column;gap:4px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12px;font-weight:500;color:var(--text-muted)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  input[readonly]{background:var(--surface-alt);color:var(--text-muted)}
+  .hint{font-size:11px;color:var(--text-muted)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:9px 12px;background:var(--surface-alt);font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border)}
+  td{padding:9px 12px;border-bottom:1px solid var(--border)}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:monospace;font-size:12px;background:var(--accent-light);color:var(--accent);padding:1px 6px;border-radius:4px;font-weight:600}
+
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #f0c0c0}
+  .btn-sm{padding:5px 10px;font-size:12px}
+
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .b-on{background:var(--green-bg);color:var(--green)}
+  .b-off{background:#f0f0f0;color:#777}
+  .b-warn{background:var(--orange-bg);color:var(--orange)}
+
+  /* Toggle */
+  .switch{position:relative;display:inline-block;width:42px;height:23px;flex-shrink:0}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:23px;transition:.2s}
+  .slider:before{content:"";position:absolute;height:17px;width:17px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked+.slider{background:var(--green)}
+  .switch input:checked+.slider:before{transform:translateX(19px)}
+  .row-toggle{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)}
+  .row-toggle:last-child{border-bottom:none}
+  .rt-label{font-size:13px;font-weight:500}
+  .rt-sub{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+
+  /* Matrice permissions */
+  .matrix th, .matrix td{text-align:center}
+  .matrix th:first-child, .matrix td:first-child{text-align:left}
+  .matrix input{width:auto}
+
+  .save-bar{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+  .info-strip{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;margin-bottom:18px;display:flex;gap:8px;align-items:center}
+
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:tin .25s ease,tout .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}.toast.error{background:var(--red)}.toast.warn{background:var(--orange)}
+  @keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes tout{to{opacity:0;transform:translateX(30px)}}
+
+  @media(max-width:860px){.param-layout{grid-template-columns:1fr}.param-nav{position:static;height:auto;display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title"><h1>Paramétrage</h1><p>Configuration de l'établissement et du système</p></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="exportConfig()">⬇ Exporter config</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">⬆ Importer</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importConfig(this)">
+      </div>
+    </div>
+    <div class="content">
+      <div class="param-layout">
+        <nav class="param-nav" id="param-nav"></nav>
+        <div class="param-body" id="param-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE PARAMÉTRAGE — Configuration ERP (offline-first, localStorage)
+// ══════════════════════════════════════════════════════════════════════════════
+const CFG_KEY = 'medicore_parametrage';
+
+// ── Configuration par défaut (Côte d'Ivoire / OHADA) ──────────────────────────
+const DEFAULT_CFG = {
+  etablissement: {
+    nom:'CHU MediCore', type:'Centre Hospitalier Universitaire', agrement:'CI-SAN-2019-0427',
+    rccm:'CI-ABJ-2019-B-12345', ncc:'1942567 X', adresse:'Boulevard de la Santé, Cocody',
+    ville:'Abidjan', tel:'+225 27 22 44 55 66', email:'contact@medicore.ci',
+    directeur:'Pr. KOUADIO N\'Guessan', devise:'FCFA (XOF)', exercice:'2025', tva:'18'
+  },
+  numerotation: {
+    dossier:'D2058##', ipp:'IPP-######', facture:'FAC-AAAA-####',
+    of:'OF-AAAA-###', bc:'BC-AAAA-###', ecriture:'EC-MM-####'
+  },
+  securite: {
+    longueurMin:8, majuscule:true, chiffre:true, special:true, expiration:90,
+    tentativesMax:5, dureeSession:30, twofa:true
+  },
+  sauvegarde: { auto:true, frequence:'quotidienne', heure:'02:00', retention:30, dernier:'2025-06-12 02:00' },
+  integrations: {
+    wave:{actif:true, marchand:'M-WAVE-77881'},
+    orange:{actif:true, marchand:'OM-CI-55214'},
+    mtn:{actif:false, marchand:''},
+    whatsapp:{actif:true, numero:'+225 07 00 00 00 00', token:'••••••••••'},
+    sms:{actif:true, gateway:'LeTexto / Orange SMS Pro'},
+    smtp:{actif:true, serveur:'smtp.medicore.ci', port:'587'}
+  },
+  seuils: { stockMini:20, peremptionJours:60, valeurCritiqueLabo:true, delaiResultat:30, tauxOccupationAlerte:90 }
+};
+
+let USERS = [
+  { login:'admin',        nom:'Administrateur Système', role:'Administrateur', twofa:true,  actif:true },
+  { login:'dr.toure',     nom:'Dr. TOURÉ Mamadou',      role:'Médecin',        twofa:false, actif:true },
+  { login:'pharma.konan', nom:'Dr. KONAN Adjoua',       role:'Pharmacien',     twofa:false, actif:true },
+  { login:'daf.gnonsoa',  nom:'GNONSOA Paul',           role:'DAF',            twofa:true,  actif:true },
+  { login:'dsi',          nom:'Responsable SI',         role:'Administrateur SI', twofa:true, actif:true },
+];
+
+let SERVICES = [
+  { nom:'Médecine générale', code:'MED', pole:'Médecine',  responsable:'Dr. COULIBALY Seydou', lits:24 },
+  { nom:'Chirurgie',         code:'CHI', pole:'Chirurgie', responsable:'Dr. TOURÉ Mamadou',    lits:18 },
+  { nom:'Maternité',         code:'MAT', pole:'Mère-Enfant', responsable:'Dr. BAMBA Aïcha',    lits:16 },
+  { nom:'Urgences',          code:'URG', pole:'Urgences',  responsable:'Dr. DIABATÉ Oumar',    lits:8  },
+  { nom:'Laboratoire',       code:'LAB', pole:'Plateau technique', responsable:'DOSSO Ramatou', lits:0 },
+];
+
+let TARIFS = [
+  { libelle:'Consultation médecine générale', code:'C-MED', tarif:8000 },
+  { libelle:'Consultation spécialisée',       code:'C-SPE', tarif:12000 },
+  { libelle:'Consultation urgences',          code:'C-URG', tarif:7500 },
+  { libelle:'Analyse biologique standard',    code:'B-STD', tarif:4500 },
+  { libelle:'Échographie',                    code:'I-ECHO', tarif:25000 },
+  { libelle:'Hospitalisation / jour',         code:'H-JOUR', tarif:15000 },
+];
+
+let ASSURANCES = [
+  { nom:'CNAM — Assurance Maladie', taux:70, statut:'Conventionné' },
+  { nom:'Mutuelle complémentaire',  taux:80, statut:'Conventionné' },
+  { nom:'Assurance privée',         taux:90, statut:'Conventionné' },
+  { nom:'Patient payant',           taux:0,  statut:'—' },
+];
+
+let BANQUES = [
+  { nom:'BGFIBANK CI', compte:'511', rib:'CI93 BGFI 0001 2345 6789', solde:72000000 },
+  { nom:'ECOBANK CI',  compte:'512', rib:'CI28 ECOB 0009 8765 4321', solde:48000000 },
+  { nom:'BNI CI',      compte:'513', rib:'CI11 BNIC 0004 5612 3098', solde:40000000 },
+];
+
+let FOURNISSEURS = [
+  { nom:'LABOREX CI',        categorie:'Produits pharmaceutiques', ncc:'CI-9912345', delai:'15 j' },
+  { nom:'COPHARMED',         categorie:'Consommables médicaux',    ncc:'CI-8823416', delai:'7 j'  },
+  { nom:'Air Liquide CI',    categorie:'Gaz médicaux',             ncc:'CI-7734821', delai:'3 j'  },
+  { nom:'SODICI Matériel',   categorie:'Matériel biomédical',      ncc:'CI-6645213', delai:'30 j' },
+];
+
+const MODULES_PERM = ['Facturation','Comptabilité','Pharmacie','Laboratoire','Bloc','DPI','RH','Paramétrage'];
+const ROLES_PERM = ['Administrateur','Médecin','Pharmacien','DAF'];
+let PERMISSIONS = {
+  'Administrateur': {Facturation:1,'Comptabilité':1,Pharmacie:1,Laboratoire:1,Bloc:1,DPI:1,RH:1,'Paramétrage':1},
+  'Médecin':       {Facturation:1,'Comptabilité':0,Pharmacie:0,Laboratoire:1,Bloc:1,DPI:1,RH:0,'Paramétrage':0},
+  'Pharmacien':    {Facturation:1,'Comptabilité':0,Pharmacie:1,Laboratoire:0,Bloc:0,DPI:1,RH:0,'Paramétrage':0},
+  'DAF':           {Facturation:1,'Comptabilité':1,Pharmacie:0,Laboratoire:0,Bloc:0,DPI:0,RH:1,'Paramétrage':0},
+};
+
+let CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
+
+function loadConfig(){
+  try {
+    const raw = localStorage.getItem(CFG_KEY);
+    if(raw){
+      const saved = JSON.parse(raw);
+      CFG = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)), saved.cfg||{});
+      if(saved.users) USERS = saved.users;
+      if(saved.services) SERVICES = saved.services;
+      if(saved.tarifs) TARIFS = saved.tarifs;
+      if(saved.fournisseurs) FOURNISSEURS = saved.fournisseurs;
+      if(saved.permissions) PERMISSIONS = saved.permissions;
+    }
+  } catch(e){}
+}
+function persist(){
+  try {
+    localStorage.setItem(CFG_KEY, JSON.stringify({
+      cfg:CFG, users:USERS, services:SERVICES, tarifs:TARIFS, fournisseurs:FOURNISSEURS, permissions:PERMISSIONS
+    }));
+  } catch(e){}
+}
+
+// ── Sections ──────────────────────────────────────────────────────────────────
+const SECTIONS = [
+  { id:'etablissement', ic:'🏥', label:'Établissement', groupe:'Général' },
+  { id:'utilisateurs',  ic:'👥', label:'Utilisateurs & rôles', groupe:'Général' },
+  { id:'services',      ic:'🏛', label:'Services & lits', groupe:'Organisation' },
+  { id:'tarification',  ic:'💳', label:'Tarification & assurances', groupe:'Organisation' },
+  { id:'comptabilite',  ic:'📊', label:'Comptabilité & banques', groupe:'Organisation' },
+  { id:'fournisseurs',  ic:'🚚', label:'Fournisseurs', groupe:'Organisation' },
+  { id:'numerotation',  ic:'🔢', label:'Numérotation', groupe:'Système' },
+  { id:'seuils',        ic:'🔔', label:'Alertes & seuils', groupe:'Système' },
+  { id:'integrations',  ic:'🔌', label:'Intégrations', groupe:'Système' },
+  { id:'securite',      ic:'🔒', label:'Sécurité & sauvegardes', groupe:'Système' },
+];
+
+let currentSection = 'etablissement';
+
+function renderNav(){
+  const groups = [...new Set(SECTIONS.map(s=>s.groupe))];
+  document.getElementById('param-nav').innerHTML = groups.map(g=>
+    `<div class="param-nav-group">${g}</div>` +
+    SECTIONS.filter(s=>s.groupe===g).map(s=>
+      `<div class="param-link ${s.id===currentSection?'active':''}" onclick="switchSection('${s.id}')">
+        <span class="ic">${s.ic}</span>${s.label}</div>`).join('')
+  ).join('');
+}
+
+function switchSection(id){ currentSection=id; renderNav(); renderBody(); }
+
+function field(label, id, val, type, hint){
+  return `<div class="form-group"><label>${label}</label>
+    <input type="${type||'text'}" id="${id}" value="${val!=null?String(val).replace(/"/g,'&quot;'):''}">
+    ${hint?`<span class="hint">${hint}</span>`:''}</div>`;
+}
+function fmt(n){ return Number(n).toLocaleString('fr-FR'); }
+
+function renderBody(){
+  const b = document.getElementById('param-body');
+  if(currentSection==='etablissement'){
+    const e=CFG.etablissement;
+    b.innerHTML = head('Établissement','Identité et informations légales de la structure')+
+    `<div class="card"><div class="card-head"><div><h3>Identité</h3><div class="sub">Apparaît sur les factures, rapports et documents officiels</div></div></div>
+      <div class="card-body"><div class="form-grid">
+        ${field('Nom de l\'établissement','e-nom',e.nom)}
+        ${field('Type','e-type',e.type)}
+        ${field('N° d\'agrément (Ministère Santé)','e-agrement',e.agrement)}
+        ${field('RCCM','e-rccm',e.rccm)}
+        ${field('N° Compte Contribuable (NCC)','e-ncc',e.ncc)}
+        ${field('Directeur','e-directeur',e.directeur)}
+        ${field('Adresse','e-adresse',e.adresse)}
+        ${field('Ville','e-ville',e.ville)}
+        ${field('Téléphone','e-tel',e.tel,'tel')}
+        ${field('Email','e-email',e.email,'email')}
+        ${field('Devise','e-devise',e.devise,'text','Zone UEMOA — non modifiable en production')}
+        ${field('Exercice comptable','e-exercice',e.exercice)}
+        ${field('Taux TVA (%)','e-tva',e.tva,'number')}
+      </div>
+      <div class="save-bar"><button class="btn btn-primary" onclick="saveEtab()">💾 Enregistrer</button></div>
+      </div></div>`;
+  }
+  else if(currentSection==='utilisateurs'){
+    b.innerHTML = head('Utilisateurs & rôles','Comptes, authentification et droits d\'accès par module')+
+    `<div class="card"><div class="card-head"><div><h3>Comptes utilisateurs</h3><div class="sub">${USERS.filter(u=>u.actif).length} actifs sur ${USERS.length}</div></div>
+      <button class="btn btn-secondary btn-sm" onclick="addUser()">＋ Ajouter</button></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>2FA</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${USERS.map((u,i)=>`<tr>
+        <td><span class="mono">${u.login}</span></td><td>${u.nom}</td><td>${u.role}</td>
+        <td>${u.twofa?'<span class="badge b-on">activée</span>':'<span class="badge b-off">non</span>'}</td>
+        <td>${u.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
+        <td style="text-align:right"><button class="btn btn-danger btn-sm" onclick="removeUser(${i})">✕</button></td>
+      </tr>`).join('')}</tbody></table></div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Matrice des permissions</h3><div class="sub">Accès module par rôle — cochez pour autoriser</div></div></div>
+      <div class="card-body" style="padding:0"><table class="matrix"><thead><tr><th>Rôle</th>${MODULES_PERM.map(m=>`<th>${m}</th>`).join('')}</tr></thead>
+      <tbody>${ROLES_PERM.map(r=>`<tr><td><strong>${r}</strong></td>${MODULES_PERM.map(m=>
+        `<td><input type="checkbox" ${PERMISSIONS[r]&&PERMISSIONS[r][m]?'checked':''} onchange="togglePerm('${r}','${m}',this.checked)"></td>`).join('')}</tr>`).join('')}
+      </tbody></table></div>
+      <div class="card-body" style="border-top:1px solid var(--border)"><div class="save-bar">
+        <button class="btn btn-primary" onclick="persist();toast('Permissions enregistrées.','success')">💾 Enregistrer les droits</button></div></div></div>`;
+  }
+  else if(currentSection==='services'){
+    const totLits = SERVICES.reduce((s,x)=>s+(+x.lits||0),0);
+    b.innerHTML = head('Services & lits','Unités de soins, pôles et capacité d\'accueil')+
+    `<div class="info-strip">🛏 Capacité totale : <strong>&nbsp;${totLits} lits</strong>&nbsp;— ${SERVICES.length} services</div>
+    <div class="card"><div class="card-head"><div><h3>Services</h3></div><button class="btn btn-secondary btn-sm" onclick="addService()">＋ Ajouter</button></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Service</th><th>Code</th><th>Pôle</th><th>Responsable</th><th>Lits</th><th></th></tr></thead>
+      <tbody>${SERVICES.map((s,i)=>`<tr><td><strong>${s.nom}</strong></td><td><span class="mono">${s.code}</span></td><td>${s.pole}</td><td>${s.responsable}</td><td>${s.lits}</td>
+      <td style="text-align:right"><button class="btn btn-danger btn-sm" onclick="removeService(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  else if(currentSection==='tarification'){
+    b.innerHTML = head('Tarification & assurances','Grille tarifaire des actes et taux de prise en charge')+
+    `<div class="card"><div class="card-head"><div><h3>Grille tarifaire</h3><div class="sub">Montants en FCFA</div></div><button class="btn btn-secondary btn-sm" onclick="addTarif()">＋ Acte</button></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Acte / Prestation</th><th>Code</th><th style="text-align:right">Tarif (FCFA)</th><th></th></tr></thead>
+      <tbody>${TARIFS.map((t,i)=>`<tr><td>${t.libelle}</td><td><span class="mono">${t.code}</span></td><td style="text-align:right"><strong>${fmt(t.tarif)}</strong></td>
+      <td style="text-align:right"><button class="btn btn-danger btn-sm" onclick="removeTarif(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Assurances & mutuelles</h3><div class="sub">Taux de prise en charge</div></div></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Organisme</th><th>Prise en charge</th><th>Conventionnement</th></tr></thead>
+      <tbody>${ASSURANCES.map(a=>`<tr><td><strong>${a.nom}</strong></td><td>${a.taux}%</td><td>${a.statut==='Conventionné'?'<span class="badge b-on">Conventionné</span>':'<span class="badge b-off">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  else if(currentSection==='comptabilite'){
+    const c=CFG.etablissement;
+    b.innerHTML = head('Comptabilité & banques','Référentiel SYSCOHADA, exercice et comptes bancaires')+
+    `<div class="card"><div class="card-head"><div><h3>Paramètres comptables</h3><div class="sub">SYSCOHADA Révisé 2017 — Zone OHADA</div></div></div>
+      <div class="card-body"><div class="form-grid">
+        ${field('Référentiel','c-ref','SYSCOHADA Révisé 2017')}
+        ${field('Exercice en cours','c-exercice',c.exercice)}
+        ${field('Devise','c-devise',c.devise)}
+        ${field('Taux TVA (%)','c-tva',c.tva,'number')}
+      </div>
+      <div class="save-bar"><button class="btn btn-secondary btn-sm" onclick="location.href='comptabilite_generale.html'">📖 Plan comptable</button>
+      <button class="btn btn-primary" onclick="saveEtab()">💾 Enregistrer</button></div></div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Comptes bancaires</h3><div class="sub">Comptes 51x — soldes en FCFA</div></div></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Banque</th><th>Compte</th><th>RIB / IBAN</th><th style="text-align:right">Solde</th></tr></thead>
+      <tbody>${BANQUES.map(bk=>`<tr><td><strong>${bk.nom}</strong></td><td><span class="mono">${bk.compte}</span></td><td style="font-family:monospace;font-size:12px">${bk.rib}</td><td style="text-align:right"><strong>${fmt(bk.solde)}</strong></td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  else if(currentSection==='fournisseurs'){
+    b.innerHTML = head('Fournisseurs','Référentiel des partenaires et délais de livraison')+
+    `<div class="card"><div class="card-head"><div><h3>Fournisseurs référencés</h3><div class="sub">${FOURNISSEURS.length} actifs</div></div><button class="btn btn-secondary btn-sm" onclick="addFournisseur()">＋ Ajouter</button></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Fournisseur</th><th>Catégorie</th><th>NCC</th><th>Délai</th><th></th></tr></thead>
+      <tbody>${FOURNISSEURS.map((f,i)=>`<tr><td><strong>${f.nom}</strong></td><td>${f.categorie}</td><td><span class="mono">${f.ncc}</span></td><td>${f.delai}</td>
+      <td style="text-align:right"><button class="btn btn-danger btn-sm" onclick="removeFournisseur(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  else if(currentSection==='numerotation'){
+    const n=CFG.numerotation;
+    b.innerHTML = head('Numérotation','Formats automatiques des identifiants — # = chiffre, AAAA = année, MM = mois')+
+    `<div class="card"><div class="card-head"><div><h3>Masques de numérotation</h3></div></div>
+      <div class="card-body"><div class="form-grid">
+        ${field('Dossier patient','n-dossier',n.dossier,'text','Ex: D205812')}
+        ${field('IPP (identifiant permanent)','n-ipp',n.ipp,'text','Ex: IPP-000123')}
+        ${field('Facture','n-facture',n.facture,'text','Ex: FAC-2025-0042')}
+        ${field('Ordre de fabrication','n-of',n.of)}
+        ${field('Bon de commande','n-bc',n.bc)}
+        ${field('Écriture comptable','n-ecriture',n.ecriture)}
+      </div>
+      <div class="save-bar"><button class="btn btn-primary" onclick="saveNum()">💾 Enregistrer</button></div></div></div>`;
+  }
+  else if(currentSection==='seuils'){
+    const s=CFG.seuils;
+    b.innerHTML = head('Alertes & seuils','Déclencheurs automatiques d\'alertes')+
+    `<div class="card"><div class="card-head"><div><h3>Seuils de déclenchement</h3></div></div>
+      <div class="card-body"><div class="form-grid">
+        ${field('Stock minimum (alerte rupture)','s-stock',s.stockMini,'number','Unités')}
+        ${field('Péremption — préavis (jours)','s-peremption',s.peremptionJours,'number')}
+        ${field('Délai max. résultat labo (min)','s-delai',s.delaiResultat,'number')}
+        ${field('Taux occupation lits — alerte (%)','s-occupation',s.tauxOccupationAlerte,'number')}
+      </div>
+      <div class="row-toggle"><div><div class="rt-label">Notification valeurs critiques labo</div><div class="rt-sub">Alerte immédiate prescripteur</div></div>
+        <label class="switch"><input type="checkbox" id="s-critique" ${s.valeurCritiqueLabo?'checked':''}><span class="slider"></span></label></div>
+      <div class="save-bar"><button class="btn btn-primary" onclick="saveSeuils()">💾 Enregistrer</button></div></div></div>`;
+  }
+  else if(currentSection==='integrations'){
+    const it=CFG.integrations;
+    b.innerHTML = head('Intégrations','Paiement mobile, messagerie et passerelles externes')+
+    `<div class="card"><div class="card-head"><div><h3>Mobile Money</h3><div class="sub">Encaissement patient par téléphone</div></div></div>
+      <div class="card-body">
+        ${mmRow('Wave','wave',it.wave)}
+        ${mmRow('Orange Money','orange',it.orange)}
+        ${mmRow('MTN MoMo','mtn',it.mtn)}
+      </div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Messagerie & notifications</h3></div></div>
+      <div class="card-body">
+        <div class="row-toggle"><div><div class="rt-label">WhatsApp Business</div><div class="rt-sub">Alertes, rappels RDV, reporting — ${it.whatsapp.numero}</div></div>
+          <label class="switch"><input type="checkbox" id="i-whatsapp" ${it.whatsapp.actif?'checked':''}><span class="slider"></span></label></div>
+        <div class="row-toggle"><div><div class="rt-label">SMS</div><div class="rt-sub">Passerelle : ${it.sms.gateway}</div></div>
+          <label class="switch"><input type="checkbox" id="i-sms" ${it.sms.actif?'checked':''}><span class="slider"></span></label></div>
+        <div class="row-toggle"><div><div class="rt-label">Email (SMTP)</div><div class="rt-sub">${it.smtp.serveur}:${it.smtp.port}</div></div>
+          <label class="switch"><input type="checkbox" id="i-smtp" ${it.smtp.actif?'checked':''}><span class="slider"></span></label></div>
+        <div class="save-bar"><button class="btn btn-primary" onclick="saveIntegrations()">💾 Enregistrer</button></div>
+      </div></div>`;
+  }
+  else if(currentSection==='securite'){
+    const s=CFG.securite, sv=CFG.sauvegarde;
+    b.innerHTML = head('Sécurité & sauvegardes','Politique d\'accès et protection des données')+
+    `<div class="card"><div class="card-head"><div><h3>Politique de mot de passe</h3></div></div>
+      <div class="card-body"><div class="form-grid">
+        ${field('Longueur minimale','sec-long',s.longueurMin,'number')}
+        ${field('Expiration (jours)','sec-exp',s.expiration,'number')}
+        ${field('Tentatives avant verrouillage','sec-tent',s.tentativesMax,'number')}
+        ${field('Durée de session (min)','sec-sess',s.dureeSession,'number')}
+      </div>
+      <div class="row-toggle"><div class="rt-label">Exiger une majuscule</div><label class="switch"><input type="checkbox" id="sec-maj" ${s.majuscule?'checked':''}><span class="slider"></span></label></div>
+      <div class="row-toggle"><div class="rt-label">Exiger un chiffre</div><label class="switch"><input type="checkbox" id="sec-chi" ${s.chiffre?'checked':''}><span class="slider"></span></label></div>
+      <div class="row-toggle"><div class="rt-label">Exiger un caractère spécial</div><label class="switch"><input type="checkbox" id="sec-spe" ${s.special?'checked':''}><span class="slider"></span></label></div>
+      <div class="row-toggle"><div><div class="rt-label">Double authentification (2FA)</div><div class="rt-sub">Obligatoire pour Admin / DAF / DSI</div></div><label class="switch"><input type="checkbox" id="sec-2fa" ${s.twofa?'checked':''}><span class="slider"></span></label></div>
+      <div class="save-bar"><button class="btn btn-primary" onclick="saveSecurite()">💾 Enregistrer</button></div></div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Sauvegardes automatiques</h3><div class="sub">Dernière : ${sv.dernier}</div></div>
+      <span class="badge ${sv.auto?'b-on':'b-off'}">${sv.auto?'activées':'désactivées'}</span></div>
+      <div class="card-body"><div class="form-grid">
+        <div class="form-group"><label>Fréquence</label><select id="sv-freq">
+          <option ${sv.frequence==='quotidienne'?'selected':''}>quotidienne</option>
+          <option ${sv.frequence==='hebdomadaire'?'selected':''}>hebdomadaire</option></select></div>
+        ${field('Heure d\'exécution','sv-heure',sv.heure,'time')}
+        ${field('Rétention (jours)','sv-retention',sv.retention,'number')}
+      </div>
+      <div class="row-toggle"><div><div class="rt-label">Sauvegardes automatiques</div><div class="rt-sub">Chiffrées — stockage local + cloud</div></div><label class="switch"><input type="checkbox" id="sv-auto" ${sv.auto?'checked':''}><span class="slider"></span></label></div>
+      <div class="save-bar"><button class="btn btn-secondary" onclick="toast('Sauvegarde manuelle lancée…','success')">▶ Sauvegarder maintenant</button>
+      <button class="btn btn-primary" onclick="saveSauvegarde()">💾 Enregistrer</button></div></div></div>`;
+  }
+}
+
+function head(t,s){ return `<div class="panel-head"><div class="panel-title">${t}</div><div class="panel-sub">${s}</div></div>`; }
+
+function mmRow(nom,key,obj){
+  return `<div class="row-toggle"><div style="flex:1"><div class="rt-label">${nom}</div>
+    <div class="rt-sub">Compte marchand : <input style="width:160px;display:inline-block;padding:3px 8px;margin-top:4px" id="mm-${key}" value="${obj.marchand||''}" placeholder="N° marchand"></div></div>
+    <label class="switch"><input type="checkbox" id="mm-${key}-on" ${obj.actif?'checked':''}><span class="slider"></span></label></div>`;
+}
+
+// ── Sauvegardes de section ────────────────────────────────────────────────────
+function val(id){ const el=document.getElementById(id); return el?el.value:''; }
+function chk(id){ const el=document.getElementById(id); return el?el.checked:false; }
+
+function saveEtab(){
+  Object.assign(CFG.etablissement,{
+    nom:val('e-nom')||CFG.etablissement.nom, type:val('e-type'), agrement:val('e-agrement'),
+    rccm:val('e-rccm'), ncc:val('e-ncc'), directeur:val('e-directeur'), adresse:val('e-adresse'),
+    ville:val('e-ville'), tel:val('e-tel'), email:val('e-email'),
+    exercice:val('e-exercice')||val('c-exercice')||CFG.etablissement.exercice,
+    tva:val('e-tva')||val('c-tva')||CFG.etablissement.tva
+  });
+  persist(); toast('Établissement enregistré.','success');
+}
+function saveNum(){
+  Object.assign(CFG.numerotation,{dossier:val('n-dossier'),ipp:val('n-ipp'),facture:val('n-facture'),of:val('n-of'),bc:val('n-bc'),ecriture:val('n-ecriture')});
+  persist(); toast('Numérotation enregistrée.','success');
+}
+function saveSeuils(){
+  Object.assign(CFG.seuils,{stockMini:+val('s-stock'),peremptionJours:+val('s-peremption'),delaiResultat:+val('s-delai'),tauxOccupationAlerte:+val('s-occupation'),valeurCritiqueLabo:chk('s-critique')});
+  persist(); toast('Seuils enregistrés.','success');
+}
+function saveIntegrations(){
+  const it=CFG.integrations;
+  it.wave={actif:chk('mm-wave-on'),marchand:val('mm-wave')};
+  it.orange={actif:chk('mm-orange-on'),marchand:val('mm-orange')};
+  it.mtn={actif:chk('mm-mtn-on'),marchand:val('mm-mtn')};
+  it.whatsapp.actif=chk('i-whatsapp'); it.sms.actif=chk('i-sms'); it.smtp.actif=chk('i-smtp');
+  persist(); toast('Intégrations enregistrées.','success');
+}
+function saveSecurite(){
+  Object.assign(CFG.securite,{longueurMin:+val('sec-long'),expiration:+val('sec-exp'),tentativesMax:+val('sec-tent'),dureeSession:+val('sec-sess'),majuscule:chk('sec-maj'),chiffre:chk('sec-chi'),special:chk('sec-spe'),twofa:chk('sec-2fa')});
+  persist(); toast('Politique de sécurité enregistrée.','success');
+}
+function saveSauvegarde(){
+  Object.assign(CFG.sauvegarde,{frequence:val('sv-freq'),heure:val('sv-heure'),retention:+val('sv-retention'),auto:chk('sv-auto')});
+  persist(); toast('Sauvegardes configurées.','success');
+}
+
+// ── CRUD listes ───────────────────────────────────────────────────────────────
+function addUser(){ const l=prompt('Identifiant :'); if(!l)return; const n=prompt('Nom complet :')||l; const r=prompt('Rôle (Administrateur/Médecin/Pharmacien/DAF) :')||'Médecin'; USERS.push({login:l,nom:n,role:r,twofa:false,actif:true}); persist(); renderBody(); toast('Utilisateur ajouté.','success'); }
+function removeUser(i){ if(confirm('Supprimer '+USERS[i].login+' ?')){ USERS.splice(i,1); persist(); renderBody(); toast('Utilisateur supprimé.','warn'); } }
+function togglePerm(r,m,v){ if(!PERMISSIONS[r])PERMISSIONS[r]={}; PERMISSIONS[r][m]=v?1:0; }
+function addService(){ const n=prompt('Nom du service :'); if(!n)return; const c=prompt('Code :')||n.slice(0,3).toUpperCase(); const li=+prompt('Nombre de lits :')||0; SERVICES.push({nom:n,code:c,pole:'—',responsable:'—',lits:li}); persist(); renderBody(); toast('Service ajouté.','success'); }
+function removeService(i){ if(confirm('Supprimer '+SERVICES[i].nom+' ?')){ SERVICES.splice(i,1); persist(); renderBody(); toast('Service supprimé.','warn'); } }
+function addTarif(){ const l=prompt('Libellé de l\'acte :'); if(!l)return; const c=prompt('Code :')||''; const t=+prompt('Tarif FCFA :')||0; TARIFS.push({libelle:l,code:c,tarif:t}); persist(); renderBody(); toast('Acte ajouté.','success'); }
+function removeTarif(i){ TARIFS.splice(i,1); persist(); renderBody(); toast('Acte supprimé.','warn'); }
+function addFournisseur(){ const n=prompt('Nom du fournisseur :'); if(!n)return; const cat=prompt('Catégorie :')||'—'; FOURNISSEURS.push({nom:n,categorie:cat,ncc:'—',delai:'—'}); persist(); renderBody(); toast('Fournisseur ajouté.','success'); }
+function removeFournisseur(i){ if(confirm('Supprimer '+FOURNISSEURS[i].nom+' ?')){ FOURNISSEURS.splice(i,1); persist(); renderBody(); toast('Fournisseur supprimé.','warn'); } }
+
+// ── Import / Export ───────────────────────────────────────────────────────────
+function exportConfig(){
+  const data=JSON.stringify({cfg:CFG,users:USERS,services:SERVICES,tarifs:TARIFS,fournisseurs:FOURNISSEURS,permissions:PERMISSIONS},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='medicore_config_'+CFG.etablissement.exercice+'.json'; a.click();
+  toast('Configuration exportée.','success');
+}
+function importConfig(input){
+  const f=input.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{ try{ const d=JSON.parse(e.target.result);
+    if(d.cfg)CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),d.cfg);
+    if(d.users)USERS=d.users; if(d.services)SERVICES=d.services; if(d.tarifs)TARIFS=d.tarifs;
+    if(d.fournisseurs)FOURNISSEURS=d.fournisseurs; if(d.permissions)PERMISSIONS=d.permissions;
+    persist(); renderBody(); toast('Configuration importée.','success');
+  }catch(err){ toast('Fichier invalide.','error'); } };
+  r.readAsText(f);
+}
+
+function toast(msg,type=''){ const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg; document.getElementById('toast-container').appendChild(t); setTimeout(()=>t.remove(),3000); }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  if(typeof initNav==='function'){
+    initNav('parametrage','Paramétrage','Configuration ERP',
+      [{label:'Étape 4 — Administration',file:'#'},{label:'Paramétrage',file:''}]);
+  }
+  loadConfig(); renderNav(); renderBody();
+});
+</script>
+</body>
+</html>

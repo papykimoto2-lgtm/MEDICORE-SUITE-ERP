@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Laboratoire</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;
+    --accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;
+    --orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;
+    --purple:#6b21a8;--purple-bg:#f3e8ff;
+    --teal:#0f766e;--teal-bg:#ccfbf1;
+    --pink:#be185d;--pink-bg:#fce7f3;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:240px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .sidebar-logo span{font-family:'DM Serif Display',serif;font-size:18px;display:block}
+  .sidebar-logo small{font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:1px}
+  .sidebar-section{padding:16px 12px 8px;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;opacity:.5;font-weight:600}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:6px;margin:2px 8px;cursor:pointer;font-size:13.5px;opacity:.75;transition:all .15s;color:#fff;text-decoration:none}
+  .nav-item:hover{background:rgba(255,255,255,.1);opacity:1}
+  .nav-item.active{background:rgba(255,255,255,.18);opacity:1;font-weight:500}
+  .nav-item .icon{font-size:16px;width:20px;text-align:center}
+  .sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid rgba(255,255,255,.12);font-size:12px;opacity:.5}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;padding:28px 32px;overflow-y:auto}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .kpi-card.green::before{background:var(--green)}
+  .kpi-card.red::before{background:var(--red)}
+  .kpi-card.blue::before{background:var(--accent)}
+  .kpi-card.orange::before{background:var(--accent2)}
+  .kpi-card.teal::before{background:var(--teal)}
+  .kpi-label{font-size:11.5px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:24px;margin:6px 0 4px;color:var(--accent)}
+  .kpi-badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:20px}
+  .kpi-badge.up{background:var(--green-bg);color:var(--green)}
+  .kpi-badge.down{background:var(--red-bg);color:var(--red)}
+  .kpi-badge.warn{background:var(--orange-bg);color:var(--orange)}
+  .kpi-badge.neutral{background:var(--accent-light);color:var(--accent)}
+  .tabs{display:flex;margin-bottom:24px;border-bottom:2px solid var(--border);flex-wrap:wrap}
+  .tab-btn{padding:10px 18px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn:hover{color:var(--accent)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:600;font-size:14px}
+  .card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+  table{width:100%;border-collapse:collapse}
+  thead th{padding:11px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;background:var(--surface-alt);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface-alt)}
+  tbody td{padding:11px 14px;font-size:13px;vertical-align:middle}
+  tfoot td{padding:12px 14px;font-weight:700;font-size:13px;background:var(--surface-alt);border-top:2px solid var(--border)}
+  .text-right{text-align:right}
+  .text-center{text-align:center}
+  .amount{font-variant-numeric:tabular-nums;font-weight:600}
+  .text-muted{color:var(--text-muted)}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+  .badge-en-cours{background:var(--accent-light);color:var(--accent);border:1px solid rgba(26,75,110,.2)}
+  .badge-valide{background:var(--green-bg);color:var(--green);border:1px solid rgba(30,122,78,.2)}
+  .badge-critique{background:var(--red-bg);color:var(--red);border:1px solid rgba(185,43,43,.2)}
+  .badge-attente{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(176,91,0,.2)}
+  .badge-non-conforme{background:var(--pink-bg);color:var(--pink);border:1px solid rgba(190,24,93,.2)}
+  .badge-hema{background:var(--accent-light);color:var(--accent)}
+  .badge-bio{background:var(--green-bg);color:var(--green)}
+  .badge-bact{background:var(--orange-bg);color:var(--orange)}
+  .badge-immu{background:var(--purple-bg);color:var(--purple)}
+  .badge-coag{background:var(--teal-bg);color:var(--teal)}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #f3b4b4}
+  .btn-success{background:var(--green-bg);color:var(--green);border:1px solid #a8d8be}
+  .btn-sm{padding:5px 11px;font-size:12px}
+  .filter-row{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface-alt);flex-wrap:wrap}
+  .filter-row select,.filter-row input{width:auto;padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none;color:var(--text)}
+  .filter-row label{font-size:12.5px;font-weight:500;color:var(--text-muted);white-space:nowrap}
+  .overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,.45);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);width:720px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:22px 28px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent)}
+  .modal-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .modal-close:hover{background:var(--surface-alt)}
+  .modal-body{padding:24px 28px}
+  .modal-footer{padding:16px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12.5px;font-weight:500;color:var(--text-muted)}
+  label .req{color:var(--red)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .section-label{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;padding-top:4px;border-top:1px solid var(--border)}
+  .alert-box{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-radius:var(--radius);margin-bottom:14px;font-size:13px}
+  .alert-box.red{background:var(--red-bg);border:1px solid #f3b4b4;color:var(--red)}
+  .alert-box.warn{background:var(--orange-bg);border:1px solid #f0c080;color:var(--orange)}
+  .alert-box.info{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent)}
+  .alert-icon{font-size:17px;flex-shrink:0}
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .search-bar input{border:none;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);width:200px;box-shadow:none;padding:0}
+  /* Résultat critique */
+  .result-critical{color:var(--red);font-weight:700}
+  .result-high{color:var(--orange);font-weight:600}
+  .result-normal{color:var(--green);font-weight:500}
+  .result-low{color:var(--accent);font-weight:600}
+  /* Levey-Jennings */
+  .lj-chart{padding:16px}
+  .lj-point{display:inline-block;width:10px;height:10px;border-radius:50%}
+  /* Automate card */
+  .automate-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:20px}
+  .automate-card{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .automate-card h4{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px}
+  .automate-status{display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:8px}
+  .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .automate-stat{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--text-muted)}
+  /* CQ graphe simplifié */
+  .cq-graph{position:relative;height:80px;background:var(--surface-alt);border-radius:6px;overflow:hidden;margin-top:8px}
+  .cq-zone-warn{position:absolute;top:0;left:0;right:0;height:25%;background:rgba(176,91,0,.08)}
+  .cq-zone-ok{position:absolute;top:25%;left:0;right:0;height:50%;background:rgba(30,122,78,.05)}
+  .cq-zone-warn2{position:absolute;bottom:0;left:0;right:0;height:25%;background:rgba(176,91,0,.08)}
+  .cq-line{position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)}
+  /* Pagination */
+  .pagination{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-muted)}
+  .pagination-btns{display:flex;gap:4px}
+  .pg-btn{padding:5px 10px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;font-size:12.5px;font-family:'DM Sans',sans-serif}
+  .pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .pg-btn:hover:not(.active){background:var(--surface-alt)}
+  /* Toast */
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .25s ease,toastOut .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}
+  .toast.error{background:var(--red)}
+  .toast.warn{background:var(--orange)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+  .labo-tag{display:inline-block;background:var(--teal-bg);color:var(--teal);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;margin-left:8px;vertical-align:middle;border:1px solid rgba(15,118,110,.25)}
+  .nabm-tag{font-family:monospace;font-size:11px;background:var(--surface-alt);color:var(--text-muted);padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
+  /* Compte rendu */
+  .cr-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px}
+  .cr-header{display:flex;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--accent)}
+  .cr-section{margin-bottom:14px}
+  .cr-section h4{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+  .cr-result-row{display:grid;grid-template-columns:220px 100px 100px 140px;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);align-items:center;font-size:12.5px}
+  .cr-result-row:last-child{border-bottom:none}
+  .val-anormal{color:var(--red);font-weight:700}
+  .val-normal{color:var(--green)}
+  /* ── Mobile Laboratoire ──────────────────────────────────────────────────── */
+  @media(max-width:1024px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+    .automate-grid{grid-template-columns:repeat(2,1fr)!important}
+    .tabs{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab-btn{white-space:nowrap;flex-shrink:0}
+    /* Layout analytique 2 colonnes → 1 */
+    .labo-split{flex-direction:column!important}
+    .labo-left,.labo-right{width:100%!important;min-width:0!important}
+    /* Grid résultats CR */
+    [style*="grid-template-columns:220px"]{
+      display:flex!important;flex-wrap:wrap!important;gap:8px!important;
+    }
+  }
+  @media(max-width:768px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+    .automate-grid{grid-template-columns:1fr!important}
+    .kpi-card{padding:14px!important}
+    .kpi-value{font-size:22px!important}
+    /* Filtres searchbar wrap */
+    .search-bar,.filter-row{flex-wrap:wrap!important;gap:8px!important}
+    .search-bar input,.filter-row select,.filter-row input{width:100%!important}
+    /* automate card compact */
+    .automate-card{padding:14px!important}
+  }
+  @media(max-width:480px){
+    .kpi-grid{grid-template-columns:1fr!important}
+    .kpi-card{padding:12px 14px!important}
+    .lj-chart{height:140px!important}
+    .automate-stat{font-size:12.5px!important;padding:4px 0!important}
+    .pagination-btns{flex-wrap:wrap!important;gap:4px!important}
+    .pg-btn{min-width:34px!important;min-height:34px!important;font-size:12px!important}
+  }
+</style>
+  <script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"><!-- nav généré par nav.js --></aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Laboratoire de Biologie Médicale <span class="labo-tag">LBM</span></h1>
+        <p>Pré-analytique · Analytique · Post-analytique · Contrôle qualité · Accréditation ISO 15189</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇ Exporter</button>
+        <button class="btn btn-primary" onclick="openNouvelledemande()">＋ Nouvelle demande</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="alertes-labo"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Demandes en cours</div>
+          <div class="kpi-value" id="kpi-encours">—</div>
+          <span class="kpi-badge neutral">📋 Aujourd'hui</span>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Résultats critiques</div>
+          <div class="kpi-value" id="kpi-critiques">—</div>
+          <span class="kpi-badge" id="kpi-crit-badge">⚠ À notifier</span>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Résultats validés auj.</div>
+          <div class="kpi-value" id="kpi-valides">—</div>
+          <span class="kpi-badge up">✓ Transmis DPI</span>
+        </div>
+        <div class="kpi-card teal">
+          <div class="kpi-label">Délai moyen rendu</div>
+          <div class="kpi-value" id="kpi-delai">—</div>
+          <span class="kpi-badge neutral">⏱ Heures</span>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('demandes',this)">Demandes & Prélèvements</button>
+        <button class="tab-btn" onclick="switchTab('analytique',this)">Résultats & Validation</button>
+        <button class="tab-btn" onclick="switchTab('critiques',this)">Alertes critiques</button>
+        <button class="tab-btn" onclick="switchTab('cq',this)">Contrôle qualité</button>
+        <button class="tab-btn" onclick="switchTab('automates',this)">Automates</button>
+        <button class="tab-btn" onclick="switchTab('facturation',this)">Facturation NABM</button>
+        <button class="tab-btn" onclick="switchTab('qualite',this)">Qualité & Accréditation</button>
+      </div>
+
+      <!-- ── DEMANDES ── -->
+      <div id="tab-demandes" class="tab-panel active">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Registre des demandes d'examens</div><div class="card-subtitle" id="dem-count">—</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="search-bar"><span>🔍</span><input type="text" id="dem-search" placeholder="Patient, N° dossier, examen…" oninput="renderDemandes()"></div>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-dem-statut" onchange="renderDemandes()">
+                <option value="">Tous statuts</option>
+                <option value="En attente prélèvement">En attente prélèvement</option>
+                <option value="Prélevé">Prélevé</option>
+                <option value="En analyse">En analyse</option>
+                <option value="À valider">À valider</option>
+                <option value="Validé">Validé</option>
+              </select>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-dem-type" onchange="renderDemandes()">
+                <option value="">Toutes spécialités</option>
+                <option value="Hématologie">Hématologie</option>
+                <option value="Biochimie">Biochimie</option>
+                <option value="Bactériologie">Bactériologie</option>
+                <option value="Immunologie">Immunologie</option>
+                <option value="Coagulation">Coagulation</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>N° Dossier</th><th>Patient</th><th>Prescripteur</th><th>Service</th>
+              <th>Examens demandés</th><th>Spécialité</th><th>Heure demande</th>
+              <th>Priorité</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="dem-tbody"></tbody>
+          </table>
+          <div class="pagination">
+            <span id="dem-pag-info"></span>
+            <div class="pagination-btns" id="dem-pag-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RÉSULTATS & VALIDATION ── -->
+      <div id="tab-analytique" class="tab-panel">
+        <div style="display:grid;grid-template-columns:320px 1fr;gap:20px">
+          <div>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:10px">Dossiers à valider</div>
+            <div id="validation-liste"></div>
+          </div>
+          <div id="cr-container">
+            <div style="text-align:center;padding:60px 20px;color:var(--text-muted)">
+              <div style="font-size:40px;margin-bottom:12px">📋</div>
+              Sélectionnez un dossier pour afficher et valider les résultats
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ALERTES CRITIQUES ── -->
+      <div id="tab-critiques" class="tab-panel">
+        <div class="alert-box red" style="margin-bottom:20px">
+          <span class="alert-icon">🚨</span>
+          <span>Les valeurs critiques (alertes biologiques) doivent être notifiées <strong>immédiatement</strong> au clinicien prescripteur par téléphone, avec traçabilité de l'appel dans le dossier. Délai maximal : <strong>30 minutes</strong>.</span>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Valeurs critiques — Notification requise</div></div>
+            <span class="kpi-badge down" id="crit-count-badge">— alertes actives</span>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Heure</th><th>Patient</th><th>Service</th><th>Examen</th>
+              <th class="text-right">Résultat</th><th>Valeur référence</th>
+              <th>Criticité</th><th>Prescripteur</th><th>Notification</th><th></th>
+            </tr></thead>
+            <tbody id="crit-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── CONTRÔLE QUALITÉ ── -->
+      <div id="tab-cq" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:20px">
+          <span class="alert-icon">📊</span>
+          <span>Contrôle de qualité interne (CQI) et externe (EEQ/EQAS). Graphiques de Levey-Jennings. Gestion des non-conformités. Conforme ISO 15189:2022.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px" id="cq-kpis"></div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Graphiques de Levey-Jennings — CQI du mois</div><div class="card-subtitle">Contrôles internes par automate et paramètre</div></div>
+            <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="lj-param" onchange="renderLJ()">
+              <option value="Glucose">Glucose — Beckman AU480</option>
+              <option value="Hémoglobine">Hémoglobine — Sysmex XN</option>
+              <option value="Créatinine">Créatinine — Beckman AU480</option>
+              <option value="TP">TP (%) — STA-R Max</option>
+            </select>
+          </div>
+          <div id="lj-chart-container" style="padding:20px"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Non-conformités du mois</div><div class="card-subtitle">Enregistrement, analyse, actions correctives</div></div>
+          <table>
+            <thead><tr>
+              <th>Date</th><th>Type</th><th>Automate / Paramètre</th><th>Description</th>
+              <th>Règle violée</th><th>Action corrective</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="nc-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── AUTOMATES ── -->
+      <div id="tab-automates" class="tab-panel">
+        <div class="automate-grid" id="automates-grid"></div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">File de travail automates</div><div class="card-subtitle">Worklist — Échantillons en cours d'analyse</div></div>
+          <table>
+            <thead><tr>
+              <th>N° tube / Barcode</th><th>Patient</th><th>Examens</th>
+              <th>Automate assigné</th><th>Heure chargement</th><th>Progression</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="worklist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── FACTURATION NABM ── -->
+      <div id="tab-facturation" class="tab-panel">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+          <div class="kpi-card blue"><div class="kpi-label">Actes facturés (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-nb">—</div><span class="kpi-badge neutral">NABM/CCAM</span></div>
+          <div class="kpi-card green"><div class="kpi-label">CA biologie (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-ca">—</div><span class="kpi-badge up">▲ FCFA</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">En attente remboursement</div><div class="kpi-value" style="font-size:20px" id="fact-att">—</div><span class="kpi-badge warn">⏳ AM/mutuelle</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Coût réactifs / acte</div><div class="kpi-value" style="font-size:20px" id="fact-cout">—</div><span class="kpi-badge neutral">Ratio</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Actes de biologie — Nomenclature CNAM-CI</div></div>
+          <table>
+            <thead><tr>
+              <th>Code CNAM-CI</th><th>Désignation de l'acte</th>
+              <th class="text-right">Tarif unitaire (FCFA)</th>
+              <th class="text-right">Nb actes/mois</th><th class="text-right">CA (FCFA)</th>
+            </tr></thead>
+            <tbody id="nabm-tbody"></tbody>
+            <tfoot><tr>
+              <td colspan="3">TOTAL</td>
+              <td class="text-right" id="nabm-total-nb">—</td>
+              <td class="text-right" id="nabm-total-ca">—</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── QUALITÉ & ACCRÉDITATION ── -->
+      <div id="tab-qualite" class="tab-panel">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Indicateurs qualité ISO 15189</div></div>
+            <div style="padding:16px" id="qualite-indicateurs"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Gestion documentaire</div><div class="card-subtitle">Procédures, modes opératoires, versions</div></div>
+            <table>
+              <thead><tr><th>Document</th><th>Version</th><th>Date révision</th><th>Statut</th></tr></thead>
+              <tbody id="docs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Piste d'audit — Traçabilité des opérations</div><div class="card-subtitle">Conforme ISO 15189:2022 — Section 7.4</div></div>
+          </div>
+          <table>
+            <thead><tr><th>Date/Heure</th><th>Opérateur</th><th>Action</th><th>Dossier concerné</th><th>Détail</th></tr></thead>
+            <tbody id="audit-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouvelle demande -->
+<div class="overlay" id="modal-demande">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">Nouvelle demande d'examens</div><div class="modal-subtitle">Enregistrement pré-analytique — Édition des étiquettes codes-barres</div></div>
+      <button class="modal-close" onclick="closeNouvelledemande()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>N° de dossier patient <span class="req">*</span></label><input type="text" id="nd-dossier" placeholder="ex: D205812"></div>
+        <div class="form-group"><label>Nom du patient <span class="req">*</span></label><input type="text" id="nd-patient" placeholder="NOM Prénom"></div>
+        <div class="form-group"><label>Prescripteur <span class="req">*</span></label><input type="text" id="nd-presc" placeholder="Dr. NOM — Service"></div>
+        <div class="form-group"><label>Service demandeur</label>
+          <select id="nd-service">
+            <option>Médecine générale</option><option>Chirurgie</option><option>Maternité</option>
+            <option>Urgences</option><option>Consultation externe</option>
+          </select></div>
+        <div class="form-group"><label>Priorité</label>
+          <select id="nd-priorite">
+            <option value="Normale">Normale</option>
+            <option value="Urgente">Urgente (< 2h)</option>
+            <option value="STAT">STAT (< 1h)</option>
+          </select></div>
+        <div class="form-group"><label>Spécialité</label>
+          <select id="nd-type">
+            <option value="Hématologie">Hématologie</option>
+            <option value="Biochimie">Biochimie</option>
+            <option value="Bactériologie">Bactériologie</option>
+            <option value="Immunologie">Immunologie</option>
+            <option value="Coagulation">Coagulation</option>
+          </select></div>
+        <div class="form-group full"><label>Examens demandés <span class="req">*</span></label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px" id="examens-checkboxes"></div>
+        </div>
+        <div class="form-group full"><label>Renseignements cliniques</label><textarea id="nd-rens" style="min-height:56px" placeholder="Contexte clinique, traitements en cours, heure du prélèvement…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeNouvelledemande()">Annuler</button>
+      <button class="btn btn-secondary" onclick="toast('Étiquettes codes-barres imprimées.','success')">🏷 Imprimer étiquettes</button>
+      <button class="btn btn-primary" onclick="validerDemande()">Enregistrer la demande</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Données ────────────────────────────────────────────────────────────────────
+let demandes = [
+  { id:'BIO-2025-0841', dossier:'D205812', patient:'KONÉ Aminata', presc:'Dr. Bamba — Médecine', service:'Médecine générale', examens:'NFS, CRP, Glycémie, Créatinine', type:'Biochimie', heure:'08:15', priorite:'Normale', statut:'Validé', critique:false },
+  { id:'BIO-2025-0842', dossier:'D205814', patient:'TRAORÉ Moussa', presc:'Dr. Touré — Chirurgie', service:'Chirurgie', examens:'NFS, TP, TCA, Fibrinogène', type:'Coagulation', heure:'08:42', priorite:'Urgente', statut:'À valider', critique:false },
+  { id:'BIO-2025-0843', dossier:'D205820', patient:'OUATTARA Seydou', presc:'Dr. Coulibaly — Médecine', service:'Médecine générale', examens:'Ionogramme, Urée, Créatinine, Glucose', type:'Biochimie', heure:'09:05', priorite:'STAT', statut:'À valider', critique:true },
+  { id:'BIO-2025-0844', dossier:'D205825', patient:'DIALLO Fatoumata', presc:'Dr. Konan — Maternité', service:'Maternité', examens:'NFS, Groupe sanguin, RAI', type:'Hématologie', heure:'09:30', priorite:'Urgente', statut:'En analyse', critique:false },
+  { id:'BIO-2025-0845', dossier:'D205830', patient:'YÉO Mariame', presc:'Dr. Diabaté — Urgences', service:'Urgences', examens:'Hémoculture × 2, ECBU', type:'Bactériologie', heure:'10:12', priorite:'STAT', statut:'En analyse', critique:false },
+  { id:'BIO-2025-0846', dossier:'D205835', patient:'SORO Aïcha', presc:'Dr. Camara — Médecine', service:'Médecine générale', examens:'TSH, T3, T4 libre', type:'Immunologie', heure:'10:45', priorite:'Normale', statut:'Prélevé', critique:false },
+  { id:'BIO-2025-0847', dossier:'D205840', patient:'BAMBA Issouf', presc:'Dr. Gbagbo — Chirurgie', service:'Chirurgie', examens:'NFS, CRP, Procalcitonine', type:'Biochimie', heure:'11:20', priorite:'Urgente', statut:'En analyse', critique:false },
+  { id:'BIO-2025-0848', dossier:'D205845', patient:'GNONSOA Marie', presc:'Dr. Koné — Oncologie', service:'Consultation externe', examens:'NFS, Bilan hépatique complet', type:'Biochimie', heure:'11:55', priorite:'Normale', statut:'En attente prélèvement', critique:false },
+  { id:'BIO-2025-0849', dossier:'D205850', patient:'TOURÉ Kadiatou', presc:'Dr. Bamba — Médecine', service:'Médecine générale', examens:'ECBU, Antibiogramme', type:'Bactériologie', heure:'12:10', priorite:'Normale', statut:'Prélevé', critique:false },
+  { id:'BIO-2025-0850', dossier:'D205855', patient:'DIABATÉ Omar', presc:'Dr. Touré — Médecine', service:'Médecine générale', examens:'Sérologie VIH, Ag HBs, Ac VHC', type:'Immunologie', heure:'13:00', priorite:'Normale', statut:'Validé', critique:false },
+];
+
+const CRITIQUES = [
+  { heure:'09:05', patient:'OUATTARA Seydou — D205820', service:'Médecine', examen:'Kaliémie (K+)', resultat:'6,8 mmol/L', reference:'3,5–5,0 mmol/L', criticite:'Critique haute', presc:'Dr. Coulibaly', notif:'Non notifié' },
+  { heure:'08:42', patient:'TRAORÉ Moussa — D205814', service:'Chirurgie', examen:'TP (%)', resultat:'18%', reference:'70–100%', criticite:'Critique basse', presc:'Dr. Touré', notif:'Notifié 08:55' },
+  { heure:'10:12', patient:'YÉO Mariame — D205830', service:'Urgences', examen:'Hémoglobine', resultat:'4,2 g/dL', reference:'11,5–16,5 g/dL', criticite:'Critique basse', presc:'Dr. Diabaté', notif:'Notifié 10:28' },
+];
+
+const AUTOMATES = [
+  { nom:'Beckman AU480', type:'Biochimie', statut:'En marche', params:124, reactifs:18, maintenance:'2025-07-15', calibration:'Conforme', echantillons:48 },
+  { nom:'Sysmex XN-1000', type:'Hématologie', statut:'En marche', params:58, reactifs:12, maintenance:'2025-08-01', calibration:'Conforme', echantillons:62 },
+  { nom:'STA-R Max', type:'Coagulation', statut:'En pause', params:12, reactifs:8, maintenance:'2025-06-30', calibration:'À vérifier', echantillons:0 },
+  { nom:'BioMérieux VITEK 2', type:'Bactériologie', statut:'En marche', params:0, reactifs:24, maintenance:'2025-09-01', calibration:'Conforme', echantillons:14 },
+  { nom:'LIAISON XL', type:'Immunologie', statut:'En marche', params:42, reactifs:16, maintenance:'2025-07-20', calibration:'Conforme', echantillons:21 },
+  { nom:'iSTAT Alinity', type:'Gaz du sang', statut:'En marche', params:18, reactifs:6, maintenance:'2025-07-10', calibration:'Conforme', echantillons:8 },
+];
+
+const WORKLIST = [
+  { tube:'TUB-2025-0841-A', patient:'KONÉ Aminata', examens:'NFS', automate:'Sysmex XN-1000', heure:'09:10', progression:100, statut:'Terminé' },
+  { tube:'TUB-2025-0842-A', patient:'TRAORÉ Moussa', examens:'TP, TCA', automate:'STA-R Max', heure:'09:25', progression:0, statut:'En attente' },
+  { tube:'TUB-2025-0843-A', patient:'OUATTARA Seydou', examens:'Ionogramme, Urée', automate:'Beckman AU480', heure:'09:35', progression:75, statut:'En cours' },
+  { tube:'TUB-2025-0844-A', patient:'DIALLO Fatoumata', examens:'NFS', automate:'Sysmex XN-1000', heure:'10:00', progression:60, statut:'En cours' },
+  { tube:'TUB-2025-0847-A', patient:'BAMBA Issouf', examens:'CRP, Procalcitonine', automate:'Beckman AU480', heure:'11:30', progression:30, statut:'En cours' },
+];
+
+// Nomenclature CNAM-CI (Caisse Nationale d'Assurance Maladie — Côte d'Ivoire)
+// Codes et valeurs adaptés au contexte CI / OHADA (FCFA, pas de B/CCAM)
+const CNAMCI_ACTES = [
+  { code:'B-HEM-01', desig:'Numération formule sanguine (NFS)', tarif:4500,  nb:312 },
+  { code:'B-BIO-01', desig:'Glycémie',                          tarif:2000,  nb:248 },
+  { code:'B-BIO-02', desig:'Créatininémie',                     tarif:2500,  nb:195 },
+  { code:'B-BIO-03', desig:'Ionogramme sanguin complet',        tarif:8000,  nb:142 },
+  { code:'B-BIO-04', desig:'CRP ultra-sensible',                tarif:5500,  nb:118 },
+  { code:'B-COA-01', desig:'TP / TCA',                          tarif:5000,  nb:89  },
+  { code:'B-BAC-01', desig:'Hémoculture (× 2 flacons)',         tarif:12000, nb:64  },
+  { code:'B-IMM-01', desig:'TSH / T3 / T4 libre',               tarif:15000, nb:52  },
+];
+
+const NON_CONFORMITES = [
+  { date:'2025-06-10', type:'CQI', automate:'STA-R Max', description:'Règle 1-2s violée sur contrôle niveau 2', regle:'Règle de Westgard 1-2s', action:'Recalibration effectuée', statut:'Clôturée' },
+  { date:'2025-06-14', type:'Pré-analytique', automate:'—', description:'Tube hémolysé — ionogramme OUATTARA', regle:'Critères acceptabilité', action:'Nouveau prélèvement demandé', statut:'Clôturée' },
+  { date:'2025-06-20', type:'CQI', automate:'Beckman AU480', description:'Règle 2-2s sur Glucose — dérive observée', regle:'Règle de Westgard 2-2s', action:'En cours d\'investigation', statut:'En cours' },
+];
+
+const DOCUMENTS = [
+  { doc:'MO-BIO-001 — Mode opératoire NFS', version:'v3.2', date:'2025-03-15', statut:'En vigueur' },
+  { doc:'MO-BIO-002 — Procédure hémocultures', version:'v2.1', date:'2025-01-10', statut:'En vigueur' },
+  { doc:'MO-BIO-003 — Contrôle qualité Biochimie', version:'v4.0', date:'2025-05-20', statut:'En vigueur' },
+  { doc:'PROC-PRE-001 — Conditions de prélèvement', version:'v2.5', date:'2024-12-01', statut:'À réviser' },
+  { doc:'MO-BACT-001 — Antibiogramme VITEK 2', version:'v1.8', date:'2025-04-12', statut:'En vigueur' },
+];
+
+const AUDIT_TRAIL = [
+  { datetime:'2025-06-20 14:32', operateur:'Dr. Coulibaly A.', action:'Validation biologique', dossier:'BIO-2025-0841', detail:'NFS + Biochimie validés — transmis DPI' },
+  { datetime:'2025-06-20 14:18', operateur:'Tech. Bamba K.', action:'Saisie résultats', dossier:'BIO-2025-0843', detail:'Ionogramme saisi — K+ critique détecté' },
+  { datetime:'2025-06-20 13:55', operateur:'Tech. Dosso R.', action:'Chargement automate', dossier:'TUB-0847-A', detail:'Beckman AU480 — CRP, PCT' },
+  { datetime:'2025-06-20 13:10', operateur:'Dr. Traoré M.', action:'Modification résultat', dossier:'BIO-2025-0842', detail:'Correction TP 18% → 19% après contrôle' },
+];
+
+const EXAMENS_CATALOGUE = {
+  Hématologie:['NFS complète','Réticulocytes','Frottis sanguin','Groupe sanguin','RAI'],
+  Biochimie:['Glycémie','Créatinine','Urée','Ionogramme','Bilan hépatique','CRP','Procalcitonine','Albumine'],
+  Bactériologie:['Hémoculture','ECBU','Antibiogramme','Coproculture','Prélèvement gorge'],
+  Immunologie:['TSH','T3/T4','Ag HBs','Ac VHC','Sérologie VIH','Ferritine'],
+  Coagulation:['TP','TCA','Fibrinogène','D-Dimères','Facteurs coagulation'],
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
+function fmtF(v){return fmt(v)+' FCFA'}
+
+function typeBadge(t){
+  const m={Hématologie:'badge-hema',Biochimie:'badge-bio',Bactériologie:'badge-bact',Immunologie:'badge-immu',Coagulation:'badge-coag'};
+  return `<span class="badge ${m[t]||'badge-hema'}">${t}</span>`;
+}
+function prioriteBadge(p){
+  if(p==='STAT') return `<span style="background:var(--red-bg);color:var(--red);border:1px solid #f3b4b4;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">🔴 STAT</span>`;
+  if(p==='Urgente') return `<span style="background:var(--orange-bg);color:var(--orange);border:1px solid #f0c080;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">⚡ Urgente</span>`;
+  return `<span style="background:var(--surface-alt);color:var(--text-muted);border:1px solid var(--border);padding:2px 8px;border-radius:10px;font-size:11px">Normale</span>`;
+}
+function statutBadge(s){
+  const m={'En attente prélèvement':'badge-attente','Prélevé':'badge-en-cours','En analyse':'badge-en-cours','À valider':'badge-attente','Validé':'badge-valide'};
+  return `<span class="badge ${m[s]||''}">${s}</span>`;
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function updateKPIs(){
+  const encours=demandes.filter(d=>!['Validé'].includes(d.statut)).length;
+  const critiques=demandes.filter(d=>d.critique).length+CRITIQUES.filter(c=>c.notif==='Non notifié').length;
+  const valides=demandes.filter(d=>d.statut==='Validé').length;
+  document.getElementById('kpi-encours').textContent=encours;
+  document.getElementById('kpi-critiques').textContent=critiques;
+  document.getElementById('kpi-valides').textContent=valides;
+  // Délai moyen calculé depuis les heures de demande (simulation)
+  const now=new Date();
+  const delaiMins=demandes.filter(d=>d.statut!=='Validé').reduce((s,d)=>{
+    const [h,m]=(d.heure||'08:00').split(':').map(Number);
+    const t=new Date(); t.setHours(h,m,0,0);
+    return s+(now-t)/60000;
+  },0);
+  const nb=demandes.filter(d=>d.statut!=='Validé').length||1;
+  const moy=Math.round(delaiMins/nb);
+  document.getElementById('kpi-delai').textContent=(moy>=60?Math.floor(moy/60)+'h '+(moy%60).toString().padStart(2,'0'):moy+' min');
+  const cb=document.getElementById('kpi-crit-badge');
+  cb.className='kpi-badge '+(critiques>0?'down':'up');
+  cb.textContent=critiques>0?'⚠ '+critiques+' actifs':'✓ Aucune';
+  // Alertes
+  const critNon=CRITIQUES.filter(c=>c.notif==='Non notifié');
+  const div=document.getElementById('alertes-labo');div.innerHTML='';
+  if(critNon.length) div.innerHTML+=`<div class="alert-box red"><span class="alert-icon">🚨</span><span><strong>${critNon.length} valeur(s) critique(s) non notifiée(s)</strong> — Notification immédiate requise auprès des cliniciens prescripteurs.</span></div>`;
+  const stat=demandes.filter(d=>d.priorite==='STAT'&&d.statut!=='Validé');
+  if(stat.length) div.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">⚡</span><span><strong>${stat.length} demande(s) STAT</strong> en attente de résultat : ${stat.map(d=>d.patient).join(', ')}</span></div>`;
+}
+
+// ── Demandes ──────────────────────────────────────────────────────────────────
+let demPage=1;const DEM_PAGE=7;
+function renderDemandes(){
+  const q=document.getElementById('dem-search').value.toLowerCase();
+  const fs=document.getElementById('f-dem-statut').value;
+  const ft=document.getElementById('f-dem-type').value;
+  const data=demandes.filter(d=>(!q||d.patient.toLowerCase().includes(q)||d.dossier.toLowerCase().includes(q)||d.examens.toLowerCase().includes(q))&&(!fs||d.statut===fs)&&(!ft||d.type===ft));
+  const total=data.length;
+  const maxPage=Math.max(1,Math.ceil(total/DEM_PAGE));
+  if(demPage>maxPage) demPage=maxPage;
+  const slice=data.slice((demPage-1)*DEM_PAGE,demPage*DEM_PAGE);
+  document.getElementById('dem-count').textContent=`${total} demande(s) — ${demandes.filter(d=>d.critique).length} valeur(s) critique(s)`;
+  document.getElementById('dem-tbody').innerHTML=slice.map(d=>`
+    <tr onclick="showCR('${d.id}')" style="${d.critique?'background:var(--red-bg)':''}">
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${d.id}</td>
+      <td style="font-weight:500">${d.patient}${d.critique?'<span style="margin-left:6px;color:var(--red);font-size:11px;font-weight:700">🚨 CRITIQUE</span>':''}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${d.presc}</td>
+      <td style="font-size:12.5px">${d.service}</td>
+      <td style="font-size:12px;max-width:200px;color:var(--text-muted)">${d.examens}</td>
+      <td>${typeBadge(d.type)}</td>
+      <td class="text-muted">${d.heure}</td>
+      <td>${prioriteBadge(d.priorite)}</td>
+      <td>${statutBadge(d.statut)}</td>
+      <td>
+        ${d.statut==='À valider'?`<button class="btn btn-success btn-sm" onclick="event.stopPropagation();validerDossier('${d.id}')">✓ Valider</button>`:
+        `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showCR('${d.id}')">👁</button>`}
+      </td>
+    </tr>`).join('')||`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Aucune demande</td></tr>`;
+  document.getElementById('dem-pag-info').textContent=total?`${(demPage-1)*DEM_PAGE+1}–${Math.min(demPage*DEM_PAGE,total)} sur ${total}`:'';
+  const pg=document.getElementById('dem-pag-btns');pg.innerHTML='';
+  for(let i=1;i<=maxPage;i++){const b=document.createElement('button');b.className='pg-btn'+(i===demPage?' active':'');b.textContent=i;b.onclick=()=>{demPage=i;renderDemandes()};pg.appendChild(b);}
+}
+
+// ── Validation / Compte rendu ─────────────────────────────────────────────────
+function renderValidationListe(){
+  const aValider=demandes.filter(d=>d.statut==='À valider'||d.statut==='En analyse');
+  document.getElementById('validation-liste').innerHTML=aValider.map(d=>`
+    <div onclick="showCR('${d.id}')" style="padding:12px;border:1px solid var(--border);border-radius:7px;margin-bottom:8px;cursor:pointer;transition:all .15s;background:var(--surface)"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-weight:600;font-size:13px;margin-bottom:2px">${d.patient}${d.critique?'<span style="margin-left:6px;color:var(--red);font-size:11px">🚨</span>':''}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${d.id} — ${d.heure} — ${prioriteBadge(d.priorite)}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${d.examens.substring(0,50)}…</div>
+      <div style="margin-top:6px">${typeBadge(d.type)}</div>
+    </div>`).join('')||`<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">✅ Aucun dossier à valider</div>`;
+}
+
+// Résultats simulés par dossier
+const RESULTATS_SIMULES = {
+  'BIO-2025-0842':[
+    {param:'TP (%)',val:'18',ref:'70–100',unite:'%',anormal:true,sens:'bas'},
+    {param:'TCA (s)',val:'78',ref:'26–36',unite:'s',anormal:true,sens:'haut'},
+    {param:'Fibrinogène',val:'1,1',ref:'2,0–4,0',unite:'g/L',anormal:true,sens:'bas'},
+    {param:'NFS — Hémoglobine',val:'8,4',ref:'13,0–17,0',unite:'g/dL',anormal:true,sens:'bas'},
+    {param:'NFS — Plaquettes',val:'42',ref:'150–400',unite:'G/L',anormal:true,sens:'bas'},
+  ],
+  'BIO-2025-0843':[
+    {param:'Natrémie (Na+)',val:'132',ref:'136–145',unite:'mmol/L',anormal:true,sens:'bas'},
+    {param:'Kaliémie (K+)',val:'6,8',ref:'3,5–5,0',unite:'mmol/L',anormal:true,sens:'haut',critique:true},
+    {param:'Urée',val:'28',ref:'3–8',unite:'mmol/L',anormal:true,sens:'haut'},
+    {param:'Créatinine',val:'284',ref:'62–106',unite:'µmol/L',anormal:true,sens:'haut'},
+    {param:'Glucose',val:'5,2',ref:'3,9–6,1',unite:'mmol/L',anormal:false},
+  ],
+};
+
+function showCR(id){
+  const d=demandes.find(x=>x.id===id);if(!d) return;
+  const resultats=RESULTATS_SIMULES[id]||[{param:'NFS — Hémoglobine',val:'12,8',ref:'11,5–16,5',unite:'g/dL',anormal:false},{param:'NFS — Leucocytes',val:'8,2',ref:'4,0–10,0',unite:'G/L',anormal:false},{param:'NFS — Plaquettes',val:'225',ref:'150–400',unite:'G/L',anormal:false},{param:'Glycémie',val:'5,4',ref:'3,9–6,1',unite:'mmol/L',anormal:false},{param:'CRP',val:'12',ref:'<5',unite:'mg/L',anormal:true,sens:'haut'}];
+  document.getElementById('cr-container').innerHTML=`
+    <div class="cr-box">
+      <div class="cr-header">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--accent)">${d.id}</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">${d.patient} — ${d.dossier}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--text-muted)">${d.presc}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${d.service} — ${d.heure}</div>
+          <div style="margin-top:4px">${typeBadge(d.type)} ${prioriteBadge(d.priorite)}</div>
+        </div>
+      </div>
+      <div class="cr-section">
+        <h4>Résultats</h4>
+        <div style="display:grid;grid-template-columns:220px 80px 120px 130px;gap:0">
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border)">Paramètre</div>
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border);text-align:right">Résultat</div>
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border);text-align:center">Unité</div>
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border);text-align:right">Valeurs de réf.</div>
+        </div>
+        ${resultats.map(r=>`
+          <div style="display:grid;grid-template-columns:220px 80px 120px 130px;gap:0;padding:6px 0;border-bottom:1px solid var(--border);align-items:center">
+            <div style="font-size:13px${r.critique?';color:var(--red);font-weight:600':''}">
+              ${r.critique?'🚨 ':''}${r.param}
+            </div>
+            <div class="text-right ${r.anormal?(r.sens==='haut'?'result-high':'result-low'):'result-normal'}" style="font-size:13.5px">
+              ${r.val}${r.anormal?`<span style="font-size:10px;margin-left:3px">${r.sens==='haut'?'▲':'▼'}</span>`:''}
+            </div>
+            <div class="text-center text-muted" style="font-size:12px">${r.unite||'—'}</div>
+            <div class="text-right text-muted" style="font-size:12px">${r.ref}</div>
+          </div>`).join('')}
+      </div>
+      ${d.statut==='À valider'?`
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+        <button class="btn btn-danger btn-sm" onclick="toast('Résultat refusé — Contre-validation requise.','error')">✕ Refuser</button>
+        <button class="btn btn-success" onclick="validerDossier('${d.id}')">✓ Valider biologiquement & Transmettre DPI</button>
+      </div>`:`<div style="margin-top:12px;padding:10px 14px;background:var(--green-bg);border:1px solid #a8d8be;border-radius:6px;font-size:12.5px;color:var(--green)">✓ Résultats validés et transmis au DPI</div>`}
+    </div>`;
+}
+
+function validerDossier(id){
+  const d=demandes.find(x=>x.id===id);
+  if(d){d.statut='Validé';d.critique=false;d.validepar=getPrescripteurLabo();d.valideTs=new Date().toISOString();}
+  laboAudit('VALIDATION_BIOLOGIQUE', id, `Résultats validés et transmis DPI`);
+  // Publier dans le BUS pour le DPI
+  if(typeof MEDICORE_BUS!=='undefined' && d){
+    MEDICORE_BUS.publish('LABO_RESULTATS_PRETS',{demandeId:id,patientId:d.dossier,patient:d.patient,examens:d.examens,critique:d.critique});
+  }
+  renderDemandes();renderValidationListe();updateKPIs();
+  showCR(id);
+  toast('Dossier '+id+' validé biologiquement. Transmis au DPI.','success');
+}
+
+// ── Alertes critiques ─────────────────────────────────────────────────────────
+function renderCritiques(){
+  const nb=CRITIQUES.filter(c=>c.notif==='Non notifié').length;
+  document.getElementById('crit-count-badge').textContent=nb+' alerte(s) active(s)';
+  document.getElementById('crit-count-badge').className='kpi-badge '+(nb>0?'down':'up');
+  document.getElementById('crit-tbody').innerHTML=CRITIQUES.map((c,i)=>`
+    <tr style="${c.notif==='Non notifié'?'background:var(--red-bg)':''}">
+      <td style="font-weight:600;color:var(--red)">${c.heure}</td>
+      <td style="font-weight:500">${c.patient}</td>
+      <td>${c.service}</td>
+      <td style="font-weight:500">${c.examen}</td>
+      <td class="text-right result-critical">${c.resultat}</td>
+      <td class="text-muted" style="font-size:12px">${c.reference}</td>
+      <td><span class="badge badge-critique">${c.criticite}</span></td>
+      <td style="font-size:12.5px">${c.presc}</td>
+      <td><span class="badge ${c.notif==='Non notifié'?'badge-critique':'badge-valide'}" style="font-size:11px">${c.notif}</span></td>
+      <td>${c.notif==='Non notifié'?`<button class="btn btn-danger btn-sm" onclick="notifierCritique(${i})">📞 Notifier</button>`:''}</td>
+    </tr>`).join('');
+}
+
+function notifierCritique(i){
+  const now=new Date();
+  const heure=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  const op=getPrescripteurLabo();
+  CRITIQUES[i].notif=`Notifié ${heure}`;
+  CRITIQUES[i].notifPar=op;
+  laboAudit('VALEUR_CRITIQUE_NOTIFIEE', CRITIQUES[i].patient, `${CRITIQUES[i].examen} = ${CRITIQUES[i].resultat} — ${CRITIQUES[i].presc} prévenu`);
+  renderCritiques();updateKPIs();
+  toast(`Notification enregistrée — ${CRITIQUES[i].examen} : ${CRITIQUES[i].resultat}. Traçabilité sauvegardée.`,'success');
+}
+
+// ── Contrôle qualité ──────────────────────────────────────────────────────────
+function renderCQ(){
+  const cqKpis=[
+    {label:'CQI conformes ce mois',val:'94%',color:'var(--green)',sub:'38/40 contrôles'},
+    {label:'Non-conformités',val:NON_CONFORMITES.length,color:'var(--orange)',sub:NON_CONFORMITES.filter(n=>n.statut==='En cours').length+' en cours'},
+    {label:'Participation EEQ',val:'4/4',color:'var(--accent)',sub:'100% programmes'},
+  ];
+  document.getElementById('cq-kpis').innerHTML=cqKpis.map(k=>`
+    <div class="kpi-card" style="border-left:4px solid ${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:26px;margin:6px 0 4px;color:${k.color}">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+  renderLJ();
+  document.getElementById('nc-tbody').innerHTML=NON_CONFORMITES.map(n=>`
+    <tr>
+      <td class="text-muted">${new Date(n.date).toLocaleDateString('fr-FR')}</td>
+      <td><span class="badge ${n.type==='CQI'?'badge-bio':'badge-bact'}" style="font-size:11px">${n.type}</span></td>
+      <td style="font-size:12.5px">${n.automate}</td>
+      <td style="font-size:12.5px">${n.description}</td>
+      <td style="font-family:monospace;font-size:11.5px;color:var(--orange)">${n.regle}</td>
+      <td style="font-size:12.5px">${n.action}</td>
+      <td><span class="badge ${n.statut==='Clôturée'?'badge-valide':'badge-attente'}">${n.statut}</span></td>
+    </tr>`).join('');
+}
+
+function renderLJ(){
+  const param=document.getElementById('lj-param')?.value||'Glucose';
+  // Simuler 20 points de contrôle
+  const target=100,sd=3;
+  const points=Array.from({length:20},(_,i)=>({
+    x:i+1,
+    y:target+(Math.sin(i*0.8)*sd*(0.5+Math.random()*1.2)),
+    warn:Math.abs(Math.sin(i*0.8)*sd*(0.5+Math.random()*1.2))>2*sd
+  }));
+  const maxY=target+3.5*sd,minY=target-3.5*sd,rangeY=maxY-minY;
+  const W=100;
+  const H=60;
+  const getY=v=>H-((v-minY)/rangeY*H);
+  const lines=[
+    {y:getY(target+3*sd),color:'#b92b2b',dash:'4,2',label:'+3s'},
+    {y:getY(target+2*sd),color:'#b05b00',dash:'3,2',label:'+2s'},
+    {y:getY(target),color:'#1e7a4e',dash:'2,2',label:'X̄'},
+    {y:getY(target-2*sd),color:'#b05b00',dash:'3,2',label:'-2s'},
+    {y:getY(target-3*sd),color:'#b92b2b',dash:'4,2',label:'-3s'},
+  ];
+  const svgLines=lines.map(l=>`<line x1="0" y1="${l.y}" x2="${W}" y2="${l.y}" stroke="${l.color}" stroke-width=".4" stroke-dasharray="${l.dash}"/><text x="${W+1}" y="${l.y+1}" font-size="2.5" fill="${l.color}" font-family="DM Sans">${l.label}</text>`).join('');
+  const svgPath=`<polyline points="${points.map((p,i)=>`${i/(points.length-1)*W},${getY(p.y)}`).join(' ')}" fill="none" stroke="var(--accent)" stroke-width=".8"/>`;
+  const svgDots=points.map((p,i)=>`<circle cx="${i/(points.length-1)*W}" cy="${getY(p.y)}" r="${p.warn?1.8:1.2}" fill="${p.warn?'var(--red)':'var(--accent)'}"/>`).join('');
+  document.getElementById('lj-chart-container').innerHTML=`
+    <div style="margin-bottom:8px;font-size:12.5px;font-weight:500">${param} — Graphique de Levey-Jennings (20 derniers contrôles)</div>
+    <svg viewBox="0 0 108 ${H+4}" style="width:100%;max-height:200px;border:1px solid var(--border);border-radius:6px;background:var(--surface-alt);padding:2px">
+      <rect x="0" y="0" width="${W}" height="${H}" fill="none"/>
+      ${svgLines}${svgPath}${svgDots}
+    </svg>
+    <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--text-muted)">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block"></span>Dans les limites</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--red);display:inline-block"></span>Hors limites (règle violée)</span>
+    </div>`;
+}
+
+// ── Automates ──────────────────────────────────────────────────────────────────
+function renderAutomates(){
+  document.getElementById('automates-grid').innerHTML=AUTOMATES.map(a=>{
+    const sc=a.statut==='En marche'?'var(--green)':a.statut==='En pause'?'var(--orange)':'var(--red)';
+    return `<div class="automate-card" style="border-left:4px solid ${sc}">
+      <h4>${a.nom}</h4>
+      <div class="automate-status"><div class="status-dot" style="background:${sc}"></div>${a.statut}</div>
+      <div class="automate-stat"><span>Spécialité</span><span style="font-weight:500">${a.type}</span></div>
+      <div class="automate-stat"><span>Paramètres actifs</span><span>${a.params||'—'}</span></div>
+      <div class="automate-stat"><span>Réactifs</span><span>${a.reactifs} kits</span></div>
+      <div class="automate-stat"><span>Calibration</span><span style="color:${a.calibration==='Conforme'?'var(--green)':'var(--orange)'}">${a.calibration}</span></div>
+      <div class="automate-stat"><span>Échantillons/j</span><span style="font-weight:600;color:var(--accent)">${a.echantillons}</span></div>
+      <div class="automate-stat"><span>Proch. maintenance</span><span style="font-size:11.5px;color:var(--text-muted)">${new Date(a.maintenance).toLocaleDateString('fr-FR')}</span></div>
+    </div>`;
+  }).join('');
+  document.getElementById('worklist-tbody').innerHTML=WORKLIST.map(w=>{
+    const progColor=w.progression===100?'var(--green)':w.progression>50?'var(--accent)':'var(--orange)';
+    return `<tr>
+      <td style="font-family:monospace;font-size:12px">${w.tube}</td>
+      <td style="font-weight:500">${w.patient}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${w.examens}</td>
+      <td style="font-size:12.5px">${w.automate}</td>
+      <td class="text-muted">${w.heure}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="width:${w.progression}%;height:100%;background:${progColor};border-radius:3px"></div></div>
+          <span style="font-size:11.5px;color:var(--text-muted);width:30px">${w.progression}%</span>
+        </div>
+      </td>
+      <td><span class="badge ${w.statut==='Terminé'?'badge-valide':w.statut==='En cours'?'badge-en-cours':'badge-attente'}">${w.statut}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Facturation NABM ──────────────────────────────────────────────────────────
+function renderFacturation(){
+  const totNb=CNAMCI_ACTES.reduce((s,a)=>s+a.nb,0);
+  const totCA=CNAMCI_ACTES.reduce((s,a)=>s+a.nb*a.tarif,0);
+  document.getElementById('fact-nb').textContent=totNb;
+  document.getElementById('fact-ca').textContent=fmtF(totCA);
+  document.getElementById('fact-att').textContent=fmtF(totCA*0.38);
+  document.getElementById('fact-cout').textContent=Math.round(totCA*0.22/totNb).toLocaleString('fr-FR')+' F';
+  document.getElementById('nabm-tbody').innerHTML=CNAMCI_ACTES.map(a=>`
+    <tr>
+      <td><span class="nabm-tag">${a.code}</span></td>
+      <td style="font-weight:500">${a.desig}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(a.tarif)}</td>
+      <td class="text-right">${fmt(a.nb)}</td>
+      <td class="text-right amount" style="color:var(--green)">${fmtF(a.nb*a.tarif)}</td>
+    </tr>`).join('');
+  document.getElementById('nabm-total-nb').textContent=fmt(totNb);
+  document.getElementById('nabm-total-ca').textContent=fmtF(totCA);
+}
+
+// ── Qualité & Accréditation ────────────────────────────────────────────────────
+function renderQualite(){
+  const indicateurs=[
+    {label:'Taux de résultats dans les délais',val:'94,2%',target:'≥ 90%',ok:true},
+    {label:'Taux d\'échantillons non conformes',val:'1,8%',target:'< 3%',ok:true},
+    {label:'Taux de valeurs critiques notifiées < 30 min',val:'87%',target:'≥ 95%',ok:false},
+    {label:'Taux de participation EEQ',val:'100%',target:'100%',ok:true},
+    {label:'Nombre de NC/mois (CQI)',val:NON_CONFORMITES.length,target:'< 5',ok:NON_CONFORMITES.length<5},
+    {label:'Délai moyen rendu résultats urgents',val:'2h 18min',target:'< 2h',ok:false},
+  ];
+  document.getElementById('qualite-indicateurs').innerHTML=indicateurs.map(ind=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px">${ind.label}</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;color:var(--text-muted)">Cible : ${ind.target}</span>
+        <span style="font-weight:700;font-size:13.5px;color:${ind.ok?'var(--green)':'var(--red)'}">${ind.val}</span>
+        <span style="font-size:14px">${ind.ok?'✅':'⚠️'}</span>
+      </div>
+    </div>`).join('');
+  document.getElementById('docs-tbody').innerHTML=DOCUMENTS.map(d=>`
+    <tr>
+      <td style="font-size:12.5px;font-weight:500">${d.doc}</td>
+      <td><span class="nabm-tag">${d.version}</span></td>
+      <td class="text-muted">${new Date(d.date).toLocaleDateString('fr-FR')}</td>
+      <td><span class="badge ${d.statut==='En vigueur'?'badge-valide':'badge-attente'}">${d.statut}</span></td>
+    </tr>`).join('');
+  document.getElementById('audit-tbody').innerHTML=[...LABO_AUDIT].reverse().concat(AUDIT_TRAIL.map(a=>({ts:a.datetime,auteur:a.operateur,action:a.action,dossier:a.dossier,detail:a.detail}))).map(a=>`
+    <tr>
+      <td style="font-size:12px;color:var(--text-muted)">${a.ts?new Date(a.ts).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):a.datetime||'—'}</td>
+      <td style="font-weight:500">${a.auteur||a.operateur||'—'}</td>
+      <td><span class="badge badge-en-cours" style="font-size:11px">${a.action}</span></td>
+      <td style="font-family:monospace;font-size:12px">${a.dossier}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${a.detail}</td>
+    </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">Aucune entrée</td></tr>';
+}
+
+// ── Journal d'audit Laboratoire ───────────────────────────────────────────────
+const LABO_AUDIT = [];
+function laboAudit(action, dossier, detail){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  LABO_AUDIT.push({ts:new Date().toISOString(),action,dossier,detail,auteur:s.nom||'Biologiste',role:s.role||'—'});
+}
+function getPrescripteurLabo(){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  return s.nom||'Biologiste';
+}
+
+// ── Modal nouvelle demande ────────────────────────────────────────────────────
+function openNouvelledemande(){
+  // Pré-remplir depuis le patient actif si disponible
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    const p=MEDICORE_PATIENT.get();
+    if(p){
+      document.getElementById('nd-dossier').value=p.id||p.dossier||'';
+      document.getElementById('nd-patient').value=p.nom||'';
+      if(p.service){
+        const sel=document.getElementById('nd-service');
+        for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===p.service||sel.options[i].text===p.service){ sel.selectedIndex=i; break; } }
+      }
+    }
+  } else {
+    document.getElementById('nd-dossier').value='D2058'+Math.floor(Math.random()*90+10);
+  }
+  // Prescripteur = utilisateur connecté
+  document.getElementById('nd-presc').value=getPrescripteurLabo();
+  document.getElementById('nd-presc').readOnly=true;
+  // Charger les examens catalogue
+  const type=document.getElementById('nd-type')?.value||'Hématologie';
+  renderExamensCheckboxes(type);
+  document.getElementById('nd-type').onchange=function(){renderExamensCheckboxes(this.value)};
+  document.getElementById('modal-demande').classList.add('open');
+}
+function closeNouvelledemande(){document.getElementById('modal-demande').classList.remove('open')}
+
+function renderExamensCheckboxes(type){
+  const examens=EXAMENS_CATALOGUE[type]||[];
+  document.getElementById('examens-checkboxes').innerHTML=examens.map(e=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;margin:0">
+      <input type="checkbox" style="width:14px;height:14px;padding:0;border:none;box-shadow:none;accent-color:var(--accent)"> ${e}
+    </label>`).join('');
+}
+
+function validerDemande(){
+  const patient=document.getElementById('nd-patient').value;
+  const dossier=document.getElementById('nd-dossier').value;
+  if(!patient||!dossier){toast('Remplissez les champs obligatoires.','error');return}
+  const checked=Array.from(document.querySelectorAll('#examens-checkboxes input:checked')).map(c=>c.parentElement.textContent.trim());
+  if(!checked.length){toast('Sélectionnez au moins un examen.','error');return}
+  const id='BIO-'+new Date().getFullYear()+'-0'+String(demandes.length+841).padStart(4,'0');
+  const horodate=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const newDemande={id,dossier,patient,presc:document.getElementById('nd-presc').value,service:document.getElementById('nd-service').value,examens:checked.join(', '),type:document.getElementById('nd-type').value,heure:horodate,priorite:document.getElementById('nd-priorite').value,statut:'En attente prélèvement',critique:false};
+  demandes.push(newDemande);
+  laboAudit('DEMANDE_ENREGISTRER', id, `${patient} — ${checked.join(', ')} — ${newDemande.priorite}`);
+  closeNouvelledemande();renderDemandes();updateKPIs();
+  toast('Demande '+id+' enregistrée. Étiquettes prêtes.','success');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='analytique'){renderValidationListe()}
+  if(name==='critiques') renderCritiques();
+  if(name==='cq') renderCQ();
+  if(name==='automates') renderAutomates();
+  if(name==='facturation') renderFacturation();
+  if(name==='qualite') renderQualite();
+}
+
+function exportCSV(){
+  const h=['ID','Patient','Dossier','Prescripteur','Examens','Type','Heure','Priorité','Statut'];
+  const r=demandes.map(d=>[d.id,d.patient,d.dossier,d.presc,d.examens,d.type,d.heure,d.priorite,d.statut]);
+  const csv=[h,...r].map(row=>row.map(v=>`"${v}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='laboratoire.csv';a.click();
+  toast('Export CSV généré.','success');
+}
+
+function toast(msg,type=''){
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeNouvelledemande()});
+document.getElementById('modal-demande').addEventListener('click',e=>{if(e.target===e.currentTarget) closeNouvelledemande()});
+
+updateKPIs();renderDemandes();
+</script>
+
+<script>
+// Auto-init navigation MediCore
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof initNav === 'function') {
+    initNav('laboratoire', 'Laboratoire', 'CNAM-CI · Biologie médicale', [
+      {label:'Étape 1 — Parcours patient', file:'#'},
+      {label:'Laboratoire', file:''}
+    ]);
+  }
+});
+</script>
+</body>
+</html>

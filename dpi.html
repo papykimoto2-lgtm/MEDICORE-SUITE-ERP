@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Dossier Patient Informatisé</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;
+    --accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;
+    --orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;
+    --purple:#6b21a8;--purple-bg:#f3e8ff;
+    --teal:#0f766e;--teal-bg:#ccfbf1;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:242px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+  /* Layout DPI 3 colonnes */
+  .dpi-layout{display:grid;grid-template-columns:300px 1fr 320px;flex:1;overflow:hidden;gap:0}
+  .dpi-col{overflow-y:auto;border-right:1px solid var(--border)}
+  .dpi-col:last-child{border-right:none}
+  .dpi-col-header{padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+  .dpi-col-title{font-weight:600;font-size:13.5px;color:var(--accent)}
+  .dpi-col-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+
+  /* Liste patients */
+  .patient-item{padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;display:flex;align-items:flex-start;gap:10px}
+  .patient-item:hover{background:var(--surface-alt)}
+  .patient-item.active{background:var(--accent-light);border-left:3px solid var(--accent)}
+  .patient-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0}
+  .patient-name{font-weight:600;font-size:13.5px}
+  .patient-meta{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+  .patient-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10.5px;font-weight:600;margin-top:4px}
+
+  /* Dossier central */
+  .dossier-section{padding:16px 18px;border-bottom:1px solid var(--border)}
+  .section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .info-item{font-size:12.5px}
+  .info-label{color:var(--text-muted);margin-bottom:2px;font-size:11.5px}
+  .info-val{font-weight:500}
+
+  /* Timeline clinique */
+  .timeline-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+  .timeline-item:last-child{border-bottom:none}
+  .tl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+  .tl-date{font-size:11.5px;color:var(--text-muted);width:70px;flex-shrink:0}
+  .tl-content{flex:1}
+  .tl-type{font-size:11.5px;font-weight:600;margin-bottom:2px}
+  .tl-detail{font-size:12.5px;color:var(--text)}
+  .tl-author{font-size:11px;color:var(--text-muted);margin-top:2px}
+
+  /* Panneau droit */
+  .right-panel{background:var(--surface)}
+  .rp-tab-row{display:flex;border-bottom:1px solid var(--border);background:var(--surface-alt)}
+  .rp-tab{flex:1;padding:10px 6px;text-align:center;font-size:12px;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+  .rp-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface)}
+  .rp-tab:hover{color:var(--accent)}
+  .rp-content{padding:14px}
+  .rp-panel{display:none}
+  .rp-panel.active{display:block}
+
+  /* Prescriptions */
+  .prescription-item{background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px}
+  .presc-drug{font-weight:600;font-size:13px;color:var(--accent)}
+  .presc-dose{font-size:12.5px;color:var(--text-muted);margin-top:2px}
+  .presc-status{font-size:11px;font-weight:600}
+  .presc-validated{color:var(--green)}
+  .presc-pending{color:var(--orange)}
+  .presc-refused{color:var(--red)}
+
+  /* Résultats bio */
+  .bio-result{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+  .bio-result:last-child{border-bottom:none}
+  .bio-normal{color:var(--green);font-weight:600}
+  .bio-anormal{color:var(--red);font-weight:700}
+  .bio-ref{font-size:11.5px;color:var(--text-muted)}
+
+  /* Constantes vitales */
+  .vital-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .vital-card{background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+  .vital-icon{font-size:18px;margin-bottom:4px}
+  .vital-val{font-family:'DM Serif Display',serif;font-size:18px;color:var(--accent)}
+  .vital-label{font-size:10.5px;color:var(--text-muted);margin-top:2px}
+  .vital-ok{border-color:var(--green)}
+  .vital-warn{border-color:var(--orange)}
+  .vital-alert{border-color:var(--red)}
+
+  /* Tabs principal */
+  .tabs{display:flex;padding:0 18px;border-bottom:1px solid var(--border);background:var(--surface);gap:2px}
+  .tab-btn{padding:8px 14px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+  .tab-btn:hover{color:var(--accent)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  /* KPIs header */
+  .kpi-band{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-bottom:1px solid var(--border);background:var(--surface)}
+  .kpi-band-item{padding:12px 16px;border-right:1px solid var(--border);text-align:center}
+  .kpi-band-item:last-child{border-right:none}
+  .kpi-band-val{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .kpi-band-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+  .kpi-band-sub{font-size:11px;margin-top:2px}
+
+  /* Badge */
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+  .b-hospi{background:var(--accent-light);color:var(--accent)}
+  .b-consul{background:var(--green-bg);color:var(--green)}
+  .b-urg{background:var(--red-bg);color:var(--red)}
+  .b-ambu{background:var(--teal-bg);color:var(--teal)}
+  .b-sorti{background:#f0f0f0;color:#555}
+  .b-actif{background:var(--green-bg);color:var(--green)}
+
+  /* Boutons */
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-success{background:var(--green-bg);color:var(--green);border:1px solid #a8d8be}
+  .btn-sm{padding:4px 9px;font-size:12px}
+  .btn-xs{padding:3px 7px;font-size:11px}
+
+  /* Alertes */
+  .alert-box{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:var(--radius);margin-bottom:10px;font-size:12.5px}
+  .alert-box.red{background:var(--red-bg);border:1px solid #f3b4b4;color:var(--red)}
+  .alert-box.warn{background:var(--orange-bg);border:1px solid #f0c080;color:var(--orange)}
+  .alert-box.info{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent)}
+
+  /* Modal */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,.45);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);width:680px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:18px 24px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:19px;color:var(--accent)}
+  .modal-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .modal-close:hover{background:var(--surface-alt)}
+  .modal-body{padding:20px 24px}
+  .modal-footer{padding:12px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-group{display:flex;flex-direction:column;gap:4px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12px;font-weight:500;color:var(--text-muted)}
+  label .req{color:var(--red)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .section-label{grid-column:1/-1;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;padding-top:4px;border-top:1px solid var(--border)}
+
+  /* Toast */
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .25s ease,toastOut .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}
+  .toast.error{background:var(--red)}
+  .toast.warn{background:var(--orange)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+
+  .dpi-tag{display:inline-block;background:var(--green-bg);color:var(--green);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;margin-left:8px;vertical-align:middle;border:1px solid rgba(30,122,78,.25)}
+  .compte-tag{font-family:monospace;font-size:11px;background:var(--accent-light);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700}
+
+  /* Lit / chambre */
+  .lits-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:16px}
+  .lit-card{border:2px solid var(--border);border-radius:6px;padding:10px;text-align:center;cursor:pointer;transition:all .15s}
+  .lit-card.occupe{border-color:var(--red);background:var(--red-bg)}
+  .lit-card.libre{border-color:var(--green);background:var(--green-bg)}
+  .lit-card.reserve{border-color:var(--orange);background:var(--orange-bg)}
+  .lit-card.nettoyage{border-color:var(--border);background:var(--surface-alt)}
+  .lit-num{font-weight:700;font-size:14px}
+  .lit-patient{font-size:10.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* Constantes input */
+  .constante-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+  .constante-row:last-child{border-bottom:none}
+  .constante-icon{font-size:16px;width:24px;text-align:center;flex-shrink:0}
+  .constante-label{flex:1;font-size:12.5px;font-weight:500}
+  .constante-val{width:90px}
+  .constante-val input{padding:5px 8px;font-size:13px}
+  .constante-unit{width:55px;font-size:12px;color:var(--text-muted)}
+  .constante-status{width:20px;text-align:center}
+
+  @media(max-width:1100px){.dpi-layout{grid-template-columns:260px 1fr}}
+  @media(max-width:800px){.dpi-layout{grid-template-columns:1fr}}
+
+  /* ── Mobile DPI complet ───────────────────────────────────────────────────── */
+  @media(max-width:1024px){
+    /* KPI band 2 cols */
+    .kpi-band{grid-template-columns:repeat(2,1fr)!important}
+    .kpi-band-item:nth-child(odd){border-right:1px solid var(--border)}
+    .kpi-band-item:last-child{grid-column:1/-1}
+
+    /* Tabs barre scrollable */
+    .tabs{overflow-x:auto;flex-wrap:nowrap!important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab-btn{white-space:nowrap;flex-shrink:0;padding:10px 14px!important}
+
+    /* DPI layout 2 cols sur tablette */
+    .dpi-layout{grid-template-columns:280px 1fr!important;gap:0}
+    .dpi-layout>.dpi-col:last-child{display:none}
+
+    /* Panel droit onglets scrollables */
+    .rp-tab-row{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
+    .rp-tab-row::-webkit-scrollbar{display:none}
+    .rp-tab{white-space:nowrap;flex-shrink:0;font-size:12px!important;padding:9px 10px!important}
+
+    /* Lits grid 3 cols */
+    .lits-grid{grid-template-columns:repeat(3,1fr)!important}
+  }
+
+  @media(max-width:768px){
+    /* Passer en colonne unique : liste patient masquée / drawer */
+    .dpi-layout{display:flex!important;flex-direction:column!important}
+    .dpi-col{border-right:none!important;border-bottom:1px solid var(--border)!important;max-height:none!important}
+
+    /* Panneau liste patients : hauteur limitée scrollable */
+    .dpi-col:first-child{max-height:280px!important;overflow-y:auto}
+
+    /* Info grid 2 cols */
+    .info-grid{grid-template-columns:1fr 1fr!important}
+
+    /* Constantes 2 cols */
+    .vital-grid{grid-template-columns:repeat(2,1fr)!important}
+
+    /* Lits 2 cols */
+    .lits-grid{grid-template-columns:repeat(2,1fr)!important}
+
+    /* Constante row condensé */
+    .constante-row{flex-wrap:wrap;gap:6px}
+    .constante-label{flex:1;min-width:120px}
+    .constante-val{width:80px!important}
+    .constante-unit{width:40px!important}
+  }
+
+  @media(max-width:480px){
+    /* KPI band 1 col */
+    .kpi-band{grid-template-columns:1fr!important}
+    .kpi-band-item{border-right:none!important}
+
+    /* Dossier section padding réduit */
+    .dossier-section{padding:12px 14px!important}
+    .section-title{font-size:11px!important}
+
+    /* Prescription item compact */
+    .prescription-item{padding:8px 10px!important}
+    .presc-drug{font-size:12.5px!important}
+
+    /* Bio result compact */
+    .bio-result{padding:5px 0!important;font-size:12.5px!important}
+
+    /* Timeline compact */
+    .timeline-item{gap:8px!important;padding:7px 0!important}
+    .tl-date{width:56px!important;font-size:11px!important}
+
+    /* Liste patients compact */
+    .patient-item{padding:10px 12px!important}
+    .patient-name{font-size:13px!important}
+    .patient-avatar{width:32px!important;height:32px!important;font-size:12px!important}
+
+    /* Info grid 1 col sur très petit */
+    .info-grid{grid-template-columns:1fr!important}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"></aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left"></div>
+      <div class="topbar-title">
+        <h1>Dossier Patient Informatisé <span class="dpi-tag">DPI</span></h1>
+        <p>Admissions · Séjours · Prescriptions · Résultats · Consultations · Gestion des lits</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="switchView('lits')">🛏 Plan des lits</button>
+        <button class="btn btn-secondary btn-sm" onclick="switchView('urgences')">🚨 Urgences</button>
+        <button class="btn btn-primary" onclick="openAdmission()">＋ Nouvelle admission</button>
+      </div>
+    </div>
+
+    <!-- KPI band -->
+    <div class="kpi-band" id="kpi-band"></div>
+
+    <!-- Tabs filtre -->
+    <div class="tabs" id="main-tabs">
+      <button class="tab-btn active" onclick="filterPatients('tous',this)">Tous</button>
+      <button class="tab-btn" onclick="filterPatients('Hospitalisé',this)">🏥 Hospitalisés</button>
+      <button class="tab-btn" onclick="filterPatients('Urgences',this)">🚨 Urgences</button>
+      <button class="tab-btn" onclick="filterPatients('Consultation',this)">👨‍⚕️ Consultations</button>
+      <button class="tab-btn" onclick="filterPatients('Ambulatoire',this)">🚶 Ambulatoires</button>
+      <button class="tab-btn" onclick="filterPatients('Sorti',this)">🚪 Sortis</button>
+      <button class="tab-btn" onclick="switchView('lits')">🛏 Plan lits</button>
+    </div>
+
+    <!-- Layout principal DPI -->
+    <div class="dpi-layout" id="dpi-main-layout">
+
+      <!-- Colonne gauche : liste patients -->
+      <div class="dpi-col" id="col-patients">
+        <div class="dpi-col-header">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="patient-search" placeholder="🔍 Rechercher patient, dossier…" style="flex:1;padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;background:var(--surface-alt);outline:none" oninput="renderPatientsList()">
+          </div>
+          <div class="dpi-col-sub" id="patients-count" style="margin-top:6px">—</div>
+        </div>
+        <div id="patients-list"></div>
+      </div>
+
+      <!-- Colonne centrale : dossier patient -->
+      <div class="dpi-col" id="col-dossier" style="background:var(--surface-alt)">
+        <div id="dossier-content">
+          <div style="text-align:center;padding:80px 20px;color:var(--text-muted)">
+            <div style="font-size:48px;margin-bottom:12px">📋</div>
+            <div style="font-size:15px;font-weight:500;margin-bottom:6px">Sélectionnez un patient</div>
+            <div style="font-size:13px">Cliquez sur un dossier dans la liste</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Colonne droite : panneau contextuel -->
+      <div class="dpi-col right-panel" id="col-right">
+        <div class="rp-tab-row">
+          <div class="rp-tab active" onclick="switchRpTab('prescriptions',this)">💊 Ordonnances</div>
+          <div class="rp-tab" onclick="switchRpTab('bio',this)">🔬 Résultats</div>
+          <div class="rp-tab" onclick="switchRpTab('constantes',this)">❤️ Constantes</div>
+          <div class="rp-tab" onclick="switchRpTab('docs',this)">📄 Docs</div>
+          <div class="rp-tab" onclick="switchRpTab('journal',this)" title="Journal d'audit">🔏</div>
+        </div>
+        <div class="rp-content">
+          <div class="rp-panel active" id="rp-prescriptions">
+            <div style="text-align:center;padding:40px 10px;color:var(--text-muted);font-size:13px">
+              <div style="font-size:32px;margin-bottom:8px">💊</div>Sélectionnez un patient
+            </div>
+          </div>
+          <div class="rp-panel" id="rp-bio">
+            <div style="text-align:center;padding:40px 10px;color:var(--text-muted);font-size:13px">
+              <div style="font-size:32px;margin-bottom:8px">🔬</div>Sélectionnez un patient
+            </div>
+          </div>
+          <div class="rp-panel" id="rp-constantes">
+            <div style="text-align:center;padding:40px 10px;color:var(--text-muted);font-size:13px">
+              <div style="font-size:32px;margin-bottom:8px">❤️</div>Sélectionnez un patient
+            </div>
+          </div>
+          <div class="rp-panel" id="rp-docs">
+            <div style="text-align:center;padding:40px 10px;color:var(--text-muted);font-size:13px">
+              <div style="font-size:32px;margin-bottom:8px">📄</div>Sélectionnez un patient
+            </div>
+          </div>
+          <div class="rp-panel" id="rp-journal">
+            <div style="text-align:center;padding:40px 10px;color:var(--text-muted);font-size:13px">
+              <div style="font-size:32px;margin-bottom:8px">🔏</div>Sélectionnez un patient
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vue plan des lits (cachée par défaut) -->
+    <div id="view-lits" style="display:none;flex:1;overflow-y:auto;padding:20px 28px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <h2 style="font-family:'DM Serif Display',serif;font-size:19px;color:var(--accent)">Plan des lits — CHU MediCore</h2>
+          <p style="font-size:12.5px;color:var(--text-muted);margin-top:2px">État en temps réel — <span id="lits-stats"></span></p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="f-service-lit" style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" onchange="renderLits()">
+            <option value="">Tous les services</option>
+            <option value="Médecine générale">Médecine générale</option>
+            <option value="Chirurgie">Chirurgie</option>
+            <option value="Maternité">Maternité</option>
+            <option value="Urgences">Urgences</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="switchView('main')">← Retour DPI</button>
+        </div>
+      </div>
+      <div id="lits-container"></div>
+    </div>
+
+    <!-- Vue urgences (cachée par défaut) -->
+    <div id="view-urgences" style="display:none;flex:1;overflow-y:auto;padding:20px 28px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <h2 style="font-family:'DM Serif Display',serif;font-size:19px;color:var(--red)">🚨 Service des Urgences</h2>
+          <p style="font-size:12.5px;color:var(--text-muted)">Accueil · Tri · Orientation — Traçabilité des passages</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="switchView('main')">← Retour DPI</button>
+      </div>
+      <div id="urgences-container"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal Admission -->
+<div class="overlay" id="modal-admission">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">Nouvelle admission</div><div class="modal-subtitle">Enregistrement patient — Ouverture dossier</div></div>
+      <button class="modal-close" onclick="closeAdmission()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>N° dossier (auto)</label><input type="text" id="adm-dossier" readonly style="background:var(--surface-alt);color:var(--text-muted)"></div>
+        <div class="form-group"><label>Date d'admission <span class="req">*</span></label><input type="date" id="adm-date"></div>
+        <div class="form-group"><label>Nom <span class="req">*</span></label><input type="text" id="adm-nom" placeholder="NOM (majuscules)"></div>
+        <div class="form-group"><label>Prénom <span class="req">*</span></label><input type="text" id="adm-prenom" placeholder="Prénom"></div>
+        <div class="form-group"><label>Date de naissance</label><input type="date" id="adm-ddn"></div>
+        <div class="form-group"><label>Sexe</label><select id="adm-sexe"><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
+        <div class="form-group"><label>N° de sécurité sociale</label><input type="text" id="adm-nss" placeholder="NSS ou CNI"></div>
+        <div class="form-group"><label>Téléphone</label><input type="tel" id="adm-tel" placeholder="+225…"></div>
+        <div class="section-label">Informations médicales</div>
+        <div class="form-group"><label>Type d'admission <span class="req">*</span></label>
+          <select id="adm-type">
+            <option value="Hospitalisé">Hospitalisation programmée</option>
+            <option value="Urgences">Urgence</option>
+            <option value="Consultation">Consultation externe</option>
+            <option value="Ambulatoire">Chirurgie ambulatoire</option>
+          </select></div>
+        <div class="form-group"><label>Service <span class="req">*</span></label>
+          <select id="adm-service">
+            <option>Médecine générale</option><option>Chirurgie</option>
+            <option>Maternité</option><option>Urgences</option><option>Laboratoire</option>
+          </select></div>
+        <div class="form-group"><label>Médecin responsable</label>
+          <select id="adm-medecin">
+            <option>Dr. TOURÉ Mamadou</option><option>Dr. BAMBA Aïcha</option>
+            <option>Dr. COULIBALY Seydou</option><option>Dr. DIABATÉ Oumar</option>
+          </select></div>
+        <div class="form-group"><label>Lit / Chambre</label>
+          <select id="adm-lit">
+            <option value="">— Assigner un lit —</option>
+            <option value="101-A">101-A (Médecine — libre)</option>
+            <option value="102-B">102-B (Chirurgie — libre)</option>
+            <option value="103-C">103-C (Maternité — libre)</option>
+            <option value="URG-04">URG-04 (Urgences — libre)</option>
+          </select></div>
+        <div class="form-group full"><label>Motif d'admission / Diagnostic provisoire</label>
+          <textarea id="adm-motif" style="min-height:60px" placeholder="Symptômes, antécédents, motif d'hospitalisation…"></textarea></div>
+        <div class="section-label">Couverture sociale</div>
+        <div class="form-group"><label>Assurance / Mutuelle</label>
+          <select id="adm-assurance">
+            <option value="CNAM">CNAM — Assurance Maladie</option>
+            <option value="Mutuelle">Mutuelle complémentaire</option>
+            <option value="Privée">Assurance privée</option>
+            <option value="Aucune">Aucune (patient payant)</option>
+          </select></div>
+        <div class="form-group"><label>Allergies connues</label>
+          <input type="text" id="adm-allergies" placeholder="Pénicilline, Aspirine, …"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAdmission()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerAdmission()">Enregistrer l'admission</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Prescription -->
+<div class="overlay" id="modal-prescription">
+  <div class="modal" style="width:620px">
+    <div class="modal-header">
+      <div><div class="modal-title">Nouvelle prescription</div><div class="modal-subtitle" id="presc-patient-name">—</div></div>
+      <button class="modal-close" onclick="closePrescription()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Médicament / Acte <span class="req">*</span></label>
+          <input type="text" id="presc-med" placeholder="DCI, nom commercial, code CCAM…" list="meds-list">
+          <datalist id="meds-list">
+            <option value="Amoxicilline 500mg gélule">
+            <option value="Paracétamol 1g perfusion">
+            <option value="Ceftriaxone 1g IV">
+            <option value="Morphine 10mg/mL">
+            <option value="Artémether/Luméfantrine 20/120mg">
+            <option value="Métronidazole 500mg IV">
+          </datalist></div>
+        <div class="form-group"><label>Posologie <span class="req">*</span></label><input type="text" id="presc-posologie" placeholder="ex: 1cp × 3/j"></div>
+        <div class="form-group"><label>Durée</label><input type="text" id="presc-duree" placeholder="ex: 7 jours"></div>
+        <div class="form-group"><label>Voie d'administration</label>
+          <select id="presc-voie">
+            <option>Orale (PO)</option><option>Intraveineuse (IV)</option>
+            <option>Intramusculaire (IM)</option><option>Sous-cutanée (SC)</option>
+            <option>Topique</option>
+          </select></div>
+        <div class="form-group full"><label>Instructions / Notes cliniques</label>
+          <textarea id="presc-notes" style="min-height:50px" placeholder="Précautions, interactions médicamenteuses, instructions infirmier…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePrescription()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerPrescription()">Prescrire</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Note clinique -->
+<div class="overlay" id="modal-note">
+  <div class="modal" style="width:600px">
+    <div class="modal-header">
+      <div><div class="modal-title">Note clinique</div><div class="modal-subtitle" id="note-patient-name">—</div></div>
+      <button class="modal-close" onclick="closeNote()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Type de note</label>
+          <select id="note-type">
+            <option value="Consultation">Consultation / Visite</option>
+            <option value="Évolution">Note d'évolution</option>
+            <option value="Opératoire">Compte rendu opératoire</option>
+            <option value="Sortie">Résumé de sortie</option>
+            <option value="Infirmier">Note infirmière</option>
+          </select></div>
+        <div class="form-group"><label>Médecin rédacteur</label>
+          <select id="note-medecin">
+            <option>Dr. TOURÉ Mamadou</option><option>Dr. BAMBA Aïcha</option>
+            <option>Dr. COULIBALY Seydou</option><option>Dr. DIABATÉ Oumar</option>
+          </select></div>
+        <div class="form-group full"><label>Contenu <span class="req">*</span></label>
+          <textarea id="note-contenu" style="min-height:120px" placeholder="Anamnèse, examen clinique, diagnostic, conduite à tenir…"></textarea></div>
+        <div class="form-group full"><label>Diagnostic (CIM-10)</label>
+          <input type="text" id="note-cim" placeholder="ex: J18.9 — Pneumonie, sans précision" list="cim-list">
+          <datalist id="cim-list">
+            <option value="K35.8 — Appendicite aiguë">
+            <option value="J18.9 — Pneumonie sans précision">
+            <option value="M16.1 — Coxarthrose">
+            <option value="O82.0 — Accouchement par césarienne">
+            <option value="N18.3 — Maladie rénale chronique st.3">
+            <option value="A09.0 — Gastroentérite infectieuse">
+          </datalist></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeNote()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerNote()">Enregistrer la note</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const TODAY = new Date().toISOString().split('T')[0];
+const COULEURS_SERVICE = {'Médecine générale':'#1a4b6e','Chirurgie':'#c8702a','Maternité':'#1e7a4e','Urgences':'#b92b2b','Laboratoire':'#0f766e','Ambulatoire':'#6b21a8'};
+
+// Redéfini localement pour garantir la disponibilité avant nav.js (offline / ordre de chargement)
+function ippFromDossier(id){ return 'IPP-'+String(id).replace(/\D/g,'').slice(-6).padStart(6,'0'); }
+
+// ── Données patients ──────────────────────────────────────────────────────────
+let patients = [
+  { id:'D205812', nom:'KONÉ Aminata',      ddn:'1985-04-12', sexe:'F', service:'Médecine générale', type:'Hospitalisé', lit:'101-A', medecin:'Dr. COULIBALY Seydou', entree:TODAY,      sortie:'', assurance:'CNAM',    allergies:'Aucune', motif:'Insuffisance rénale chronique décompensée', statut:'Actif' },
+  { id:'D205814', nom:'TRAORÉ Moussa',     ddn:'1962-08-23', sexe:'M', service:'Chirurgie',         type:'Hospitalisé', lit:'204-B', medecin:'Dr. TOURÉ Mamadou',    entree:TODAY,      sortie:'', assurance:'Mutuelle', allergies:'Pénicilline', motif:'Prothèse totale hanche droite', statut:'Actif' },
+  { id:'D205820', nom:'DIALLO Fatoumata',  ddn:'1996-01-30', sexe:'F', service:'Maternité',         type:'Hospitalisé', lit:'301-C', medecin:'Dr. BAMBA Aïcha',     entree:TODAY,      sortie:'', assurance:'CNAM',    allergies:'', motif:'Grossesse 38 SA — César programmée', statut:'Actif' },
+  { id:'D205825', nom:'OUATTARA Seydou',   ddn:'1978-11-05', sexe:'M', service:'Urgences',          type:'Urgences',    lit:'URG-02',medecin:'Dr. DIABATÉ Oumar',   entree:TODAY,      sortie:'', assurance:'Aucune',  allergies:'Aspirine', motif:'Polytraumatisme AVP — GCS 14', statut:'Actif' },
+  { id:'D205830', nom:'YÉO Mariame',       ddn:'1990-07-18', sexe:'F', service:'Chirurgie',         type:'Ambulatoire', lit:'AMBU-1',medecin:'Dr. TOURÉ Mamadou',   entree:TODAY,      sortie:'', assurance:'Privée',  allergies:'', motif:'Cholécystectomie cœlioscopie programmée', statut:'Actif' },
+  { id:'D205835', nom:'SORO Aïcha',        ddn:'2001-03-22', sexe:'F', service:'Médecine générale', type:'Consultation',lit:'CONS-3',medecin:'Dr. COULIBALY Seydou', entree:TODAY,      sortie:'', assurance:'CNAM',    allergies:'', motif:'Diabète type 2 — suivi trimestriel', statut:'Actif' },
+  { id:'D205788', nom:'GNONSOA Marie',     ddn:'1972-09-14', sexe:'F', service:'Médecine générale', type:'Sorti',       lit:'',      medecin:'Dr. COULIBALY Seydou', entree:'2025-06-10',sortie:'2025-06-16', assurance:'CNAM', allergies:'', motif:'Pneumonie communautaire', statut:'Sorti' },
+  { id:'D205795', nom:'BAMBA Issouf',      ddn:'1955-12-01', sexe:'M', service:'Chirurgie',         type:'Sorti',       lit:'',      medecin:'Dr. TOURÉ Mamadou',   entree:'2025-06-12',sortie:'2025-06-19', assurance:'Mutuelle', allergies:'', motif:'Fracture fémur — traitement chirurgical', statut:'Sorti' },
+];
+window.patients = patients; // exposé pour le suivi "patient actif" (nav.js / QR)
+
+// Prescriptions par patient
+let prescriptions = {
+  'D205812': [
+    { id:'P001', med:'Furosémide 40mg IV',         posologie:'1 amp/j',    voie:'IV',   duree:'5 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. COULIBALY' },
+    { id:'P002', med:'Bicarbonate de Na 8.4%',     posologie:'250 mL/j',   voie:'IV',   duree:'3 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. COULIBALY' },
+    { id:'P003', med:'Paracétamol 1g perf.',       posologie:'3×/j',       voie:'IV',   duree:'7 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. COULIBALY' },
+  ],
+  'D205814': [
+    { id:'P004', med:'Ceftriaxone 1g IV',          posologie:'2×/j',       voie:'IV',   duree:'5 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. TOURÉ' },
+    { id:'P005', med:'Morphine 10mg/mL',           posologie:'0,1 mg/kg/4h', voie:'IV', duree:'2 jours',   statut:'En attente validation', date:TODAY, medecin:'Dr. TOURÉ' },
+    { id:'P006', med:'Héparine BPM 0,4 mL',       posologie:'1×/j SC',    voie:'SC',   duree:'10 jours',  statut:'Validée',  date:TODAY, medecin:'Dr. TOURÉ' },
+  ],
+  'D205825': [
+    { id:'P007', med:'NaCl 0.9% 1000mL',          posologie:'Continu',    voie:'IV',   duree:'Urgence',   statut:'Validée',  date:TODAY, medecin:'Dr. DIABATÉ' },
+    { id:'P008', med:'Morphine 10mg/mL URGENCE',  posologie:'5mg IVL',    voie:'IV',   duree:'Urgence',   statut:'Validée',  date:TODAY, medecin:'Dr. DIABATÉ' },
+  ],
+};
+
+// Résultats biologiques par patient
+const bioResultats = {
+  'D205812': [
+    { param:'Créatinine',    val:'284',  unite:'µmol/L', ref:'62–106',    anormal:true  },
+    { param:'Kaliémie K+',   val:'6.8',  unite:'mmol/L', ref:'3.5–5.0',   anormal:true  },
+    { param:'Urée',          val:'28',   unite:'mmol/L', ref:'3–8',        anormal:true  },
+    { param:'Natrémie Na+',  val:'132',  unite:'mmol/L', ref:'136–145',   anormal:true  },
+    { param:'Hémoglobine',   val:'8.4',  unite:'g/dL',   ref:'11.5–16.5', anormal:true  },
+    { param:'Protéinurie',   val:'3+',   unite:'g/24h',  ref:'<0.3',       anormal:true  },
+  ],
+  'D205814': [
+    { param:'NFS — Hb',      val:'12.8', unite:'g/dL',   ref:'13–17',     anormal:false },
+    { param:'TP',            val:'78',   unite:'%',       ref:'70–100',    anormal:false },
+    { param:'CRP',           val:'42',   unite:'mg/L',    ref:'<5',         anormal:true  },
+  ],
+};
+
+// Constantes vitales par patient
+let constantes = {
+  'D205812': { ta:'145/92', fc:88,  fr:18, spo2:95, t:37.2, poids:62 },
+  'D205814': { ta:'120/75', fc:72,  fr:16, spo2:98, t:38.1, poids:78 },
+  'D205820': { ta:'110/70', fc:90,  fr:18, spo2:99, t:37.0, poids:68 },
+  'D205825': { ta:'90/60',  fc:112, fr:24, spo2:91, t:36.8, poids:74 },
+};
+
+// Timeline clinique par patient
+let timeline = {
+  'D205812': [
+    { date:TODAY+' 08:00', type:'Admission', detail:'Admission pour IRA sur IRC — patient adressé par consultation externe', auteur:'IDE Koné M.', couleur:'#1a4b6e' },
+    { date:TODAY+' 09:15', type:'Consultation', detail:'Examen clinique — œdèmes des MI, anurie depuis 24h. Bilan biologique prescrit.', auteur:'Dr. COULIBALY', couleur:'#0f766e' },
+    { date:TODAY+' 10:30', type:'Résultats bio', detail:'K+ = 6.8 mmol/L ⚠ CRITIQUE — Créatinine = 284 µmol/L', auteur:'Labo — Dosso R.', couleur:'#b92b2b' },
+    { date:TODAY+' 11:00', type:'Prescription', detail:'Furosémide 40mg IV + Bicarbonate + Kayexalate prescrits', auteur:'Dr. COULIBALY', couleur:'#c8702a' },
+  ],
+  'D205814': [
+    { date:TODAY+' 07:30', type:'Admission', detail:'Admission pré-opératoire PTH droite — bilans OK', auteur:'IDE Soro A.', couleur:'#1a4b6e' },
+    { date:TODAY+' 09:30', type:'Opération', detail:'PTH droite — Durée 1h55 — Salle 2 — Rachianesthésie', auteur:'Dr. TOURÉ / Dr. SORO', couleur:'#6b21a8' },
+    { date:TODAY+' 11:45', type:'SSPI', detail:'Sortie SSPI — Score Aldrete 9/10 — Retour chambre 204-B', auteur:'Dr. TRAORÉ (Anesth.)', couleur:'#0f766e' },
+  ],
+};
+
+// Lits
+const LITS = [
+  {num:'101-A', service:'Médecine générale', statut:'occupe',   patient:'KONÉ Aminata'},
+  {num:'101-B', service:'Médecine générale', statut:'libre',    patient:''},
+  {num:'102-A', service:'Médecine générale', statut:'libre',    patient:''},
+  {num:'102-B', service:'Médecine générale', statut:'nettoyage',patient:''},
+  {num:'201-A', service:'Chirurgie',         statut:'libre',    patient:''},
+  {num:'201-B', service:'Chirurgie',         statut:'libre',    patient:''},
+  {num:'204-B', service:'Chirurgie',         statut:'occupe',   patient:'TRAORÉ Moussa'},
+  {num:'205-A', service:'Chirurgie',         statut:'reserve',  patient:'YÉO Mariame (après BO)'},
+  {num:'301-A', service:'Maternité',         statut:'libre',    patient:''},
+  {num:'301-C', service:'Maternité',         statut:'occupe',   patient:'DIALLO Fatoumata'},
+  {num:'302-A', service:'Maternité',         statut:'libre',    patient:''},
+  {num:'302-B', service:'Maternité',         statut:'nettoyage',patient:''},
+  {num:'URG-01',service:'Urgences',          statut:'libre',    patient:''},
+  {num:'URG-02',service:'Urgences',          statut:'occupe',   patient:'OUATTARA Seydou'},
+  {num:'URG-03',service:'Urgences',          statut:'libre',    patient:''},
+  {num:'URG-04',service:'Urgences',          statut:'reserve',  patient:'Entrée prévue'},
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const fmt  = v => Math.round(v||0).toLocaleString('fr-FR');
+const fmtDate = d => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
+const age  = ddn => ddn ? Math.floor((new Date()-new Date(ddn))/31557600000) : '?';
+
+function toast(msg,type=''){
+  let tc=document.getElementById('toast-container');
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  tc.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+function typeBadge(t){
+  const m={Hospitalisé:'b-hospi',Urgences:'b-urg',Consultation:'b-consul',Ambulatoire:'b-ambu',Sorti:'b-sorti'};
+  const icons={Hospitalisé:'🏥',Urgences:'🚨',Consultation:'👨‍⚕️',Ambulatoire:'🚶',Sorti:'🚪'};
+  return `<span class="badge ${m[t]||''}">${icons[t]||''} ${t}</span>`;
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function updateKPIs(){
+  const actifs=patients.filter(p=>p.statut==='Actif');
+  const hospi=actifs.filter(p=>p.type==='Hospitalisé').length;
+  const urg=actifs.filter(p=>p.type==='Urgences').length;
+  const consul=actifs.filter(p=>p.type==='Consultation').length;
+  const ambu=actifs.filter(p=>p.type==='Ambulatoire').length;
+  const litsOccupes=LITS.filter(l=>l.statut==='occupe').length;
+  const totalLits=LITS.filter(l=>l.statut!=='nettoyage').length;
+  const to=Math.round(litsOccupes/totalLits*100);
+
+  document.getElementById('kpi-band').innerHTML=`
+    <div class="kpi-band-item">
+      <div class="kpi-band-val">${actifs.length}</div>
+      <div class="kpi-band-label">Patients actifs</div>
+      <div class="kpi-band-sub" style="color:var(--green)">🏥 ${hospi} hospitalisés</div>
+    </div>
+    <div class="kpi-band-item">
+      <div class="kpi-band-val" style="color:var(--red)">${urg}</div>
+      <div class="kpi-band-label">Urgences</div>
+      <div class="kpi-band-sub" style="color:var(--red)">🚨 En prise en charge</div>
+    </div>
+    <div class="kpi-band-item">
+      <div class="kpi-band-val" style="color:var(--green)">${consul}</div>
+      <div class="kpi-band-label">Consultations</div>
+      <div class="kpi-band-sub" style="color:var(--text-muted)">👨‍⚕️ Aujourd'hui</div>
+    </div>
+    <div class="kpi-band-item">
+      <div class="kpi-band-val" style="color:var(--accent)">${to}%</div>
+      <div class="kpi-band-label">Taux occupation lits</div>
+      <div class="kpi-band-sub" style="color:var(--text-muted)">${litsOccupes}/${totalLits} lits</div>
+    </div>
+    <div class="kpi-band-item">
+      <div class="kpi-band-val" style="color:var(--teal)">${ambu}</div>
+      <div class="kpi-band-label">Ambulatoires</div>
+      <div class="kpi-band-sub" style="color:var(--teal)">🚶 Chirurgie du jour</div>
+    </div>`;
+}
+
+// ── Liste patients ─────────────────────────────────────────────────────────────
+let currentFilter='tous';
+let currentPatient=null;
+
+function filterPatients(type,btn){
+  currentFilter=type;
+  document.querySelectorAll('#main-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderPatientsList();
+}
+
+function renderPatientsList(){
+  const q=document.getElementById('patient-search').value.toLowerCase();
+  let data=patients.filter(p=>{
+    if(currentFilter!=='tous'&&p.type!==currentFilter) return false;
+    if(q&&!p.nom.toLowerCase().includes(q)&&!p.id.toLowerCase().includes(q)&&!p.service.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  document.getElementById('patients-count').textContent=`${data.length} dossier(s)`;
+  document.getElementById('patients-list').innerHTML=data.map(p=>{
+    const initials=p.nom.split(' ').map(n=>n[0]).join('').substring(0,2);
+    const couleur=COULEURS_SERVICE[p.service]||'#888';
+    const isActive=currentPatient===p.id;
+    return`<div class="patient-item ${isActive?'active':''}" onclick="openDossier('${p.id}')">
+      <div class="patient-avatar" style="background:${couleur}">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div class="patient-name">${p.nom}</div>
+        <div class="patient-meta">${p.id} · ${age(p.ddn)} ans · ${p.sexe==='F'?'♀':'♂'}</div>
+        <div class="patient-meta" style="margin-top:2px">${p.service}${p.lit?' · Lit '+p.lit:''}</div>
+        <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">
+          ${typeBadge(p.type)}
+          ${p.allergies?`<span class="badge" style="background:var(--red-bg);color:var(--red);font-size:10px">⚠ ${p.allergies}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')||`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucun patient</div>`;
+}
+
+// ── Dossier patient ───────────────────────────────────────────────────────────
+function openDossier(id){
+  currentPatient=id;
+  renderPatientsList();
+  const p=patients.find(x=>x.id===id);
+  if(!p) return;
+  if(!p.ipp) p.ipp=ippFromDossier(p.id);
+  // Ce patient devient le "patient actif" — porté de module en module (QR)
+  if(typeof MEDICORE_PATIENT!=='undefined') MEDICORE_PATIENT.set(Object.assign({},p));
+  // Journal : tracer la consultation
+  auditLog('CONSULTATION_DOSSIER', id, `Dossier consulté`, getPrescripteur());
+  const couleur=COULEURS_SERVICE[p.service]||'#888';
+  const tl=timeline[id]||[];
+
+  document.getElementById('dossier-content').innerHTML=`
+    <!-- En-tête patient -->
+    <div class="dossier-section" style="background:var(--surface)">
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <div class="patient-avatar" style="background:${couleur};width:52px;height:52px;font-size:18px;flex-shrink:0">${p.nom.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+            <span style="font-family:'DM Serif Display',serif;font-size:18px">${p.nom}</span>
+            ${typeBadge(p.type)}
+            ${p.allergies?`<span class="badge" style="background:var(--red-bg);color:var(--red);font-size:10.5px;font-weight:700">⚠ Allergie : ${p.allergies}</span>`:''}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12.5px">
+            <div><span style="color:var(--text-muted)">Dossier : </span><strong>${p.id}</strong></div>
+            <div><span style="color:var(--text-muted)">Âge : </span><strong>${age(p.ddn)} ans (${fmtDate(p.ddn)})</strong></div>
+            <div><span style="color:var(--text-muted)">Sexe : </span><strong>${p.sexe==='F'?'Féminin':'Masculin'}</strong></div>
+            <div><span style="color:var(--text-muted)">Service : </span><strong>${p.service}</strong></div>
+            <div><span style="color:var(--text-muted)">Médecin : </span><strong>${p.medecin}</strong></div>
+            <div><span style="color:var(--text-muted)">Lit : </span><strong>${p.lit||'—'}</strong></div>
+            <div><span style="color:var(--text-muted)">Entrée : </span><strong>${fmtDate(p.entree)}</strong></div>
+            <div><span style="color:var(--text-muted)">Assurance : </span><strong>${p.assurance}</strong></div>
+            ${p.sortie?`<div><span style="color:var(--text-muted)">Sortie : </span><strong style="color:var(--green)">${fmtDate(p.sortie)}</strong></div>`:''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:center">
+          <div style="border:1px solid var(--border);border-radius:8px;padding:6px;background:#fff;width:84px;height:84px;display:flex;align-items:center;justify-content:center" title="QR patient — IPP ${p.ipp}">
+            ${typeof MEDICORE_PATIENT!=='undefined'?MEDICORE_PATIENT.qrSVG(MEDICORE_PATIENT.payload(p),2):'QR'}
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);letter-spacing:.3px">${p.ipp}</div>
+          <button class="btn btn-secondary btn-sm" style="width:100%" onclick="MEDICORE_PATIENT.printBracelet()">🖨 Bracelet</button>
+          <button class="btn btn-primary btn-sm" style="width:100%" onclick="openNote('${id}')">＋ Note</button>
+          <button class="btn btn-secondary btn-sm" style="width:100%" onclick="openPrescription('${id}')">💊 Prescrire</button>
+          ${p.statut==='Actif'?`<button class="btn btn-secondary btn-sm" style="width:100%" onclick="sortiePatient('${id}')">🚪 Sortie</button>`:''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Motif -->
+    <div class="dossier-section" style="background:var(--surface)">
+      <div class="section-title">Motif d'admission / Diagnostic</div>
+      <div style="font-size:13.5px;color:var(--text);background:var(--surface-alt);padding:10px 12px;border-radius:6px;border-left:3px solid ${couleur}">${p.motif}</div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="dossier-section" style="background:var(--surface)">
+      <div class="section-title">
+        <span>Historique clinique</span>
+        <button class="btn btn-secondary btn-sm" onclick="openNote('${id}')">＋ Ajouter</button>
+      </div>
+      ${tl.length?tl.map(ev=>`
+        <div class="timeline-item">
+          <div class="tl-dot" style="background:${ev.couleur}"></div>
+          <div class="tl-date">${ev.date.split(' ')[1]||ev.date}</div>
+          <div class="tl-content">
+            <div class="tl-type" style="color:${ev.couleur}">${ev.type}</div>
+            <div class="tl-detail">${ev.detail}</div>
+            <div class="tl-author">👤 ${ev.auteur}</div>
+          </div>
+        </div>`).join(''):`<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Aucun événement enregistré</div>`}
+    </div>`;
+
+  // Mise à jour panneau droit
+  renderRightPanel(id);
+}
+
+// ── Panneau droit ─────────────────────────────────────────────────────────────
+let currentRpTab='prescriptions';
+function switchRpTab(tab,el){
+  currentRpTab=tab;
+  document.querySelectorAll('.rp-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.rp-panel').forEach(p=>p.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const panel=document.getElementById('rp-'+tab);
+  if(panel) panel.classList.add('active');
+  if(!currentPatient) return;
+  if(tab==='prescriptions') renderPrescriptions(currentPatient);
+  if(tab==='bio') renderBio(currentPatient);
+  if(tab==='constantes') renderConstantes(currentPatient);
+  if(tab==='docs') renderDocs(currentPatient);
+  if(tab==='journal') renderJournal(currentPatient);
+}
+function renderRightPanel(id){
+  if(currentRpTab==='prescriptions') renderPrescriptions(id);
+  else if(currentRpTab==='bio') renderBio(id);
+  else if(currentRpTab==='constantes') renderConstantes(id);
+  else if(currentRpTab==='journal') renderJournal(id);
+  else renderDocs(id);
+}
+
+function renderJournal(id){
+  const div=document.getElementById('rp-journal');
+  const logs=AUDIT_LOG.filter(e=>e.patientId===id).slice().reverse();
+  const ICONES={ADMISSION:'🏥',CONSULTATION_DOSSIER:'👁',NOTE_CLINIQUE:'📝',PRESCRIPTION_CREER:'💊',PRESCRIPTION_VALIDER_PUI:'✅',PRESCRIPTION_REFUSER_PUI:'❌',SORTIE_PATIENT:'🚪',ALERTE_CONTOURNEE:'⛔',DOUBLON_FORCE:'⚠'};
+  if(!logs.length){
+    div.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">🔏<br>Aucune entrée dans le journal pour ce dossier</div>`;
+    return;
+  }
+  div.innerHTML=`
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;padding:0 0 8px">Journal d'audit — ${logs.length} entrée(s)</div>
+    ${logs.map(e=>{
+      const danger=e.action==='ALERTE_CONTOURNEE'||e.action==='DOUBLON_FORCE';
+      return`<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="flex-shrink:0;font-size:14px">${ICONES[e.action]||'📌'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;color:${danger?'var(--red)':'var(--text)'}">${e.action.replace(/_/g,' ')}</div>
+          <div style="color:var(--text-muted);font-size:11px;margin-top:1px">${e.detail||''}</div>
+          <div style="color:var(--text-muted);font-size:11px;margin-top:2px">👤 ${e.auteur} · ${new Date(e.ts).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function renderPrescriptions(id){
+  const prescs=prescriptions[id]||[];
+  const div=document.getElementById('rp-prescriptions');
+  if(!prescs.length){
+    div.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucune prescription</div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="openPrescription('${id}')">＋ Prescrire</button>`;
+    return;
+  }
+  div.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px">${prescs.length} prescription(s)</span>
+      <button class="btn btn-primary btn-xs" onclick="openPrescription('${id}')">＋</button>
+    </div>
+    ${prescs.map(p=>`
+      <div class="prescription-item">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="presc-drug">${p.med}</div>
+          <span class="presc-status ${p.statut==='Validée'?'presc-validated':p.statut.includes('attente')?'presc-pending':'presc-refused'}" style="font-size:10.5px">${p.statut==='Validée'?'✓':p.statut.includes('attente')?'⏳':'✕'} ${p.statut}</span>
+        </div>
+        <div class="presc-dose">${p.posologie} — ${p.voie} — ${p.duree}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">👤 ${p.medecin} · ${p.date}</div>
+        ${p.statut.includes('attente')?`
+          <div style="display:flex;gap:5px;margin-top:6px">
+            <button class="btn btn-success btn-xs" onclick="validerPrescExistante('${id}','${p.id}')">✓ Valider PUI</button>
+            <button class="btn btn-danger btn-xs" onclick="refuserPresc('${id}','${p.id}')">✕ Refuser</button>
+          </div>`:''}
+      </div>`).join('')}`;
+}
+
+function renderBio(id){
+  const res=bioResultats[id]||[];
+  const div=document.getElementById('rp-bio');
+  if(!res.length){div.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucun résultat biologique<br><a href="laboratoire.html" style="color:var(--accent);font-size:12.5px;margin-top:8px;display:inline-block">→ Demander analyses</a></div>`;return;}
+  div.innerHTML=`
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Résultats biologiques</div>
+    ${res.map(r=>`
+      <div class="bio-result">
+        <div>
+          <div style="font-size:13px;font-weight:500">${r.param}</div>
+          <div class="bio-ref">${r.ref} ${r.unite}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="${r.anormal?'bio-anormal':'bio-normal'}">${r.val} ${r.unite}</div>
+          ${r.anormal?'<div style="font-size:10.5px;color:var(--red)">⚠ Hors norme</div>':''}
+        </div>
+      </div>`).join('')}
+    <a href="laboratoire.html" class="btn btn-secondary" style="width:100%;margin-top:10px;justify-content:center;font-size:12.5px">🔬 Voir dossier labo complet</a>`;
+}
+
+function renderConstantes(id){
+  const c=constantes[id];
+  const div=document.getElementById('rp-constantes');
+  if(!c){
+    div.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucune constante enregistrée</div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="saisirConstantes('${id}')">＋ Saisir constantes</button>`;
+    return;
+  }
+  const fcAlert=c.fc>100||c.fc<60;
+  const taAlert=parseInt(c.ta)>140||parseInt(c.ta)<90;
+  const spo2Alert=c.spo2<95;
+  const tAlert=c.t>38.5||c.t<36;
+  div.innerHTML=`
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Constantes vitales</div>
+    <div class="vital-grid">
+      <div class="vital-card ${taAlert?'vital-alert':'vital-ok'}">
+        <div class="vital-icon">💉</div>
+        <div class="vital-val" style="color:${taAlert?'var(--red)':'var(--green)'}">${c.ta}</div>
+        <div class="vital-label">TA (mmHg)</div>
+      </div>
+      <div class="vital-card ${fcAlert?'vital-alert':'vital-ok'}">
+        <div class="vital-icon">❤️</div>
+        <div class="vital-val" style="color:${fcAlert?'var(--red)':'var(--green)'}">${c.fc}</div>
+        <div class="vital-label">FC (bpm)</div>
+      </div>
+      <div class="vital-card ${spo2Alert?'vital-alert':'vital-ok'}">
+        <div class="vital-icon">🫁</div>
+        <div class="vital-val" style="color:${spo2Alert?'var(--red)':'var(--green)'}">${c.spo2}%</div>
+        <div class="vital-label">SpO2</div>
+      </div>
+      <div class="vital-card ${tAlert?'vital-warn':'vital-ok'}">
+        <div class="vital-icon">🌡️</div>
+        <div class="vital-val" style="color:${tAlert?'var(--orange)':'var(--green)'}">${c.t}°C</div>
+        <div class="vital-label">Température</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding:10px;background:var(--surface-alt);border-radius:6px;font-size:13px">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">FR</span><strong>${c.fr} /min</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px"><span style="color:var(--text-muted)">Poids</span><strong>${c.poids} kg</strong></div>
+    </div>
+    <button class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:12.5px" onclick="saisirConstantes('${id}')">✏ Mettre à jour</button>`;
+}
+
+function renderDocs(id){
+  document.getElementById('rp-docs').innerHTML=`
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Documents</div>
+    ${[
+      {icon:'📋',title:'Compte rendu admission',date:TODAY,type:'PDF'},
+      {icon:'📊',title:'Résultats biologie',date:TODAY,type:'PDF'},
+      {icon:'📄',title:'Consentement opératoire',date:TODAY,type:'PDF'},
+    ].map(d=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background=''">
+        <span style="font-size:18px">${d.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${d.title}</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">${d.date} · ${d.type}</div>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="toast('Document ouvert.','success')">👁</button>
+      </div>`).join('')}
+    <div style="margin-top:12px">
+      <a href="facturation.html" class="btn btn-secondary" style="width:100%;justify-content:center;font-size:12.5px;margin-bottom:6px">🧾 Générer facture</a>
+      <a href="laboratoire.html" class="btn btn-secondary" style="width:100%;justify-content:center;font-size:12.5px">🔬 Demander analyse</a>
+    </div>`;
+}
+
+// ── Plan des lits ──────────────────────────────────────────────────────────────
+function renderLits(){
+  const fs=document.getElementById('f-service-lit').value;
+  const data=LITS.filter(l=>!fs||l.service===fs);
+  const services=[...new Set(data.map(l=>l.service))];
+  const occ=data.filter(l=>l.statut==='occupe').length;
+  const total=data.length;
+  document.getElementById('lits-stats').textContent=`${occ}/${total} lits occupés — TO: ${Math.round(occ/total*100)}%`;
+
+  document.getElementById('lits-container').innerHTML=services.map(svc=>{
+    const lits=data.filter(l=>l.service===svc);
+    const couleur=COULEURS_SERVICE[svc]||'#888';
+    return`<div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:600;color:${couleur};margin-bottom:10px;border-left:3px solid ${couleur};padding-left:10px">${svc} — ${lits.filter(l=>l.statut==='occupe').length}/${lits.length} occupés</div>
+      <div class="lits-grid">
+        ${lits.map(l=>`
+          <div class="lit-card ${l.statut}" onclick="toast('Lit ${l.num} — ${l.statut==='occupe'?l.patient:'Libre'}','success')">
+            <div class="lit-num">${l.num}</div>
+            <div class="lit-patient">${
+              l.statut==='occupe'?l.patient:
+              l.statut==='libre'?'🟢 Libre':
+              l.statut==='reserve'?'🟡 Réservé':'🔵 Nettoyage'
+            }</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Urgences ──────────────────────────────────────────────────────────────────
+function renderUrgences(){
+  const urg=patients.filter(p=>p.type==='Urgences'||p.service==='Urgences');
+  document.getElementById('urgences-container').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;border-left:4px solid var(--red)">
+        <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--red)">${urg.length}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Patients aux urgences</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;border-left:4px solid var(--orange)">
+        <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--orange)">1</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Attente tri</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;border-left:4px solid var(--green)">
+        <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--green)">2</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Lits urgences libres</div>
+      </div>
+    </div>
+    ${urg.map(p=>`
+      <div style="background:var(--surface);border:1px solid ${p.allergies?'var(--red)':'var(--border)'};border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:box-shadow .15s" onclick="switchView('main');openDossier('${p.id}')" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div>
+            <span style="font-weight:700;font-size:14px">${p.nom}</span>
+            <span style="font-size:12.5px;color:var(--text-muted);margin-left:8px">${age(p.ddn)} ans · ${p.sexe==='F'?'♀':'♂'} · ${p.id}</span>
+          </div>
+          ${p.allergies?`<span style="background:var(--red-bg);color:var(--red);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">⚠ ${p.allergies}</span>`:''}
+        </div>
+        <div style="font-size:13px;margin-bottom:6px;color:var(--text)">${p.motif}</div>
+        <div style="display:flex;gap:10px;font-size:12px;color:var(--text-muted)">
+          <span>🛏 ${p.lit}</span>
+          <span>👨‍⚕️ ${p.medecin}</span>
+          <span>🕐 Admis ${p.entree}</span>
+        </div>
+      </div>`).join('')||`<div style="text-align:center;padding:32px;color:var(--text-muted)">Aucun patient aux urgences</div>`}`;
+}
+
+// ── Vue switcher ──────────────────────────────────────────────────────────────
+function switchView(view){
+  document.getElementById('dpi-main-layout').style.display=view==='main'?'grid':'none';
+  document.getElementById('view-lits').style.display=view==='lits'?'flex':'none';
+  document.getElementById('view-urgences').style.display=view==='urgences'?'flex':'none';
+  if(view==='lits') renderLits();
+  if(view==='urgences') renderUrgences();
+  document.getElementById('main-tabs').style.display=view==='main'?'flex':'none';
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────────
+function sortiePatient(id){
+  const p=patients.find(x=>x.id===id);
+  if(p){p.statut='Sorti';p.type='Sorti';p.sortie=TODAY;p.lit='';}
+  openDossier(id);renderPatientsList();updateKPIs();
+  auditLog('SORTIE_PATIENT', id, 'Sortie enregistree — dossier '+id, getPrescripteur());
+  // Publier dans le BUS pour Facturation
+  const annee = new Date().getFullYear();
+  const sejourNum = 'SJ-'+annee+'-'+id.replace(/\D/g,'').slice(-5);
+  if(typeof MEDICORE_BUS!=='undefined'){
+    MEDICORE_BUS.publish('SORTIE_A_FACTURER',{patientId:id,nom:p?p.nom:'',ipp:p?p.ipp:'',sejour:sejourNum});
+  }
+  // Toast avec bouton facturation
+  const nomPatient = p?p.nom:id;
+  toast('Sortie de '+nomPatient+' enregistree. Facture a generer.','success');
+  if(typeof MEDICORE_GOTO!=='undefined'){
+    setTimeout(function(){
+      const tc=document.getElementById('toast-container');
+      if(!tc) return;
+      const t=document.createElement('div');
+      t.className='toast success';
+      t.style.cssText='display:flex;align-items:center;gap:10px;cursor:pointer';
+      t.title='Aller a la facturation';
+      t.textContent='Facturer '+nomPatient+' maintenant →';
+      t.onclick=function(){ MEDICORE_GOTO.facturation(sejourNum); };
+      tc.appendChild(t);
+      setTimeout(function(){ if(t.parentNode) t.remove(); },6000);
+    },200);
+  }
+}
+
+function validerPrescExistante(pid,prescId){
+  const prescs=prescriptions[pid];
+  if(prescs){const p=prescs.find(x=>x.id===prescId);if(p){p.statut='Validée';p.validePar=getPrescripteur();p.valideTs=new Date().toISOString();}}
+  auditLog('PRESCRIPTION_VALIDER_PUI', pid, `Prescription ${prescId} validée PUI`, getPrescripteur());
+  renderPrescriptions(pid);toast('Prescription validée par la PUI.','success');
+}
+
+function refuserPresc(pid,prescId){
+  const prescs=prescriptions[pid];
+  if(prescs){const p=prescs.find(x=>x.id===prescId);if(p){p.statut='Refusée';p.refusPar=getPrescripteur();p.refusTs=new Date().toISOString();}}
+  auditLog('PRESCRIPTION_REFUSER_PUI', pid, `Prescription ${prescId} refusée PUI`, getPrescripteur());
+  renderPrescriptions(pid);toast('Prescription refusée — motif à préciser.','error');
+}
+
+function saisirConstantes(id){
+  const c=constantes[id]||{ta:'120/80',fc:80,fr:16,spo2:98,t:37.0,poids:70};
+  const vals=prompt(`Constantes de ${patients.find(p=>p.id===id)?.nom}\n\nTA (ex: 120/80) :`,c.ta);
+  if(vals){constantes[id]={...c,ta:vals};renderConstantes(id);toast('Constantes mises à jour.','success');}
+}
+
+// ── Modals ─────────────────────────────────────────────────────────────────────
+function openAdmission(){
+  document.getElementById('adm-date').value=TODAY;
+  document.getElementById('adm-dossier').value='D2058'+String(patients.length+56).padStart(2,'0');
+  document.getElementById('modal-admission').classList.add('open');
+}
+function closeAdmission(){document.getElementById('modal-admission').classList.remove('open')}
+function validerAdmission(){
+  const nom=document.getElementById('adm-nom').value.toUpperCase().trim();
+  const prenom=document.getElementById('adm-prenom').value.trim();
+  if(!nom||!prenom){toast('Saisissez nom et prénom.','error');return}
+
+  // ── Identito-vigilance : détection de doublon ─────────────────────────────
+  const ddn=document.getElementById('adm-ddn').value;
+  const sexe=document.getElementById('adm-sexe').value;
+  const nomComplet=(nom+' '+prenom).toLowerCase().replace(/\s+/g,' ');
+  const doublons=patients.filter(p=>{
+    const pNom=(p.nom||'').toLowerCase().replace(/\s+/g,' ');
+    const ddnMatch=ddn&&p.ddn===ddn;
+    const nomMatch=pNom===nomComplet;
+    const nomProche=pNom.split(' ').filter(w=>nomComplet.includes(w)&&w.length>2).length>=2;
+    return (ddnMatch&&nomProche)||(nomMatch&&ddnMatch)||(nomMatch&&sexe===p.sexe);
+  });
+  if(doublons.length){
+    const liste=doublons.map(d=>`${d.nom} — ${d.ddn} — ${d.id}`).join('\n');
+    if(!confirm(`⚠ Identito-vigilance — Doublon potentiel détecté :\n\n${liste}\n\nConfirmer quand même l'admission ?`)){return;}
+    auditLog('DOUBLON_FORCE', document.getElementById('adm-dossier').value, `Doublon détecté : ${liste}`, getPrescripteur());
+  }
+
+  const id=document.getElementById('adm-dossier').value;
+  const ipp=ippFromDossier(id);
+  const nouveau={
+    id,ipp,nom:nom+' '+prenom,ddn,
+    sexe,
+    service:document.getElementById('adm-service').value,
+    type:document.getElementById('adm-type').value,
+    lit:document.getElementById('adm-lit').value||'—',
+    medecin:document.getElementById('adm-medecin').value,
+    entree:TODAY,sortie:'',
+    assurance:document.getElementById('adm-assurance').value,
+    allergies:document.getElementById('adm-allergies').value,
+    motif:document.getElementById('adm-motif').value||'À préciser',
+    statut:'Actif',
+  };
+  patients.unshift(nouveau);
+  auditLog('ADMISSION', id, `${nouveau.nom} — ${nouveau.motif}`, getPrescripteur());
+  closeAdmission();renderPatientsList();updateKPIs();
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    MEDICORE_PATIENT.set(nouveau);
+    toast(`Patient ${nom} ${prenom} admis — ${ipp} · QR généré.`,'success');
+    setTimeout(()=>MEDICORE_PATIENT.showQR(),300);
+  } else {
+    toast(`Patient ${nom} ${prenom} admis — Dossier ${id} créé.`,'success');
+  }
+  openDossier(id);
+}
+
+function openPrescription(id){
+  document.getElementById('presc-patient-name').textContent=patients.find(p=>p.id===id)?.nom||id;
+  document.getElementById('modal-prescription').dataset.patientId=id;
+  document.getElementById('modal-prescription').classList.add('open');
+}
+function closePrescription(){document.getElementById('modal-prescription').classList.remove('open')}
+// ══════════════════════════════════════════════════════════════════════════════
+// JOURNAL D'AUDIT DPI — immuable, horodaté, signé
+// Stocké en tableau append-only. En prod : envoyé au backend signé.
+// ══════════════════════════════════════════════════════════════════════════════
+const AUDIT_LOG = [];
+
+function auditLog(action, patientId, detail, auteur){
+  const session=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  AUDIT_LOG.push({
+    ts: new Date().toISOString(),
+    action,
+    patientId,
+    detail: detail||'',
+    auteur: auteur || session.nom || '?',
+    role: session.role || '?',
+    frozen: true,  // indicateur : cet objet ne devrait plus être modifié
+  });
+}
+
+// ── Prescripteur courant ───────────────────────────────────────────────────────
+function getPrescripteur(){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  return s.nom||'Médecin traitant';
+}
+
+// ── Référentiel allergènes + familles médicamenteuses ─────────────────────────
+// Chaque entrée : molécules qui DÉCLENCHENT l'alerte si le patient est allergique à un allergène donné.
+const ALLERGIE_CROISEE = {
+  'Penicilline':   ['Amoxicilline','Ampicilline','Ceftriaxone','Cefalexine','Cefazoline','Pipéracilline','Tazobactam','Imipenem'],
+  'Pénicilline':   ['Amoxicilline','Ampicilline','Ceftriaxone','Cefalexine','Cefazoline','Pipéracilline','Tazobactam','Imipenem'],
+  'Aspirine':      ['Ibuprofène','Kétoprofène','Diclofénac','Naproxène','Acide acétylsalicylique','AAS'],
+  'AINS':          ['Ibuprofène','Kétoprofène','Diclofénac','Naproxène','Aspirine','Célécoxib'],
+  'Sulfamide':     ['Cotrimoxazole','Triméthoprime','Sulfaméthoxazole'],
+  'Iode':          ['Produit de contraste','Povidone iodée','Amiodarone'],
+  'Latex':         [],
+};
+
+// Contrôle allergie / interaction — renvoie liste d'alertes ou []
+function controleAllergie(patientId, nomMed){
+  const p = patients.find(x=>x.id===patientId);
+  if(!p || !p.allergies || p.allergies==='Aucune' || p.allergies==='') return [];
+  const allergenes = p.allergies.split(/,|;/).map(a=>a.trim());
+  const alerts = [];
+  const medLower = nomMed.toLowerCase();
+  allergenes.forEach(allergene=>{
+    // Correspondance directe (molécule prescrite = allergène)
+    if(medLower.includes(allergene.toLowerCase())){
+      alerts.push({type:'DIRECTE', message:`⛔ Allergie directe : patient allergique à <strong>${allergene}</strong>`, severity:'bloquer'});
+    }
+    // Allergie croisée (famille)
+    const croisees = ALLERGIE_CROISEE[allergene] || ALLERGIE_CROISEE[allergene.charAt(0).toUpperCase()+allergene.slice(1).toLowerCase()] || [];
+    croisees.forEach(mol=>{
+      if(medLower.includes(mol.toLowerCase()) && !alerts.find(a=>a.message.includes(mol))){
+        alerts.push({type:'CROISEE', message:`⚠ Allergie croisée probable : ${allergene} → <strong>${mol}</strong>`, severity:'avertir'});
+      }
+    });
+  });
+  return alerts;
+}
+
+// Interactions médicamenteuses de base (paires à risque)
+const INTERACTIONS = [
+  {a:'Morphine',    b:'Benzodiazépine', msg:'Dépression respiratoire majorée', severity:'bloquer'},
+  {a:'Morphine',    b:'Diazépam',       msg:'Dépression respiratoire majorée', severity:'bloquer'},
+  {a:'Amiodarone',  b:'Digoxine',       msg:'Risque de toxicité digitalique',  severity:'avertir'},
+  {a:'Metformine',  b:'Produit de contraste', msg:'Risque d\'acidose lactique — arrêter 48h avant', severity:'avertir'},
+  {a:'Héparine',    b:'Aspirine',       msg:'Risque hémorragique majoré',       severity:'avertir'},
+  {a:'Warfarine',   b:'Aspirine',       msg:'Risque hémorragique majoré',       severity:'bloquer'},
+];
+
+function controleInteractions(patientId, nomMed){
+  const prescs = prescriptions[patientId] || [];
+  const medLower = nomMed.toLowerCase();
+  const alerts = [];
+  prescs.forEach(presc=>{
+    if(presc.statut==='Refusée' || presc.statut==='Arrêtée') return;
+    INTERACTIONS.forEach(inter=>{
+      const aMatch = medLower.includes(inter.a.toLowerCase()) && presc.med.toLowerCase().includes(inter.b.toLowerCase());
+      const bMatch = medLower.includes(inter.b.toLowerCase()) && presc.med.toLowerCase().includes(inter.a.toLowerCase());
+      if(aMatch || bMatch){
+        alerts.push({type:'INTERACTION', message:`💊 Interaction avec <strong>${presc.med}</strong> : ${inter.msg}`, severity:inter.severity});
+      }
+    });
+  });
+  return alerts;
+}
+
+// Modale d'alerte clinique bloquante (renvoie Promise — true = forcer, false = annuler)
+function alerteClinic(alerts, nomMed, callbackForce, callbackAnnuler){
+  let ov = document.getElementById('overlay-alerte-clinic');
+  if(ov) ov.remove();
+  const bloquantes = alerts.filter(a=>a.severity==='bloquer');
+  const avertissements = alerts.filter(a=>a.severity==='avertir');
+  ov = document.createElement('div');
+  ov.id = 'overlay-alerte-clinic';
+  ov.className = 'overlay open';
+  ov.innerHTML = `
+    <div class="modal" style="width:520px;border-top:4px solid ${bloquantes.length?'var(--red)':'var(--orange)'}">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" style="color:${bloquantes.length?'var(--red)':'var(--orange)'}">
+            ${bloquantes.length?'⛔ Alerte de sécurité médicamenteuse':'⚠ Avertissement clinique'}
+          </div>
+          <div class="modal-subtitle">Prescription : <strong>${nomMed}</strong></div>
+        </div>
+      </div>
+      <div class="modal-body">
+        ${bloquantes.map(a=>`<div class="alert-box red" style="margin-bottom:8px">⛔ ${a.message}</div>`).join('')}
+        ${avertissements.map(a=>`<div class="alert-box warn" style="margin-bottom:8px">${a.message}</div>`).join('')}
+        ${bloquantes.length
+          ? `<div style="margin-top:12px;font-size:12.5px;color:var(--text-muted)">Cette prescription présente un risque vital. Vous pouvez passer outre uniquement si vous en assumez la responsabilité médicale. Un log de dépassement sera enregistré.</div>`
+          : `<div style="margin-top:12px;font-size:12.5px;color:var(--text-muted)">Risque signalé. Vous pouvez confirmer la prescription en connaissance de cause.</div>`}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="document.getElementById('overlay-alerte-clinic').remove();if(typeof _alerteAnnuler==='function')_alerteAnnuler()">Annuler la prescription</button>
+        <button class="btn" style="background:${bloquantes.length?'var(--red)':'var(--orange)'};color:#fff"
+          onclick="document.getElementById('overlay-alerte-clinic').remove();if(typeof _alerteForce==='function')_alerteForce()">
+          ${bloquantes.length?'Passer outre (risque assumé)':'Confirmer malgré avertissement'}
+        </button>
+      </div>
+    </div>`;
+  window._alerteForce = callbackForce;
+  window._alerteAnnuler = callbackAnnuler;
+  document.body.appendChild(ov);
+}
+
+function validerPrescription(force){
+  const id=document.getElementById('modal-prescription').dataset.patientId;
+  const med=document.getElementById('presc-med').value.trim();
+  if(!med){toast('Saisissez le médicament.','error');return}
+
+  // ── Contrôles de sécurité clinique ──────────────────────────────────────────
+  if(!force){
+    const alertsAllergie = controleAllergie(id, med);
+    const alertsInteraction = controleInteractions(id, med);
+    const allAlerts = [...alertsAllergie, ...alertsInteraction];
+    if(allAlerts.length){
+      alerteClinic(
+        allAlerts, med,
+        ()=>validerPrescription(true),  // Forcer malgré alerte
+        ()=>{}                          // Annuler
+      );
+      return;
+    }
+  }
+
+  // ── Prescripteur = utilisateur connecté ─────────────────────────────────────
+  const session = (typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{nom:'Médecin traitant'};
+  const prescripteur = session.nom || 'Médecin traitant';
+  const horodate = new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  if(!prescriptions[id]) prescriptions[id]=[];
+  const newPresc = {
+    id:'P'+(Date.now()),
+    med,
+    posologie:document.getElementById('presc-posologie').value,
+    voie:document.getElementById('presc-voie').value,
+    duree:document.getElementById('presc-duree').value,
+    notes:document.getElementById('presc-notes').value,
+    statut:'En attente validation',
+    date:horodate,
+    medecin:prescripteur,
+    forcee:!!force,
+  };
+  prescriptions[id].push(newPresc);
+
+  // ── Journal d'audit ─────────────────────────────────────────────────────────
+  auditLog('PRESCRIPTION_CREER', id, `${med} — ${newPresc.posologie}${force?' [FORCÉE — alerte contournée]':''}`, prescripteur);
+  if(force) auditLog('ALERTE_CONTOURNEE', id, `Prescription forcée malgré alerte sécurité : ${med}`, prescripteur);
+  // ── Publier dans le BUS pour la PUI ─────────────────────────────────────────
+  if(typeof MEDICORE_BUS!=='undefined' && !force){
+    MEDICORE_BUS.publish('PRESCRIPTION_ATTENTE_PUI',{patientId:id,prescId:newPresc.id,med,posologie:newPresc.posologie,medecin:prescripteur});
+  }
+
+  closePrescription();
+  if(currentRpTab==='prescriptions') renderPrescriptions(id);
+  toast(force?'Prescription enregistrée (alerte contournée).':'Prescription envoyée à la PUI pour validation.', force?'warn':'success');
+}
+
+function openNote(id){
+  document.getElementById('note-patient-name').textContent=patients.find(p=>p.id===id)?.nom||id;
+  document.getElementById('modal-note').dataset.patientId=id;
+  document.getElementById('modal-note').classList.add('open');
+}
+function closeNote(){document.getElementById('modal-note').classList.remove('open')}
+function validerNote(){
+  const id=document.getElementById('modal-note').dataset.patientId;
+  const contenu=document.getElementById('note-contenu').value;
+  if(!contenu){toast('Saisissez le contenu de la note.','error');return}
+  const type=document.getElementById('note-type').value;
+  // Médecin rédacteur = utilisateur connecté si disponible
+  const session=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  const med=session.nom||document.getElementById('note-medecin').value;
+  const cim=document.getElementById('note-cim').value;
+  const horodate=new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  if(!timeline[id]) timeline[id]=[];
+  timeline[id].unshift({
+    date:horodate,
+    type,detail:contenu+(cim?` · Diag: ${cim}`:''),
+    auteur:med,couleur:COULEURS_SERVICE[patients.find(p=>p.id===id)?.service]||'#1a4b6e',
+  });
+  auditLog('NOTE_CLINIQUE', id, `Type: ${type}${cim?' — '+cim:''}`, med);
+  closeNote();openDossier(id);toast('Note clinique enregistrée.','success');
+}
+
+// ── Init nav ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  if(typeof initNav==='function'){
+    initNav('dpi','Dossier Patient (DPI)','Admissions · Séjours · Prescriptions · Résultats',
+      [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Dossier Patient (DPI)',file:''}]);
+  }
+  updateKPIs();renderPatientsList();
+  // Ouvrir le patient scanné (?patient=ID via QR), sinon le premier
+  const scanId=new URLSearchParams(location.search).get('patient');
+  const cible=(scanId&&patients.find(p=>p.id===scanId))?scanId:(patients[0]&&patients[0].id);
+  if(cible) setTimeout(()=>openDossier(cible),200);
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeAdmission();closePrescription();closeNote();}
+});
+['modal-admission','modal-prescription','modal-note'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('click',e=>{if(e.target===e.currentTarget) e.currentTarget.classList.remove('open')});
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mobile.css">
+<style>
+  :root {
+    --accent:#1a4b6e;--accent-light:#e8f0f7;--accent2:#c8702a;
+    --green:#1e7a4e;--red:#b92b2b;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --border:#e2dfd8;--surface:#fff;--bg:#f4f3ef;
+    --radius:10px;--shadow-lg:0 16px 48px rgba(0,0,0,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;overflow:hidden}
+
+  /* ── Côté gauche : Branding ── */
+  .left-panel {
+    width:52%;background:var(--accent);color:#fff;
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:52px 56px;position:relative;overflow:hidden
+  }
+  .left-panel::before {
+    content:'';position:absolute;top:-80px;right:-80px;
+    width:400px;height:400px;border-radius:50%;
+    background:rgba(255,255,255,.04)
+  }
+  .left-panel::after {
+    content:'';position:absolute;bottom:-120px;left:-60px;
+    width:350px;height:350px;border-radius:50%;
+    background:rgba(255,255,255,.03)
+  }
+  .brand{position:relative;z-index:1}
+  .brand-logo{display:flex;align-items:center;gap:14px;margin-bottom:56px}
+  .brand-logo-icon{width:48px;height:48px;background:rgba(255,255,255,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px}
+  .brand-name{font-family:'DM Serif Display',serif;font-size:22px}
+  .brand-sub{font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:1.2px;margin-top:2px}
+  .brand-tagline{font-family:'DM Serif Display',serif;font-size:38px;line-height:1.2;letter-spacing:-.5px;margin-bottom:20px;max-width:380px}
+  .brand-desc{font-size:14.5px;opacity:.75;line-height:1.7;max-width:360px;margin-bottom:48px}
+
+  /* Modules badges */
+  .modules-preview{display:flex;flex-wrap:wrap;gap:8px;position:relative;z-index:1}
+  .mod-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:6px 12px;border-radius:20px;font-size:12.5px;backdrop-filter:blur(4px);transition:background .2s;cursor:default}
+  .mod-badge:hover{background:rgba(255,255,255,.18)}
+
+  /* Stats */
+  .stats-row{display:flex;gap:32px;position:relative;z-index:1;padding-top:32px;border-top:1px solid rgba(255,255,255,.12)}
+  .stat-item{text-align:center}
+  .stat-val{font-family:'DM Serif Display',serif;font-size:26px;display:block}
+  .stat-label{font-size:11.5px;opacity:.6;margin-top:2px}
+
+  /* ── Côté droit : Formulaire ── */
+  .right-panel {
+    width:48%;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    padding:40px;position:relative
+  }
+  .login-box{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);padding:44px 40px;width:100%;max-width:420px;border:1px solid var(--border)}
+
+  /* En-tête form */
+  .form-header{text-align:center;margin-bottom:32px}
+  .form-title{font-family:'DM Serif Display',serif;font-size:26px;color:var(--accent);margin-bottom:6px}
+  .form-subtitle{font-size:13.5px;color:var(--text-muted)}
+
+  /* Groupes formulaire */
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.2px}
+  .field-wrap{position:relative}
+  .field-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;opacity:.5}
+  .field input{width:100%;padding:11px 14px 11px 42px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--surface);outline:none;transition:all .2s}
+  .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .field input.error{border-color:var(--red);box-shadow:0 0 0 3px rgba(185,43,43,.1)}
+  .field input:disabled{background:var(--bg);color:var(--text-muted);cursor:not-allowed}
+  .eye-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;opacity:.5;transition:opacity .2s;padding:2px}
+  .eye-btn:hover{opacity:1}
+
+  /* Sélecteur de rôle */
+  .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
+  .role-card{padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .2s;text-align:center}
+  .role-card:hover{border-color:var(--accent);background:var(--accent-light)}
+  .role-card.selected{border-color:var(--accent);background:var(--accent-light)}
+  .role-icon{font-size:20px;margin-bottom:4px}
+  .role-name{font-size:12px;font-weight:600;color:var(--text)}
+  .role-desc{font-size:10.5px;color:var(--text-muted);margin-top:1px}
+
+  /* Options supplémentaires */
+  .options-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;font-size:13px}
+  .checkbox-wrap{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .checkbox-wrap input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .forgot-link{color:var(--accent);text-decoration:none;font-weight:500;transition:opacity .2s}
+  .forgot-link:hover{opacity:.75}
+
+  /* Bouton connexion */
+  .btn-login{width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14.5px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.2px;position:relative;overflow:hidden}
+  .btn-login:hover{background:#163d5a;transform:translateY(-1px);box-shadow:0 4px 16px rgba(26,75,110,.3)}
+  .btn-login:active{transform:translateY(0)}
+  .btn-login:disabled{background:#aaa;cursor:not-allowed;transform:none;box-shadow:none}
+  .btn-login .btn-spinner{display:none;width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* SSO boutons */
+  .sso-divider{display:flex;align-items:center;gap:12px;margin:20px 0;font-size:12.5px;color:var(--text-muted)}
+  .sso-divider::before,.sso-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+  .sso-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn-sso{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .2s}
+  .btn-sso:hover{border-color:var(--accent);background:var(--accent-light);color:var(--accent)}
+  .btn-sso img{width:18px;height:18px;object-fit:contain}
+
+  /* Messages d'erreur / succès */
+  .msg-box{padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:18px;display:none;align-items:center;gap:8px}
+  .msg-box.error{background:rgba(185,43,43,.08);border:1px solid rgba(185,43,43,.2);color:var(--red);display:flex}
+  .msg-box.success{background:rgba(30,122,78,.08);border:1px solid rgba(30,122,78,.2);color:var(--green);display:flex}
+  .msg-box.info{background:var(--accent-light);border:1px solid rgba(26,75,110,.2);color:var(--accent);display:flex}
+
+  /* 2FA */
+  .twofa-section{display:none}
+  .otp-inputs{display:flex;gap:8px;justify-content:center;margin:16px 0}
+  .otp-input{width:46px;height:52px;text-align:center;font-size:22px;font-weight:700;border:1.5px solid var(--border);border-radius:8px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .2s}
+  .otp-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+
+  /* Indicateur force mot de passe */
+  .pwd-strength{height:3px;border-radius:2px;margin-top:6px;transition:all .3s;background:var(--border)}
+  .pwd-strength-bar{height:100%;border-radius:2px;transition:all .3s;width:0}
+  .pwd-hint{font-size:11.5px;margin-top:4px;color:var(--text-muted)}
+
+  /* Pied de page */
+  .login-footer{text-align:center;margin-top:24px;font-size:12.5px;color:var(--text-muted)}
+  .login-footer a{color:var(--accent);text-decoration:none}
+  .login-footer a:hover{text-decoration:underline}
+
+  /* Session info */
+  .session-info{position:absolute;bottom:20px;right:20px;font-size:11.5px;color:var(--text-muted);text-align:right}
+
+  /* Chargement overlay */
+  .loading-overlay{position:fixed;inset:0;background:rgba(26,75,110,.95);z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+  .loading-overlay.show{display:flex}
+  .loading-logo{font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:24px;opacity:.9}
+  .loading-bar{width:200px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden;margin-bottom:16px}
+  .loading-bar-fill{height:100%;background:#fff;border-radius:2px;animation:loadBar 2s ease forwards}
+  @keyframes loadBar{from{width:0}to{width:100%}}
+  .loading-text{font-size:13.5px;opacity:.7;animation:blink 1.5s ease infinite}
+  @keyframes blink{0%,100%{opacity:.7}50%{opacity:.4}}
+
+  /* Notifications badge */
+  .notif-banner{background:rgba(200,112,42,.12);border:1px solid rgba(200,112,42,.3);border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:13px;color:var(--accent2);display:flex;align-items:center;gap:8px}
+
+  /* Responsive */
+  @media(max-width:860px){
+    .left-panel{display:none}
+    .right-panel{width:100%;background:var(--accent);align-items:center}
+    .login-box{box-shadow:var(--shadow-lg)}
+  }
+</style>
+</head>
+<body>
+
+<!-- Panel gauche — Branding -->
+<div class="left-panel">
+  <div class="brand">
+    <div class="brand-logo">
+      <div class="brand-logo-icon">🏥</div>
+      <div>
+        <div class="brand-name">MediCore ERP</div>
+        <div class="brand-sub">Système d'Information Hospitalier</div>
+      </div>
+    </div>
+    <h1 class="brand-tagline">L'ERP hospitalier de référence en zone OHADA</h1>
+    <p class="brand-desc">Solution intégrée de gestion hospitalière couvrant la finance, les soins, la pharmacie, le laboratoire et le pilotage stratégique. Conforme SYSCOHADA · CNPS · ISO.</p>
+    <div class="modules-preview">
+      <div class="mod-badge">🧾 Facturation</div>
+      <div class="mod-badge">📊 Comptabilité SYSCOHADA</div>
+      <div class="mod-badge">💊 Pharmacie PUI</div>
+      <div class="mod-badge">🔬 Laboratoire</div>
+      <div class="mod-badge">🏥 Bloc Opératoire</div>
+      <div class="mod-badge">📋 DPI Patient</div>
+      <div class="mod-badge">🩻 Imagerie PACS</div>
+      <div class="mod-badge">👥 RH & Paie CNPS</div>
+      <div class="mod-badge">🛒 Achats & Logistique</div>
+      <div class="mod-badge">📈 Tableaux de bord</div>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-item"><span class="stat-val">15</span><span class="stat-label">Modules</span></div>
+    <div class="stat-item"><span class="stat-val">FCFA</span><span class="stat-label">Zone OHADA</span></div>
+    <div class="stat-item"><span class="stat-val">100%</span><span class="stat-label">Web — HTML5</span></div>
+    <div class="stat-item"><span class="stat-val">ISO</span><span class="stat-label">15189 · 13485</span></div>
+  </div>
+</div>
+
+<!-- Panel droit — Formulaire -->
+<div class="right-panel">
+  <div class="login-box">
+
+    <!-- En-tête -->
+    <div class="form-header">
+      <div style="font-size:36px;margin-bottom:10px">🔐</div>
+      <div class="form-title" id="form-title">Connexion</div>
+      <div class="form-subtitle" id="form-subtitle">Accédez à votre espace MediCore ERP</div>
+    </div>
+
+    <!-- Notification maintenance -->
+    <div class="notif-banner" id="notif-banner">
+      <span>🔔</span>
+      <span>Maintenance planifiée dimanche 29 juin 02h–04h (UTC). Accès limité.</span>
+    </div>
+
+    <!-- Message d'état -->
+    <div class="msg-box" id="msg-box"><span id="msg-icon">⚠️</span><span id="msg-text">—</span></div>
+
+    <!-- ── SECTION CONNEXION ── -->
+    <div id="section-login">
+      <!-- Sélecteur rôle rapide -->
+      <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Profil</div>
+      <div class="role-grid" id="role-grid">
+        <div class="role-card selected" onclick="selectRole('medecin',this)" data-login="dr.toure" data-pwd="Med@2025!">
+          <div class="role-icon">👨‍⚕️</div>
+          <div class="role-name">Médecin</div>
+          <div class="role-desc">Accès DPI, prescriptions</div>
+        </div>
+        <div class="role-card" onclick="selectRole('pharmacien',this)" data-login="pharma.konan" data-pwd="Pharm@2025!">
+          <div class="role-icon">💊</div>
+          <div class="role-name">Pharmacien</div>
+          <div class="role-desc">PUI, dispensation</div>
+        </div>
+        <div class="role-card" onclick="selectRole('daf',this)" data-login="daf.gnonsoa" data-pwd="Finance@2025!">
+          <div class="role-icon">💼</div>
+          <div class="role-name">DAF</div>
+          <div class="role-desc">Finance, comptabilité</div>
+        </div>
+        <div class="role-card" onclick="selectRole('admin',this)" data-login="admin" data-pwd="Admin@2025!">
+          <div class="role-icon">⚙️</div>
+          <div class="role-name">Administrateur</div>
+          <div class="role-desc">Accès complet</div>
+        </div>
+      </div>
+
+      <!-- Identifiant -->
+      <div class="field">
+        <label for="login-user">Identifiant / Matricule</label>
+        <div class="field-wrap">
+          <span class="field-icon">👤</span>
+          <input type="text" id="login-user" placeholder="ex: dr.toure, admin…" autocomplete="username" oninput="clearMsg()">
+        </div>
+      </div>
+
+      <!-- Mot de passe -->
+      <div class="field">
+        <label for="login-pwd">Mot de passe</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔑</span>
+          <input type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password" oninput="clearMsg();checkPwdStrength()" onkeydown="if(event.key==='Enter') submitLogin()">
+          <button class="eye-btn" id="eye-btn" onclick="togglePwd()" type="button">👁</button>
+        </div>
+        <div class="pwd-strength"><div class="pwd-strength-bar" id="pwd-bar"></div></div>
+        <div class="pwd-hint" id="pwd-hint"></div>
+      </div>
+
+      <!-- Options -->
+      <div class="options-row">
+        <label class="checkbox-wrap">
+          <input type="checkbox" id="remember-me" checked>
+          <span>Se souvenir de moi</span>
+        </label>
+        <a href="#" class="forgot-link" onclick="showForgot();return false">Mot de passe oublié ?</a>
+      </div>
+
+      <!-- Bouton connexion -->
+      <button class="btn-login" id="btn-login" onclick="submitLogin()">
+        <span id="btn-text">Se connecter</span>
+        <div class="btn-spinner" id="btn-spinner"></div>
+      </button>
+
+      <!-- SSO -->
+      <div class="sso-divider">ou connexion via</div>
+      <div class="sso-btns">
+        <button class="btn-sso" onclick="ssoLogin('LDAP')">
+          <span style="font-size:16px">🏛</span> LDAP / AD
+        </button>
+        <button class="btn-sso" onclick="ssoLogin('CAS')">
+          <span style="font-size:16px">🔒</span> CAS SSO
+        </button>
+      </div>
+    </div>
+
+    <!-- ── SECTION 2FA ── -->
+    <div class="twofa-section" id="section-2fa">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:32px;margin-bottom:8px">📱</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px">Vérification en deux étapes</div>
+        <div style="font-size:13px;color:var(--text-muted)">Entrez le code envoyé sur votre téléphone enregistré</div>
+      </div>
+      <div class="otp-inputs">
+        <input class="otp-input" id="otp-0" maxlength="1" oninput="otpInput(0)" onkeydown="otpKey(event,0)">
+        <input class="otp-input" id="otp-1" maxlength="1" oninput="otpInput(1)" onkeydown="otpKey(event,1)">
+        <input class="otp-input" id="otp-2" maxlength="1" oninput="otpInput(2)" onkeydown="otpKey(event,2)">
+        <input class="otp-input" id="otp-3" maxlength="1" oninput="otpInput(3)" onkeydown="otpKey(event,3)">
+        <input class="otp-input" id="otp-4" maxlength="1" oninput="otpInput(4)" onkeydown="otpKey(event,4)">
+        <input class="otp-input" id="otp-5" maxlength="1" oninput="otpInput(5)" onkeydown="otpKey(event,5)">
+      </div>
+      <div style="text-align:center;font-size:13px;color:var(--text-muted);margin-bottom:16px">
+        Code de démonstration : <strong style="color:var(--accent);font-size:16px;letter-spacing:4px">123456</strong>
+      </div>
+      <button class="btn-login" onclick="verify2FA()">Vérifier</button>
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="backToLogin()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;font-family:'DM Sans',sans-serif">← Retour à la connexion</button>
+      </div>
+    </div>
+
+    <!-- ── SECTION MOT DE PASSE OUBLIÉ ── -->
+    <div style="display:none" id="section-forgot">
+      <div style="margin-bottom:20px">
+        <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:16px">Entrez votre identifiant ou email pour recevoir un lien de réinitialisation.</div>
+        <div class="field">
+          <label>Identifiant ou email</label>
+          <div class="field-wrap">
+            <span class="field-icon">📧</span>
+            <input type="text" id="forgot-input" placeholder="ex: dr.toure ou dr.toure@medicore.ci">
+          </div>
+        </div>
+      </div>
+      <button class="btn-login" onclick="submitForgot()">Envoyer le lien</button>
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="showLogin()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;font-family:'DM Sans',sans-serif">← Retour à la connexion</button>
+      </div>
+    </div>
+
+    <!-- Pied de page -->
+    <div class="login-footer">
+      MediCore ERP v2.0 · <a href="index.html">Portail</a> · <a href="#">Aide</a> · <a href="#">Confidentialité</a>
+      <br><span style="opacity:.6;font-size:11.5px;margin-top:4px;display:block">© 2025 MediCore — Zone OHADA · SYSCOHADA Révisé 2017</span>
+    </div>
+  </div>
+
+  <!-- Infos session -->
+  <div class="session-info">
+    <div id="session-time">—</div>
+    <div style="opacity:.6">Dernière connexion : aujourd'hui 07h42</div>
+  </div>
+</div>
+
+<!-- Overlay chargement -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-logo">🏥 MediCore ERP</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+  <div class="loading-text" id="loading-text">Authentification en cours…</div>
+</div>
+
+<script>
+// ── Comptes de démonstration ───────────────────────────────────────────────────
+const COMPTES = {
+  'admin':       { pwd:'Admin@2025!',    nom:'Administrateur Système', role:'Administrateur',  modules:'all',     avatar:'⚙️',  require2FA:true  },
+  'dr.toure':    { pwd:'Med@2025!',      nom:'Dr. TOURÉ Mamadou',      role:'Médecin chirurgien', modules:'dpi,bloc,facturation,labo', avatar:'👨‍⚕️', require2FA:false },
+  'pharma.konan':{ pwd:'Pharm@2025!',    nom:'Dr. KONAN Adjoua',       role:'Pharmacien PUI',  modules:'pharmacie,facturation,dpi', avatar:'💊',  require2FA:false },
+  'daf.gnonsoa': { pwd:'Finance@2025!',  nom:'GNONSOA Paul',           role:'Directeur Financier', modules:'all_finance', avatar:'💼', require2FA:true  },
+  'dsi':         { pwd:'DSI@2025!',      nom:'Responsable SI',         role:'Administrateur SI',modules:'all',   avatar:'💻', require2FA:true  },
+};
+
+const ROLE_MAP = {
+  medecin:'dr.toure', pharmacien:'pharma.konan', daf:'daf.gnonsoa', admin:'admin'
+};
+
+const LOADING_MESSAGES = [
+  'Authentification en cours…',
+  'Vérification des droits d\'accès…',
+  'Chargement des modules autorisés…',
+  'Initialisation de la session…',
+  'Connexion au serveur SYSCOHADA…',
+  'Prêt !',
+];
+
+let selectedRole = 'medecin';
+let loginAttempts = 0;
+let isLocked = false;
+let currentUser = null;
+
+// ── Horloge ────────────────────────────────────────────────────────────────────
+function updateClock(){
+  const now=new Date();
+  document.getElementById('session-time').textContent=now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' — '+now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+}
+updateClock();setInterval(updateClock,1000);
+
+// ── Sélection rôle ────────────────────────────────────────────────────────────
+function selectRole(role, card){
+  selectedRole=role;
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');
+  // Pré-remplir identifiant
+  const login=ROLE_MAP[role];
+  if(login){
+    document.getElementById('login-user').value=login;
+    document.getElementById('login-pwd').value='';
+    clearMsg();
+  }
+}
+
+// ── Toggle password ────────────────────────────────────────────────────────────
+let pwdVisible=false;
+function togglePwd(){
+  pwdVisible=!pwdVisible;
+  const inp=document.getElementById('login-pwd');
+  inp.type=pwdVisible?'text':'password';
+  document.getElementById('eye-btn').textContent=pwdVisible?'🙈':'👁';
+}
+
+// ── Force mot de passe ─────────────────────────────────────────────────────────
+function checkPwdStrength(){
+  const pwd=document.getElementById('login-pwd').value;
+  const bar=document.getElementById('pwd-bar');
+  const hint=document.getElementById('pwd-hint');
+  if(!pwd){bar.style.width='0';bar.style.background='var(--border)';hint.textContent='';return}
+  let score=0;
+  if(pwd.length>=8) score++;
+  if(/[A-Z]/.test(pwd)) score++;
+  if(/[0-9]/.test(pwd)) score++;
+  if(/[^a-zA-Z0-9]/.test(pwd)) score++;
+  const levels=[
+    {w:'25%',c:'var(--red)',t:'Faible'},
+    {w:'50%',c:'var(--accent2)',t:'Moyen'},
+    {w:'75%',c:'#eab308',t:'Bon'},
+    {w:'100%',c:'var(--green)',t:'Fort'},
+  ];
+  const lvl=levels[score-1]||levels[0];
+  bar.style.width=lvl.w;bar.style.background=lvl.c;
+  hint.textContent=`Force : ${lvl.t}`;hint.style.color=lvl.c;
+}
+
+// ── Messages ──────────────────────────────────────────────────────────────────
+function showMsg(type,icon,text){
+  const box=document.getElementById('msg-box');
+  box.className='msg-box '+type;
+  document.getElementById('msg-icon').textContent=icon;
+  document.getElementById('msg-text').textContent=text;
+}
+function clearMsg(){
+  const box=document.getElementById('msg-box');
+  box.className='msg-box';box.style.display='none';
+}
+
+// ── Connexion ─────────────────────────────────────────────────────────────────
+function submitLogin(){
+  if(isLocked){showMsg('error','🔒','Compte verrouillé après 5 tentatives. Contactez le DSI.');return}
+
+  const user=document.getElementById('login-user').value.trim();
+  const pwd=document.getElementById('login-pwd').value;
+
+  if(!user){document.getElementById('login-user').classList.add('error');showMsg('error','⚠️','Veuillez saisir votre identifiant.');return}
+  if(!pwd){document.getElementById('login-pwd').classList.add('error');showMsg('error','⚠️','Veuillez saisir votre mot de passe.');return}
+
+  const compte=COMPTES[user];
+  if(!compte||compte.pwd!==pwd){
+    loginAttempts++;
+    document.getElementById('login-pwd').classList.add('error');
+    if(loginAttempts>=5){isLocked=true;showMsg('error','🔒',`Compte verrouillé après ${loginAttempts} tentatives échouées.`);}
+    else showMsg('error','❌',`Identifiant ou mot de passe incorrect. (${loginAttempts}/5 tentatives)`);
+    shakeBox();return;
+  }
+
+  currentUser=compte;currentUser.login=user;
+  loginAttempts=0;
+
+  // Bouton chargement
+  const btn=document.getElementById('btn-login');
+  document.getElementById('btn-text').style.display='none';
+  document.getElementById('btn-spinner').style.display='block';
+  btn.disabled=true;
+
+  setTimeout(()=>{
+    if(compte.require2FA){
+      btn.disabled=false;
+      document.getElementById('btn-text').style.display='block';
+      document.getElementById('btn-spinner').style.display='none';
+      show2FA();
+    } else {
+      doLogin();
+    }
+  },800);
+}
+
+function shakeBox(){
+  const box=document.querySelector('.login-box');
+  box.style.animation='none';
+  box.offsetHeight;
+  box.style.animation='shake .4s ease';
+  setTimeout(()=>{box.style.animation='none';},400);
+}
+
+// ── 2FA ───────────────────────────────────────────────────────────────────────
+function show2FA(){
+  document.getElementById('section-login').style.display='none';
+  document.getElementById('section-2fa').style.display='block';
+  document.getElementById('form-title').textContent='Vérification 2FA';
+  document.getElementById('form-subtitle').textContent='Code de sécurité requis';
+  document.getElementById('otp-0').focus();
+}
+
+function otpInput(idx){
+  const val=document.getElementById('otp-'+idx).value;
+  if(val&&idx<5) document.getElementById('otp-'+(idx+1)).focus();
+  // Auto-vérifier si 6 chiffres
+  const code=Array.from({length:6},(_,i)=>document.getElementById('otp-'+i).value).join('');
+  if(code.length===6) setTimeout(verify2FA,200);
+}
+
+function otpKey(e,idx){
+  if(e.key==='Backspace'&&!document.getElementById('otp-'+idx).value&&idx>0){
+    document.getElementById('otp-'+(idx-1)).focus();
+  }
+}
+
+function verify2FA(){
+  const code=Array.from({length:6},(_,i)=>document.getElementById('otp-'+i).value).join('');
+  if(code==='123456'){doLogin();}
+  else {showMsg('error','❌','Code incorrect. Essayez 123456 pour la démo.');for(let i=0;i<6;i++){const inp=document.getElementById('otp-'+i);inp.value='';inp.classList.add('error');}document.getElementById('otp-0').focus();}
+}
+
+function backToLogin(){
+  document.getElementById('section-2fa').style.display='none';
+  document.getElementById('section-login').style.display='block';
+  document.getElementById('form-title').textContent='Connexion';
+  document.getElementById('form-subtitle').textContent='Accédez à votre espace MediCore ERP';
+}
+
+// ── Connexion réussie ─────────────────────────────────────────────────────────
+function doLogin(){
+  const overlay=document.getElementById('loading-overlay');
+  overlay.classList.add('show');
+
+  let step=0;
+  const msgs=LOADING_MESSAGES;
+  const interval=setInterval(()=>{
+    step++;
+    if(step<msgs.length){
+      document.getElementById('loading-text').textContent=msgs[step];
+    } else {
+      clearInterval(interval);
+      // Stocker session
+      sessionStorage.setItem('medicore_user', JSON.stringify(currentUser));
+      // Rediriger vers l'accueil
+      setTimeout(()=>{window.location.href='index.html';},400);
+    }
+  },350);
+}
+
+// ── Mot de passe oublié ────────────────────────────────────────────────────────
+function showForgot(){
+  document.getElementById('section-login').style.display='none';
+  document.getElementById('section-forgot').style.display='block';
+  document.getElementById('form-title').textContent='Réinitialisation';
+  document.getElementById('form-subtitle').textContent='Récupération du mot de passe';
+  document.getElementById('notif-banner').style.display='none';
+}
+function showLogin(){
+  document.getElementById('section-login').style.display='block';
+  document.getElementById('section-forgot').style.display='none';
+  document.getElementById('section-2fa').style.display='none';
+  document.getElementById('form-title').textContent='Connexion';
+  document.getElementById('form-subtitle').textContent='Accédez à votre espace MediCore ERP';
+  document.getElementById('notif-banner').style.display='flex';
+  clearMsg();
+}
+function submitForgot(){
+  const v=document.getElementById('forgot-input').value;
+  if(!v){showMsg('error','⚠️','Saisissez votre identifiant ou email.');return}
+  showMsg('success','✉️',`Lien envoyé à l'adresse enregistrée pour "${v}". Vérifiez votre messagerie.`);
+  setTimeout(()=>{showLogin();clearMsg();},2500);
+}
+
+// ── SSO ───────────────────────────────────────────────────────────────────────
+function ssoLogin(type){
+  showMsg('info','🔒',`Redirection vers ${type}… (démo — connexion directe)`);
+  setTimeout(()=>{
+    currentUser={nom:'Utilisateur SSO',role:'SSO — '+type,login:'sso',require2FA:false,avatar:'🔒'};
+    doLogin();
+  },1200);
+}
+
+// ── Styles animation shake ────────────────────────────────────────────────────
+const style=document.createElement('style');
+style.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}';
+document.head.appendChild(style);
+
+// ── Auto-focus ────────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  // Pré-remplir avec le rôle médecin sélectionné
+  document.getElementById('login-user').value='dr.toure';
+  document.getElementById('login-user').focus();
+});
+</script>
+</body>
+</html>

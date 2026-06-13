@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MediCore ERP — Pharmacie (PUI)</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+    --accent:#1a4b6e;--accent-light:#e8f0f7;
+    --accent2:#c8702a;--accent2-light:#fdf0e6;
+    --green:#1e7a4e;--green-bg:#e8f5ef;
+    --orange:#b05b00;--orange-bg:#fef3e2;
+    --red:#b92b2b;--red-bg:#fdeaea;
+    --purple:#6b21a8;--purple-bg:#f3e8ff;
+    --teal:#0f766e;--teal-bg:#ccfbf1;
+    --text:#1c1c1c;--text-muted:#6b6b6b;
+    --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:240px;background:var(--accent);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .sidebar-logo span{font-family:'DM Serif Display',serif;font-size:18px;display:block}
+  .sidebar-logo small{font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:1px}
+  .sidebar-section{padding:16px 12px 8px;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;opacity:.5;font-weight:600}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:6px;margin:2px 8px;cursor:pointer;font-size:13.5px;opacity:.75;transition:all .15s;color:#fff;text-decoration:none}
+  .nav-item:hover{background:rgba(255,255,255,.1);opacity:1}
+  .nav-item.active{background:rgba(255,255,255,.18);opacity:1;font-weight:500}
+  .nav-item .icon{font-size:16px;width:20px;text-align:center}
+  .sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid rgba(255,255,255,.12);font-size:12px;opacity:.5}
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+  .topbar-title h1{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}
+  .topbar-title p{font-size:12.5px;color:var(--text-muted);margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+  .content{flex:1;padding:28px 32px;overflow-y:auto}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+  .kpi-card.green::before{background:var(--green)}
+  .kpi-card.red::before{background:var(--red)}
+  .kpi-card.blue::before{background:var(--accent)}
+  .kpi-card.orange::before{background:var(--accent2)}
+  .kpi-card.purple::before{background:var(--purple)}
+  .kpi-label{font-size:11.5px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:24px;margin:6px 0 4px;color:var(--accent)}
+  .kpi-sub{font-size:12px;color:var(--text-muted)}
+  .kpi-badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:20px}
+  .kpi-badge.up{background:var(--green-bg);color:var(--green)}
+  .kpi-badge.down{background:var(--red-bg);color:var(--red)}
+  .kpi-badge.warn{background:var(--orange-bg);color:var(--orange)}
+  .kpi-badge.neutral{background:var(--accent-light);color:var(--accent)}
+  .tabs{display:flex;margin-bottom:24px;border-bottom:2px solid var(--border)}
+  .tab-btn{padding:10px 20px;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn:hover{color:var(--accent)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .card-title{font-weight:600;font-size:14px}
+  .card-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+  table{width:100%;border-collapse:collapse}
+  thead th{padding:11px 14px;text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:600;background:var(--surface-alt);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface-alt)}
+  tbody td{padding:11px 14px;font-size:13px;vertical-align:middle}
+  tfoot td{padding:12px 14px;font-weight:700;font-size:13px;background:var(--surface-alt);border-top:2px solid var(--border)}
+  .text-right{text-align:right}
+  .amount{font-variant-numeric:tabular-nums;font-weight:600}
+  .text-muted{color:var(--text-muted)}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:500;white-space:nowrap}
+  .badge-actif{background:var(--green-bg);color:var(--green)}
+  .badge-alerte{background:var(--red-bg);color:var(--red)}
+  .badge-warn{background:var(--orange-bg);color:var(--orange)}
+  .badge-ok{background:var(--green-bg);color:var(--green)}
+  .badge-stup{background:var(--purple-bg);color:var(--purple)}
+  .badge-dmi{background:var(--teal-bg);color:var(--teal)}
+  .badge-med{background:var(--accent-light);color:var(--accent)}
+  .badge-mp{background:var(--accent2-light);color:var(--accent2)}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#163d5a}
+  .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-secondary:hover{background:var(--surface-alt)}
+  .btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #f3b4b4}
+  .btn-warn{background:var(--orange-bg);color:var(--orange);border:1px solid #f0c080}
+  .btn-sm{padding:5px 11px;font-size:12px}
+  .filter-row{display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface-alt);flex-wrap:wrap}
+  .filter-row select,.filter-row input{width:auto;padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none;color:var(--text)}
+  .filter-row select:focus,.filter-row input:focus{border-color:var(--accent)}
+  .filter-row label{font-size:12.5px;font-weight:500;color:var(--text-muted);white-space:nowrap}
+  .overlay{display:none;position:fixed;inset:0;background:rgba(10,20,30,.45);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);width:700px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:22px 28px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent)}
+  .modal-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:3px}
+  .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .modal-close:hover{background:var(--surface-alt)}
+  .modal-body{padding:24px 28px}
+  .modal-footer{padding:16px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group.full{grid-column:1/-1}
+  label{font-size:12.5px;font-weight:500;color:var(--text-muted)}
+  label .req{color:var(--red)}
+  input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+  .section-label{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;padding-top:4px;border-top:1px solid var(--border)}
+  .alert-box{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-radius:var(--radius);margin-bottom:14px;font-size:13px}
+  .alert-box.red{background:var(--red-bg);border:1px solid #f3b4b4;color:var(--red)}
+  .alert-box.warn{background:var(--orange-bg);border:1px solid #f0c080;color:var(--orange)}
+  .alert-box.info{background:var(--accent-light);border:1px solid #c0d8ea;color:var(--accent)}
+  .alert-box.purple{background:var(--purple-bg);border:1px solid #d8b4fe;color:var(--purple)}
+  .alert-icon{font-size:17px;flex-shrink:0}
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:6px 12px}
+  .search-bar input{border:none;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);width:200px;box-shadow:none;padding:0}
+  /* Stock level bar */
+  .stock-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:3px;width:80px}
+  .stock-bar-fill{height:100%;border-radius:3px}
+  /* Circuit médicament steps */
+  .circuit-steps{display:flex;align-items:center;gap:0;margin:20px 0}
+  .circuit-step{flex:1;text-align:center;position:relative}
+  .circuit-step::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:16px;z-index:1}
+  .circuit-step:last-child::after{display:none}
+  .cs-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;margin:0 auto 6px;border:2px solid}
+  .cs-label{font-size:12px;font-weight:500;color:var(--text)}
+  .cs-count{font-size:11px;color:var(--text-muted);margin-top:2px}
+  /* Dispensation card */
+  .disp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;cursor:pointer;transition:all .15s}
+  .disp-card:hover{border-color:var(--accent);background:var(--accent-light)}
+  .disp-card.validated{border-color:var(--green);background:var(--green-bg)}
+  .disp-card.pending{border-color:var(--orange);background:var(--orange-bg)}
+  .disp-card.refused{border-color:var(--red);background:var(--red-bg)}
+  /* Stupéfiants */
+  .stup-badge{display:inline-flex;align-items:center;gap:4px;background:var(--purple-bg);color:var(--purple);border:1px solid #d8b4fe;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.5px}
+  /* Dépôts grid */
+  .depot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:20px}
+  .depot-card{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .depot-card h4{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px}
+  .depot-stat{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border)}
+  .depot-stat:last-child{border-bottom:none}
+  /* Toast */
+  .toast-container{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+  .toast{background:var(--text);color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .25s ease,toastOut .3s ease 2.5s forwards}
+  .toast.success{background:var(--green)}
+  .toast.error{background:var(--red)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(30px)}}
+  .pui-tag{display:inline-block;background:var(--teal-bg);color:var(--teal);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;margin-left:8px;vertical-align:middle;border:1px solid rgba(15,118,110,.25)}
+  .lot-tag{font-family:monospace;font-size:11.5px;background:var(--surface-alt);color:var(--text-muted);padding:2px 7px;border-radius:4px;border:1px solid var(--border)}
+  .pagination{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-muted)}
+  .pagination-btns{display:flex;gap:4px}
+  .pg-btn{padding:5px 10px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;font-size:12.5px;font-family:'DM Sans',sans-serif}
+  .pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .pg-btn:hover:not(.active){background:var(--surface-alt)}
+
+  /* ── Mobile Pharmacie PUI ────────────────────────────────────────────────── */
+  @media(max-width:1024px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+    .depot-grid{grid-template-columns:repeat(2,1fr)!important}
+    .tabs{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab-btn{white-space:nowrap;flex-shrink:0}
+    /* Circuit médicament */
+    .circuit-steps{flex-wrap:wrap!important;justify-content:center!important;gap:8px!important}
+    .circuit-step{width:calc(33% - 8px)!important;min-width:90px!important}
+  }
+  @media(max-width:768px){
+    .kpi-grid{grid-template-columns:1fr 1fr!important}
+    .depot-grid{grid-template-columns:1fr!important}
+    /* Circuit : 2 par ligne */
+    .circuit-step{width:calc(50% - 6px)!important}
+    /* Dispensation cards */
+    .disp-card{margin-bottom:10px!important}
+    .disp-card .btn{width:100%!important;justify-content:center!important;margin-top:4px!important}
+    /* Stock bar */
+    .stock-bar{height:6px!important}
+    /* Filtres */
+    .filter-row,.search-bar{flex-wrap:wrap!important;gap:8px!important}
+    .filter-row select,.search-bar input{width:100%!important}
+  }
+  @media(max-width:480px){
+    .kpi-grid{grid-template-columns:1fr!important}
+    /* Circuit vertical */
+    .circuit-steps{flex-direction:column!important;align-items:stretch!important}
+    .circuit-step{width:100%!important;display:flex!important;align-items:center!important;gap:12px!important}
+    .cs-icon{flex-shrink:0!important;width:40px!important;height:40px!important;font-size:20px!important}
+    .cs-label{font-size:13px!important}
+    .cs-count{font-size:11.5px!important}
+    /* Depot card compact */
+    .depot-card{padding:12px!important}
+    .depot-stat{font-size:12.5px!important;padding:4px 0!important}
+    /* Réappro table compact */
+    #reappro-tbody td:nth-child(5){display:none}
+  }
+</style>
+  <script src="nav.js"></script>
+<script src="qr.js"></script>
+<link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar"><!-- nav généré par nav.js --></aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <h1>Pharmacie à Usage Intérieur <span class="pui-tag">PUI</span></h1>
+        <p>Stocks · Circuit du médicament · Stupéfiants · Traçabilité · Rétrocession</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="toast('Inventaire tournant lancé.','success')">📦 Inventaire</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇ Exporter</button>
+        <button class="btn btn-primary" onclick="openMouvStock()">＋ Mouvement stock</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Alertes -->
+      <div id="alertes-pui"></div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Références en stock</div>
+          <div class="kpi-value" id="kpi-refs">—</div>
+          <span class="kpi-badge neutral" id="kpi-refs-sub">Tous dépôts</span>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Alertes stock</div>
+          <div class="kpi-value" id="kpi-alertes">—</div>
+          <span class="kpi-badge" id="kpi-alertes-badge">Ruptures + min</span>
+        </div>
+        <div class="kpi-card orange">
+          <div class="kpi-label">Péremptions < 90 j</div>
+          <div class="kpi-value" id="kpi-peremptions">—</div>
+          <span class="kpi-badge warn">⚠ À surveiller</span>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Valeur stock global</div>
+          <div class="kpi-value" id="kpi-valeur">—</div>
+          <span class="kpi-badge up">FCFA — PMP</span>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('stock',this)">Stock & Référentiel</button>
+        <button class="tab-btn" onclick="switchTab('circuit',this)">Circuit du médicament</button>
+        <button class="tab-btn" onclick="switchTab('stupefiants',this)">Stupéfiants</button>
+        <button class="tab-btn" onclick="switchTab('depots',this)">Dépôts & Réappro.</button>
+        <button class="tab-btn" onclick="switchTab('retroces',this)">Rétrocession</button>
+        <button class="tab-btn" onclick="switchTab('traçabilite',this)">Traçabilité lots</button>
+      </div>
+
+      <!-- ── STOCK ── -->
+      <div id="tab-stock" class="tab-panel active">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Référentiel produits de santé</div><div class="card-subtitle" id="stock-count">—</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="search-bar"><span>🔍</span><input type="text" id="stock-search" placeholder="DCI, nom commercial, code…" oninput="renderStock()"></div>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-cat-stock" onchange="renderStock()">
+                <option value="">Tous types</option>
+                <option value="Médicament">Médicaments</option>
+                <option value="DMI">Disp. médicaux impl.</option>
+                <option value="Consommable">Consommables</option>
+                <option value="Stupéfiant">Stupéfiants</option>
+                <option value="Matière première">Matières premières</option>
+              </select>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-alerte-stock" onchange="renderStock()">
+                <option value="">Tous statuts</option>
+                <option value="Rupture">Rupture</option>
+                <option value="Alerte min">Alerte stock mini</option>
+                <option value="OK">Stock OK</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Code</th><th>DCI / Désignation</th><th>Forme</th><th>Type</th>
+              <th>Dépôt principal</th><th class="text-right">Stock actuel</th>
+              <th>Stock mini/maxi</th><th>Niveau</th>
+              <th>Proch. péremption</th><th>PMP unit. (FCFA)</th><th>Statut</th><th></th>
+            </tr></thead>
+            <tbody id="stock-tbody"></tbody>
+            <tfoot><tr>
+              <td colspan="5">TOTAL RÉFÉRENCES</td>
+              <td class="text-right" id="foot-stock-refs">—</td>
+              <td colspan="4"></td>
+              <td colspan="2" class="text-right" id="foot-stock-val">—</td>
+            </tr></tfoot>
+          </table>
+          <div class="pagination">
+            <span id="stock-pag-info"></span>
+            <div class="pagination-btns" id="stock-pag-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CIRCUIT DU MÉDICAMENT ── -->
+      <div id="tab-circuit" class="tab-panel">
+        <!-- Étapes circuit -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><div class="card-title">Circuit du médicament</div><div class="card-subtitle">De la prescription à l'administration au patient</div></div>
+          <div style="padding:24px">
+            <div class="circuit-steps" id="circuit-steps"></div>
+          </div>
+        </div>
+
+        <!-- File de validation pharmaceutique -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:12px">🔔 À valider — Prescriptions en attente</div>
+            <div id="prescriptions-list"></div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:12px">✅ Validées aujourd'hui</div>
+            <div id="validees-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STUPÉFIANTS ── -->
+      <div id="tab-stupefiants" class="tab-panel">
+        <div class="alert-box purple" style="margin-bottom:20px">
+          <span class="alert-icon">🔒</span>
+          <span>Registre des stupéfiants soumis à traçabilité renforcée. Chaque mouvement requiert une <strong>saisie nominative</strong> (patient + prescripteur) et un <strong>double comptage</strong>. Conforme à la réglementation CAMES/UEMOA.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+          <div class="kpi-card purple">
+            <div class="kpi-label">Références stupéfiants</div>
+            <div class="kpi-value" style="font-size:22px" id="stup-refs">—</div>
+            <span class="kpi-badge" style="background:var(--purple-bg);color:var(--purple)">🔒 Contrôlés</span>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-label">Mouvements ce mois</div>
+            <div class="kpi-value" style="font-size:22px" id="stup-mvts">—</div>
+            <span class="kpi-badge warn">📋 Registre</span>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-label">Écarts détectés</div>
+            <div class="kpi-value" style="font-size:22px" id="stup-ecarts">0</div>
+            <span class="kpi-badge" id="stup-ecarts-badge">✓ RAS</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Registre des mouvements de stupéfiants</div><div class="card-subtitle">Double comptage — Saisie nominative obligatoire</div></div>
+            <button class="btn btn-primary btn-sm" onclick="openStup()">＋ Enregistrer mouvement</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Date/Heure</th><th>Produit</th><th>Lot</th><th>Patient</th>
+              <th>Prescripteur</th><th>Service</th><th>Mouvement</th>
+              <th class="text-right">Qté</th><th class="text-right">Stock après</th><th>Double comptage</th>
+            </tr></thead>
+            <tbody id="stup-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── DÉPÔTS ── -->
+      <div id="tab-depots" class="tab-panel">
+        <div class="depot-grid" id="depots-grid"></div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Réapprovisionnement automatique</div><div class="card-subtitle">Produits en dessous du stock minimum — Calcul des besoins</div></div>
+            <button class="btn btn-primary btn-sm" onclick="genererCommande()">📋 Générer bon de commande</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Produit</th><th>Dépôt</th><th class="text-right">Stock actuel</th>
+              <th class="text-right">Stock mini</th><th class="text-right">Stock maxi</th>
+              <th class="text-right">Qté à commander</th><th>Fournisseur préférentiel</th><th>Urgence</th>
+            </tr></thead>
+            <tbody id="reappro-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── RÉTROCESSION ── -->
+      <div id="tab-retroces" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:20px">
+          <span class="alert-icon">ℹ️</span>
+          <span>La rétrocession est la vente de médicaments aux patients non hospitalisés (externes). Elle génère automatiquement une facturation (module Facturation) et une sortie de stock.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+          <div class="kpi-card green"><div class="kpi-label">CA rétrocession (mois)</div><div class="kpi-value" style="font-size:20px" id="retro-ca">—</div><span class="kpi-badge up">▲ Recettes</span></div>
+          <div class="kpi-card blue"><div class="kpi-label">Ordonnances traitées</div><div class="kpi-value" style="font-size:20px" id="retro-ordo">—</div><span class="kpi-badge neutral">📋 Ce mois</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Montant en attente</div><div class="kpi-value" style="font-size:20px" id="retro-att">—</div><span class="kpi-badge warn">⏳ AM/mutuelle</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Ventes de médicaments externes</div></div>
+            <button class="btn btn-primary btn-sm" onclick="openRetro()">＋ Nouvelle vente</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Date</th><th>N° ordonnance</th><th>Patient</th><th>Prescripteur</th>
+              <th>Médicaments délivrés</th><th class="text-right">Montant (FCFA)</th>
+              <th>Tiers-payant</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="retro-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── TRAÇABILITÉ LOTS ── -->
+      <div id="tab-traçabilite" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:20px">
+          <span class="alert-icon">🔍</span>
+          <span>Traçabilité ascendante (du fournisseur au patient) et descendante (du patient au fournisseur). Permet le retrait de lot en cas d'alerte sanitaire.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px">
+          <div class="card" style="height:fit-content">
+            <div class="card-header"><div class="card-title">Rechercher un lot</div></div>
+            <div style="padding:16px">
+              <div class="form-group" style="margin-bottom:12px">
+                <label>N° de lot</label>
+                <input type="text" id="trace-lot" placeholder="ex: LOT2025-0412" oninput="rechercherLot()">
+              </div>
+              <div class="form-group" style="margin-bottom:12px">
+                <label>Ou par produit</label>
+                <select id="trace-produit" onchange="rechercherParProduit()">
+                  <option value="">— Sélectionner —</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%" onclick="rechercherLot()">🔍 Tracer</button>
+            </div>
+          </div>
+          <div id="trace-result">
+            <div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:13.5px">
+              <div style="font-size:36px;margin-bottom:12px">🔗</div>
+              Saisissez un numéro de lot pour afficher sa traçabilité complète
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal mouvement stock -->
+<div class="overlay" id="modal-stock">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">Mouvement de stock</div><div class="modal-subtitle">Entrée, sortie ou transfert — Traçabilité automatique</div></div>
+      <button class="modal-close" onclick="closeMouvStock()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Type de mouvement <span class="req">*</span></label>
+          <select id="ms-type">
+            <option value="Entrée">Entrée (réception commande)</option>
+            <option value="Sortie dispensation">Sortie — Dispensation nominative</option>
+            <option value="Sortie globale">Sortie — Dispensation globale</option>
+            <option value="Transfert">Transfert inter-dépôts</option>
+            <option value="Retour">Retour non utilisé</option>
+            <option value="Perte/Casse">Perte / Casse</option>
+          </select></div>
+        <div class="form-group"><label>Date <span class="req">*</span></label><input type="date" id="ms-date"></div>
+        <div class="form-group full"><label>Produit <span class="req">*</span></label>
+          <select id="ms-produit">
+            <option value="">— Sélectionner —</option>
+          </select></div>
+        <div class="form-group"><label>N° de lot <span class="req">*</span></label><input type="text" id="ms-lot" placeholder="ex: LOT2025-0412"></div>
+        <div class="form-group"><label>Date de péremption</label><input type="date" id="ms-perem"></div>
+        <div class="form-group"><label>Quantité <span class="req">*</span></label><input type="number" id="ms-qty" min="1" placeholder="ex: 50"></div>
+        <div class="form-group"><label>Dépôt source/destination</label>
+          <select id="ms-depot">
+            <option value="Pharmacie centrale">Pharmacie centrale</option>
+            <option value="Unité de soins — Médecine">Unité de soins — Médecine</option>
+            <option value="Unité de soins — Chirurgie">Unité de soins — Chirurgie</option>
+            <option value="Bloc opératoire">Bloc opératoire</option>
+            <option value="Urgences">Urgences</option>
+          </select></div>
+        <div class="form-group"><label>Fournisseur / BL (si entrée)</label><input type="text" id="ms-fourn" placeholder="ex: Laborex, CAMEG"></div>
+        <div class="form-group full"><label>Patient / Service (si sortie)</label><input type="text" id="ms-patient" placeholder="ex: KONÉ Aminata — Salle 14"></div>
+        <div class="form-group full"><label>Observations</label><textarea id="ms-obs" style="min-height:56px" placeholder="Prescripteur, n° ordonnance, motif…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMouvStock()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerMouv()">Enregistrer le mouvement</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal stupéfiant -->
+<div class="overlay" id="modal-stup">
+  <div class="modal" style="width:580px">
+    <div class="modal-header">
+      <div><div class="modal-title">Mouvement stupéfiant</div><div class="modal-subtitle">Double comptage obligatoire — Saisie nominative</div></div>
+      <button class="modal-close" onclick="closeStup()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-box purple" style="margin-bottom:16px">
+        <span class="alert-icon">🔒</span>
+        <span>Ce mouvement sera enregistré dans le registre des stupéfiants avec votre identifiant. Un second pharmacien devra confirmer le comptage.</span>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Produit stupéfiant <span class="req">*</span></label>
+          <select id="st-produit">
+            <option value="Morphine 10mg/mL inj.">Morphine 10mg/mL inj.</option>
+            <option value="Fentanyl 50mcg/mL">Fentanyl 50mcg/mL</option>
+            <option value="Kétamine 250mg/5mL">Kétamine 250mg/5mL</option>
+            <option value="Tramadol 100mg inj.">Tramadol 100mg inj.</option>
+          </select></div>
+        <div class="form-group"><label>N° de lot <span class="req">*</span></label><input type="text" id="st-lot" placeholder="LOT2025-STUP-01"></div>
+        <div class="form-group"><label>Patient <span class="req">*</span></label><input type="text" id="st-patient" placeholder="NOM Prénom — N° dossier"></div>
+        <div class="form-group"><label>Prescripteur <span class="req">*</span></label><input type="text" id="st-presc" placeholder="Dr. NOM Prénom"></div>
+        <div class="form-group"><label>Service</label>
+          <select id="st-service">
+            <option>Chirurgie</option><option>Médecine</option><option>Urgences</option><option>Bloc opératoire</option>
+          </select></div>
+        <div class="form-group"><label>Quantité délivrée <span class="req">*</span></label><input type="number" id="st-qty" min="1" value="1"></div>
+        <div class="form-group full"><label>Pharmacien responsable <span class="req">*</span></label><input type="text" id="st-pharma" placeholder="Nom et matricule du pharmacien"></div>
+        <div class="form-group full"><label>Second comptage — Nom du vérificateur <span class="req">*</span></label><input type="text" id="st-verif" placeholder="Obligatoire pour les stupéfiants"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeStup()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerStup()">Enregistrer & Signer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal rétrocession -->
+<div class="overlay" id="modal-retro">
+  <div class="modal" style="width:580px">
+    <div class="modal-header">
+      <div><div class="modal-title">Vente par rétrocession</div><div class="modal-subtitle">Médicament remis à un patient externe</div></div>
+      <button class="modal-close" onclick="closeRetro()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>N° ordonnance <span class="req">*</span></label><input type="text" id="r-ordo" placeholder="ORD-2025-0412"></div>
+        <div class="form-group"><label>Date <span class="req">*</span></label><input type="date" id="r-date"></div>
+        <div class="form-group"><label>Patient <span class="req">*</span></label><input type="text" id="r-patient" placeholder="NOM Prénom"></div>
+        <div class="form-group"><label>Prescripteur</label><input type="text" id="r-presc" placeholder="Dr. NOM — Service"></div>
+        <div class="form-group full"><label>Médicament(s) délivré(s) <span class="req">*</span></label><textarea id="r-meds" style="min-height:60px" placeholder="Herceptin 150mg × 2, Taxotère 80mg × 1…"></textarea></div>
+        <div class="form-group"><label>Montant total (FCFA) <span class="req">*</span></label><input type="number" id="r-montant" min="0"></div>
+        <div class="form-group"><label>Prise en charge</label>
+          <select id="r-pc">
+            <option value="CNAM">CNAM — Assurance Maladie</option>
+            <option value="Mutuelle">Mutuelle</option>
+            <option value="Patient">Patient (comptant)</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRetro()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerRetro()">Délivrer & Facturer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Données ───────────────────────────────────────────────────────────────────
+let produits = [
+  { code:'MED-001', dci:'Amoxicilline 500mg gél.', type:'Médicament', forme:'Gélule', depot:'Pharmacie centrale', stock:2400, mini:500, maxi:5000, peremption:'2026-08-15', pmp:180, lot:'LOT2025-0201' },
+  { code:'MED-002', dci:'Paracétamol 1g perf.', type:'Médicament', forme:'Perfusion', depot:'Pharmacie centrale', stock:380, mini:400, maxi:2000, peremption:'2025-12-31', pmp:850, lot:'LOT2025-0188' },
+  { code:'MED-003', dci:'Artémether/Luméfantrine 20/120mg cp.', type:'Médicament', forme:'Comprimé', depot:'Pharmacie centrale', stock:1800, mini:600, maxi:4000, peremption:'2026-04-20', pmp:2400, lot:'LOT2025-0301' },
+  { code:'MED-004', dci:'Morphine 10mg/mL inj.', type:'Stupéfiant', forme:'Injectable', depot:'Pharmacie centrale', stock:48, mini:20, maxi:100, peremption:'2025-11-30', pmp:12000, lot:'LOT2025-STUP-01' },
+  { code:'MED-005', dci:'Fentanyl 50mcg/mL', type:'Stupéfiant', forme:'Injectable', depot:'Pharmacie centrale', stock:24, mini:10, maxi:50, peremption:'2025-10-15', pmp:18500, lot:'LOT2025-STUP-02' },
+  { code:'MED-006', dci:'Ceftriaxone 1g inj.', type:'Médicament', forme:'Injectable', depot:'Pharmacie centrale', stock:640, mini:200, maxi:1500, peremption:'2026-03-10', pmp:2800, lot:'LOT2025-0411' },
+  { code:'MED-007', dci:'Metformine 500mg cp.', type:'Médicament', forme:'Comprimé', depot:'Pharmacie centrale', stock:0, mini:300, maxi:2000, peremption:'2026-01-15', pmp:95, lot:'LOT2024-0812' },
+  { code:'DMI-001', dci:'Prothèse hanche totale cimentée', type:'DMI', forme:'Implant', depot:'Pharmacie centrale', stock:8, mini:3, maxi:15, peremption:'2028-06-01', pmp:480000, lot:'IMP2025-0041' },
+  { code:'DMI-002', dci:'Sutures résorbables Vicryl 2/0', type:'Consommable', forme:'Fil chirurgical', depot:'Bloc opératoire', stock:220, mini:100, maxi:500, peremption:'2027-09-30', pmp:3200, lot:'LOT2025-0501' },
+  { code:'MED-008', dci:'Herceptin (Trastuzumab) 150mg', type:'Médicament', forme:'Perfusion', depot:'Pharmacie centrale', stock:12, mini:5, maxi:30, peremption:'2025-09-20', pmp:320000, lot:'LOT2025-ONCO-01' },
+  { code:'MP-001', dci:'Eau ppi pour préparations inj.', type:'Matière première', forme:'Solvant', depot:'Pharmacie centrale', stock:1200, mini:500, maxi:3000, peremption:'2026-06-30', pmp:120, lot:'LOT2025-MP-01' },
+  { code:'MED-009', dci:'Kétamine 250mg/5mL', type:'Stupéfiant', forme:'Injectable', depot:'Pharmacie centrale', stock:36, mini:15, maxi:80, peremption:'2026-02-28', pmp:8500, lot:'LOT2025-STUP-03' },
+];
+
+let mouvements_stock = [
+  { date:'2025-06-02', type:'Entrée', produit:'Amoxicilline 500mg gél.', lot:'LOT2025-0201', qty:1000, depot:'Pharmacie centrale', patient:'—', fourn:'Laborex CI', obs:'' },
+  { date:'2025-06-05', type:'Sortie dispensation', produit:'Paracétamol 1g perf.', lot:'LOT2025-0188', qty:50, depot:'Unité de soins — Médecine', patient:'KONÉ Aminata — Salle 8', fourn:'—', obs:'Prescription Dr. Diabaté' },
+  { date:'2025-06-07', type:'Sortie dispensation', produit:'Ceftriaxone 1g inj.', lot:'LOT2025-0411', qty:20, depot:'Unité de soins — Chirurgie', patient:'TRAORÉ Moussa — Salle 14', fourn:'—', obs:'' },
+  { date:'2025-06-10', type:'Entrée', produit:'Ceftriaxone 1g inj.', lot:'LOT2025-0412', qty:400, depot:'Pharmacie centrale', patient:'—', fourn:'CAMEG', obs:'BL N°2025-4412' },
+];
+
+let registre_stup = [
+  { datetime:'2025-06-12 09:14', produit:'Morphine 10mg/mL inj.', lot:'LOT2025-STUP-01', patient:'OUATTARA Seydou — D204812', presc:'Dr. Coulibaly', service:'Chirurgie', mvt:'Sortie', qty:2, stockApres:50, verif:'Pharma. Bamba K.' },
+  { datetime:'2025-06-14 14:32', produit:'Fentanyl 50mcg/mL', lot:'LOT2025-STUP-02', patient:'DIALLO Fatoumata — D201944', presc:'Dr. Konan', service:'Bloc opératoire', mvt:'Sortie', qty:1, stockApres:25, verif:'Pharma. Dosso R.' },
+  { datetime:'2025-06-15 07:55', produit:'Kétamine 250mg/5mL', lot:'LOT2025-STUP-03', patient:'YAO Koffi — D205511', presc:'Dr. Touré', service:'Urgences', mvt:'Sortie', qty:3, stockApres:37, verif:'Pharma. Bamba K.' },
+];
+
+let retrocessions = [
+  { date:'2025-06-03', ordo:'ORD-2025-0401', patient:'GNONSOA Marie', presc:'Dr. Gbagbo — Oncologie', meds:'Herceptin 150mg × 2', montant:640000, pc:'CNAM', statut:'Remboursé' },
+  { date:'2025-06-08', ordo:'ORD-2025-0408', patient:'BAMBA Issouf', presc:'Dr. Camara — Médecine', meds:'Taxotère 80mg × 1', montant:285000, pc:'Mutuelle', statut:'En attente' },
+  { date:'2025-06-12', ordo:'ORD-2025-0415', patient:'TOURÉ Kadiatou', presc:'Dr. Diabaté — Oncologie', meds:'Herceptin 150mg × 2, Taxol 300mg × 1', montant:920000, pc:'CNAM', statut:'En attente' },
+];
+
+let prescriptions_circuit = [
+  { id:'PRESC-2025-081', patient:'KONATÉ Drissa — Salle 6', service:'Médecine', medecin:'Dr. Bamba', heure:'09:15', meds:'Amoxicilline 500mg × 3/j × 7j, Paracétamol 1g × 3/j', statut:'pending' },
+  { id:'PRESC-2025-082', patient:'SORO Aïcha — Salle 12', service:'Chirurgie', medecin:'Dr. Touré', heure:'10:42', meds:'Ceftriaxone 1g IV × 2/j × 5j, Métronidazole 500mg', statut:'pending' },
+  { id:'PRESC-2025-083', patient:'YÉO Mariame — Maternité', service:'Maternité', medecin:'Dr. Coulibaly', heure:'11:08', meds:'Ocytocine 10 UI, Paracétamol 500mg', statut:'validated' },
+  { id:'PRESC-2025-084', patient:'DIABATÉ Omar — Salle 3', service:'Médecine', medecin:'Dr. Konan', heure:'08:30', meds:'Artémether/Luméfantrine 20/120mg', statut:'validated' },
+];
+
+const DEPOTS = [
+  { nom:'Pharmacie centrale', nb:12, valeur:48200000, alerte:2, couleur:'#1a4b6e' },
+  { nom:'Unité soins — Médecine', nb:8, valeur:1240000, alerte:1, couleur:'#1e7a4e' },
+  { nom:'Unité soins — Chirurgie', nb:10, valeur:2180000, alerte:0, couleur:'#c8702a' },
+  { nom:'Bloc opératoire', nb:6, valeur:980000, alerte:0, couleur:'#6b21a8' },
+  { nom:'Urgences', nb:7, valeur:760000, alerte:1, couleur:'#b92b2b' },
+  { nom:'Armoires sécurisées', nb:4, valeur:420000, alerte:0, couleur:'#0f766e' },
+];
+
+// ── Journal d'audit PUI ───────────────────────────────────────────────────────
+const PUI_AUDIT = [];
+function puiAudit(action, ref, detail){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  PUI_AUDIT.push({ts:new Date().toISOString(),action,ref,detail,auteur:s.nom||'Pharmacien',role:s.role||'—'});
+}
+function getPharmacien(){
+  const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
+  return s.nom||'Pharmacien PUI';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
+function fmtF(v){return fmt(v)+' FCFA'}
+function daysToPerem(date){return Math.ceil((new Date(date)-new Date())/(86400000))}
+
+function getStatutStock(p){
+  if(p.stock===0) return 'Rupture';
+  if(p.stock<=p.mini) return 'Alerte min';
+  return 'OK';
+}
+function typeBadge(t){
+  const m={'Médicament':'badge-med','DMI':'badge-dmi','Consommable':'badge-actif','Stupéfiant':'badge-stup','Matière première':'badge-mp'};
+  return `<span class="badge ${m[t]||''}">${t==='Stupéfiant'?'🔒 Stupéfiant':t}</span>`;
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function updateKPIs(){
+  const actifs=produits.filter(p=>p.stock>=0);
+  const alertes=actifs.filter(p=>getStatutStock(p)!=='OK').length;
+  const perem90=actifs.filter(p=>daysToPerem(p.peremption)<90).length;
+  const valeur=actifs.reduce((s,p)=>s+p.stock*p.pmp,0);
+  document.getElementById('kpi-refs').textContent=actifs.length;
+  document.getElementById('kpi-alertes').textContent=alertes;
+  document.getElementById('kpi-peremptions').textContent=perem90;
+  document.getElementById('kpi-valeur').textContent=fmtF(valeur);
+  const ab=document.getElementById('kpi-alertes-badge');
+  ab.className='kpi-badge '+(alertes>0?'down':'up');
+  ab.textContent=alertes>0?'⚠ '+alertes+' alertes':'✓ RAS';
+  // Alertes visuelles
+  const ruptus=produits.filter(p=>p.stock===0);
+  const alertesMini=produits.filter(p=>p.stock>0&&p.stock<=p.mini);
+  const peremProches=produits.filter(p=>daysToPerem(p.peremption)<90&&daysToPerem(p.peremption)>0);
+  const divA=document.getElementById('alertes-pui');
+  divA.innerHTML='';
+  if(ruptus.length) divA.innerHTML+=`<div class="alert-box red"><span class="alert-icon">🚨</span><span><strong>${ruptus.length} rupture(s) de stock</strong> : ${ruptus.map(p=>p.dci).join(', ')}</span></div>`;
+  if(alertesMini.length) divA.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">⚠️</span><span><strong>${alertesMini.length} produit(s) sous stock minimum</strong> : ${alertesMini.map(p=>p.dci).join(', ')}</span></div>`;
+  if(peremProches.length) divA.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">📅</span><span><strong>${peremProches.length} produit(s)</strong> périmant dans moins de 90 jours — Vérifier et mettre en quarantaine.</span></div>`;
+}
+
+// ── Stock ──────────────────────────────────────────────────────────────────────
+let stockPage=1; const STOCK_PAGE=8;
+function renderStock(){
+  const q=document.getElementById('stock-search').value.toLowerCase();
+  const fc=document.getElementById('f-cat-stock').value;
+  const fa=document.getElementById('f-alerte-stock').value;
+  const data=produits.filter(p=>
+    (!q||p.dci.toLowerCase().includes(q)||p.code.toLowerCase().includes(q))&&
+    (!fc||p.type===fc)&&(!fa||getStatutStock(p)===fa)
+  );
+  const total=data.length;
+  const maxPage=Math.max(1,Math.ceil(total/STOCK_PAGE));
+  if(stockPage>maxPage) stockPage=maxPage;
+  const slice=data.slice((stockPage-1)*STOCK_PAGE,stockPage*STOCK_PAGE);
+  document.getElementById('stock-count').textContent=`${total} référence(s) — ${data.filter(p=>p.stock===0).length} rupture(s)`;
+  document.getElementById('foot-stock-refs').textContent=total+' réf.';
+  document.getElementById('foot-stock-val').textContent=fmtF(data.reduce((s,p)=>s+p.stock*p.pmp,0));
+
+  document.getElementById('stock-tbody').innerHTML=slice.map(p=>{
+    const statut=getStatutStock(p);
+    const pct=Math.min(Math.round(p.stock/p.maxi*100),100);
+    const bColor=statut==='Rupture'?'var(--red)':statut==='Alerte min'?'var(--orange)':'var(--green)';
+    const bStatut=statut==='Rupture'?'badge-alerte':statut==='Alerte min'?'badge-warn':'badge-ok';
+    const days=daysToPerem(p.peremption);
+    const peremColor=days<30?'var(--red)':days<90?'var(--orange)':'var(--text-muted)';
+    return `<tr onclick="toast('${p.dci} — Stock : ${p.stock} unités','success')">
+      <td style="font-family:monospace;font-size:12px;color:var(--text-muted)">${p.code}</td>
+      <td style="font-weight:500;max-width:200px">${p.dci}</td>
+      <td style="color:var(--text-muted);font-size:12.5px">${p.forme}</td>
+      <td>${typeBadge(p.type)}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${p.depot}</td>
+      <td class="text-right amount" style="color:${bColor}">${fmt(p.stock)}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${fmt(p.mini)} / ${fmt(p.maxi)}</td>
+      <td>
+        <div class="stock-bar"><div class="stock-bar-fill" style="width:${pct}%;background:${bColor}"></div></div>
+        <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">${pct}%</div>
+      </td>
+      <td style="font-size:12px;color:${peremColor}">${new Date(p.peremption).toLocaleDateString('fr-FR')}<br><span style="font-size:10.5px">${days}j</span></td>
+      <td class="text-right amount" style="color:var(--accent)">${fmt(p.pmp)}</td>
+      <td><span class="badge ${bStatut}">${statut}</span></td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openMouvStock('${p.code}')">↗</button>
+      </td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">Aucun produit trouvé</td></tr>`;
+
+  // Pagination
+  document.getElementById('stock-pag-info').textContent=total?`${(stockPage-1)*STOCK_PAGE+1}–${Math.min(stockPage*STOCK_PAGE,total)} sur ${total}`:'';
+  const pg=document.getElementById('stock-pag-btns');pg.innerHTML='';
+  for(let i=1;i<=maxPage;i++){
+    const b=document.createElement('button');b.className='pg-btn'+(i===stockPage?' active':'');b.textContent=i;
+    b.onclick=()=>{stockPage=i;renderStock()};pg.appendChild(b);
+  }
+}
+
+// ── Circuit médicament ────────────────────────────────────────────────────────
+function renderCircuit(){
+  const steps=[
+    {icon:'📝',label:'Prescription',sub:'Médecin traitant',color:'#1a4b6e',count:prescriptions_circuit.length},
+    {icon:'✅',label:'Validation pharma.',sub:'Pharmacien PUI',color:'#1e7a4e',count:2},
+    {icon:'📦',label:'Préparation / PDA',sub:'Préparateur',color:'#c8702a',count:2},
+    {icon:'🚚',label:'Dispensation',sub:'Infirmier / Pharmacien',color:'#6b21a8',count:2},
+    {icon:'💉',label:'Administration',sub:'Infirmier au lit',color:'#0f766e',count:'—'},
+    {icon:'📋',label:'Traçabilité',sub:'DPI + Registre',color:'#b92b2b',count:'✓'},
+  ];
+  document.getElementById('circuit-steps').innerHTML=steps.map(s=>`
+    <div class="circuit-step">
+      <div class="cs-icon" style="background:${s.color}18;border-color:${s.color}40;color:${s.color}">${s.icon}</div>
+      <div class="cs-label">${s.label}</div>
+      <div class="cs-count">${s.sub}</div>
+      ${typeof s.count==='number'?`<span style="display:inline-block;margin-top:4px;background:${s.color};color:#fff;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px">${s.count}</span>`:''}
+    </div>`).join('');
+
+  const pending=prescriptions_circuit.filter(p=>p.statut==='pending');
+  const validated=prescriptions_circuit.filter(p=>p.statut==='validated'||p.statut==='refused');
+  document.getElementById('prescriptions-list').innerHTML=pending.map(p=>`
+    <div class="disp-card pending">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div><div style="font-weight:600;font-size:13px">${p.patient}</div><div style="font-size:12px;color:var(--text-muted)">${p.medecin} — ${p.service} — ${p.heure}</div></div>
+        <span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${p.id}</span>
+      </div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">${p.meds}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #a8d8be" onclick="validerPrescription('${p.id}')">✓ Valider</button>
+        <button class="btn btn-sm btn-danger" onclick="refuserPrescription('${p.id}')">✕ Refuser</button>
+      </div>
+    </div>`).join('')||`<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">✅ Aucune prescription en attente</div>`;
+
+  document.getElementById('validees-list').innerHTML=validated.map(p=>`
+    <div class="disp-card ${p.statut==='validated'?'validated':'refused'}">
+      <div style="font-weight:600;font-size:13px">${p.patient}</div>
+      <div style="font-size:12px;color:var(--text-muted)">${p.medecin} — ${p.heure}</div>
+      <div style="font-size:12px;margin-top:4px">${p.meds.substring(0,60)}…</div>
+      <div style="margin-top:6px"><span class="badge ${p.statut==='validated'?'badge-ok':'badge-alerte'}">${p.statut==='validated'?'✓ Validée':'✕ Refusée'}</span></div>
+    </div>`).join('');
+}
+
+function validerPrescription(id){
+  const p=prescriptions_circuit.find(x=>x.id===id);
+  if(p){
+    p.statut='validated';
+    p.valideePar=getPharmacien();
+    p.valideTs=new Date().toISOString();
+    puiAudit('PRESCRIPTION_VALIDEE', id, `${p.patient} — ${p.meds} — ${p.medecin}`);
+    // Marquer lu dans le BUS
+    if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.markRead('PRESCRIPTION_ATTENTE_PUI');
+    renderCircuit();toast('Prescription '+id+' validée.','success');
+  }
+}
+function refuserPrescription(id){
+  const p=prescriptions_circuit.find(x=>x.id===id);
+  if(p){
+    p.statut='refused';
+    p.refusPar=getPharmacien();
+    p.refusTs=new Date().toISOString();
+    puiAudit('PRESCRIPTION_REFUSEE', id, `${p.patient} — ${p.meds}`);
+    if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.markRead('PRESCRIPTION_ATTENTE_PUI');
+    renderCircuit();toast('Prescription '+id+' refusée.','error');
+  }
+}
+
+// ── Stupéfiants ────────────────────────────────────────────────────────────────
+function renderStupefiants(){
+  const stups=produits.filter(p=>p.type==='Stupéfiant');
+  document.getElementById('stup-refs').textContent=stups.length;
+  document.getElementById('stup-mvts').textContent=registre_stup.length;
+  document.getElementById('stup-tbody').innerHTML=registre_stup.map(s=>`
+    <tr>
+      <td style="font-size:12px;color:var(--text-muted)">${s.datetime}</td>
+      <td style="font-weight:500">${s.produit}</td>
+      <td><span class="lot-tag">${s.lot}</span></td>
+      <td style="font-size:12.5px">${s.patient}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${s.presc}</td>
+      <td><span class="badge badge-med" style="font-size:11px">${s.service}</span></td>
+      <td><span class="badge ${s.mvt==='Entrée'?'badge-ok':'badge-alerte'}" style="font-size:11px">${s.mvt}</span></td>
+      <td class="text-right amount">${s.qty}</td>
+      <td class="text-right amount" style="color:var(--accent)">${s.stockApres}</td>
+      <td><span style="font-size:11.5px;background:var(--green-bg);color:var(--green);padding:2px 8px;border-radius:10px">✓ ${s.verif}</span></td>
+    </tr>`).join('');
+}
+
+// ── Dépôts ─────────────────────────────────────────────────────────────────────
+function renderDepots(){
+  document.getElementById('depots-grid').innerHTML=DEPOTS.map(d=>`
+    <div class="depot-card" style="border-left:4px solid ${d.couleur}">
+      <h4>${d.nom}</h4>
+      <div class="depot-stat"><span style="color:var(--text-muted)">Références</span><span style="font-weight:600">${d.nb}</span></div>
+      <div class="depot-stat"><span style="color:var(--text-muted)">Valeur stock</span><span style="font-weight:600;color:${d.couleur}">${fmtF(d.valeur)}</span></div>
+      <div class="depot-stat"><span style="color:var(--text-muted)">Alertes</span>
+        <span>${d.alerte>0?`<span class="badge badge-alerte" style="font-size:10.5px">${d.alerte} alerte${d.alerte>1?'s':''}</span>`:`<span class="badge badge-ok" style="font-size:10.5px">✓ OK</span>`}</span>
+      </div>
+    </div>`).join('');
+
+  // Réapprovisionnement
+  const areappro=produits.filter(p=>p.stock<=p.mini);
+  document.getElementById('reappro-tbody').innerHTML=areappro.map(p=>{
+    const qte=p.maxi-p.stock;
+    const urgence=p.stock===0?'Urgente':p.stock<p.mini/2?'Haute':'Normale';
+    const urgColor=urgence==='Urgente'?'var(--red)':urgence==='Haute'?'var(--orange)':'var(--text-muted)';
+    return `<tr>
+      <td style="font-weight:500">${p.dci}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${p.depot}</td>
+      <td class="text-right amount" style="color:${p.stock===0?'var(--red)':'var(--orange)'}">${fmt(p.stock)}</td>
+      <td class="text-right text-muted">${fmt(p.mini)}</td>
+      <td class="text-right text-muted">${fmt(p.maxi)}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmt(qte)}</td>
+      <td style="font-size:12.5px">Laborex / CAMEG</td>
+      <td><span style="font-weight:600;font-size:12.5px;color:${urgColor}">${urgence}</span></td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">✅ Aucun réapprovisionnement nécessaire</td></tr>`;
+}
+
+// ── Rétrocession ──────────────────────────────────────────────────────────────
+function renderRetrocession(){
+  const ca=retrocessions.reduce((s,r)=>s+r.montant,0);
+  const att=retrocessions.filter(r=>r.statut==='En attente').reduce((s,r)=>s+r.montant,0);
+  document.getElementById('retro-ca').textContent=fmtF(ca);
+  document.getElementById('retro-ordo').textContent=retrocessions.length;
+  document.getElementById('retro-att').textContent=fmtF(att);
+  document.getElementById('retro-tbody').innerHTML=retrocessions.map(r=>`
+    <tr>
+      <td class="text-muted">${new Date(r.date).toLocaleDateString('fr-FR')}</td>
+      <td style="font-family:monospace;font-size:12px">${r.ordo}</td>
+      <td style="font-weight:500">${r.patient}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${r.presc}</td>
+      <td style="font-size:12.5px">${r.meds}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(r.montant)}</td>
+      <td><span class="badge badge-med" style="font-size:11px">${r.pc}</span></td>
+      <td><span class="badge ${r.statut==='Remboursé'?'badge-ok':'badge-warn'}">${r.statut}</span></td>
+    </tr>`).join('');
+}
+
+// ── Traçabilité lots ──────────────────────────────────────────────────────────
+function initTraceProduits(){
+  const sel=document.getElementById('trace-produit');
+  sel.innerHTML='<option value="">— Sélectionner —</option>'+produits.map(p=>`<option value="${p.lot}">${p.dci}</option>`).join('');
+}
+
+function rechercherLot(){
+  const lot=document.getElementById('trace-lot').value.trim()||document.getElementById('trace-produit').value;
+  if(!lot){document.getElementById('trace-result').innerHTML=`<div style="text-align:center;padding:60px;color:var(--text-muted)"><div style="font-size:36px;margin-bottom:12px">🔗</div>Saisissez un numéro de lot</div>`;return}
+  const p=produits.find(x=>x.lot===lot||x.lot.toLowerCase().includes(lot.toLowerCase()));
+  const mvts=mouvements_stock.filter(m=>m.lot===lot||(p&&m.produit===p.dci));
+  document.getElementById('trace-result').innerHTML=`
+    <div class="card">
+      <div class="card-header"><div class="card-title">Traçabilité — ${lot}</div></div>
+      <div style="padding:16px">
+        ${p?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+          <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:12px">
+            <div style="font-size:11px;color:var(--text-muted)">Produit</div>
+            <div style="font-weight:600;font-size:13px;margin-top:3px">${p.dci}</div>
+          </div>
+          <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:12px">
+            <div style="font-size:11px;color:var(--text-muted)">Péremption</div>
+            <div style="font-weight:600;font-size:13px;margin-top:3px;color:${daysToPerem(p.peremption)<90?'var(--orange)':'var(--green)'}">${new Date(p.peremption).toLocaleDateString('fr-FR')}</div>
+          </div>
+          <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:12px">
+            <div style="font-size:11px;color:var(--text-muted)">Stock actuel</div>
+            <div style="font-weight:600;font-size:13px;margin-top:3px;color:var(--accent)">${fmt(p.stock)} unités</div>
+          </div>
+        </div>`:''}
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:10px">Historique des mouvements</div>
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Quantité</th><th>Dépôt</th><th>Patient / Fournisseur</th><th>Observations</th></tr></thead>
+          <tbody>${mvts.length?mvts.map(m=>`<tr>
+            <td class="text-muted">${new Date(m.date).toLocaleDateString('fr-FR')}</td>
+            <td><span class="badge ${m.type.startsWith('Sortie')?'badge-alerte':'badge-ok'}" style="font-size:11px">${m.type}</span></td>
+            <td class="text-right amount">${m.qty}</td>
+            <td style="font-size:12.5px">${m.depot}</td>
+            <td style="font-size:12.5px">${m.patient!=='—'?m.patient:m.fourn}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${m.obs||'—'}</td>
+          </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Aucun mouvement trouvé pour ce lot</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function rechercherParProduit(){rechercherLot()}
+
+// ── Modals ─────────────────────────────────────────────────────────────────────
+function openMouvStock(code){
+  const sel=document.getElementById('ms-produit');
+  sel.innerHTML='<option value="">— Sélectionner —</option>'+produits.map(p=>`<option value="${p.code}" ${p.code===code?'selected':''}>${p.dci}</option>`).join('');
+  document.getElementById('ms-date').value=new Date().toISOString().split('T')[0];
+  // Pré-remplir patient depuis patient actif
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    const pt=MEDICORE_PATIENT.get();
+    if(pt){
+      const pField=document.getElementById('ms-patient');
+      if(pField&&!pField.value) pField.value=(pt.nom||'')+(pt.id?' — '+pt.id:'');
+    }
+  }
+  document.getElementById('modal-stock').classList.add('open');
+}
+function closeMouvStock(){document.getElementById('modal-stock').classList.remove('open')}
+
+function validerMouv(){
+  const code=document.getElementById('ms-produit').value;
+  const qty=parseInt(document.getElementById('ms-qty').value)||0;
+  const type=document.getElementById('ms-type').value;
+  const p=produits.find(x=>x.code===code);
+  if(!p||!qty){toast('Remplissez les champs obligatoires.','error');return}
+  if(type.startsWith('Sortie')) p.stock=Math.max(0,p.stock-qty);
+  else if(type==='Entrée') p.stock+=qty;
+  const mouv={date:document.getElementById('ms-date').value,type,produit:p.dci,lot:document.getElementById('ms-lot').value||p.lot,qty,depot:document.getElementById('ms-depot').value,patient:document.getElementById('ms-patient').value||'—',fourn:document.getElementById('ms-fourn').value||'—',obs:document.getElementById('ms-obs').value};
+  mouvements_stock.push(mouv);
+  puiAudit('MOUVEMENT_STOCK', code, `${type} × ${qty} — ${p.dci} — Lot: ${mouv.lot} — ${mouv.patient!=='—'?mouv.patient:mouv.fourn}`);
+  closeMouvStock();refreshAll();
+  toast(`Mouvement enregistré — ${p.dci} × ${qty}`,'success');
+}
+
+function openStup(){
+  // Pré-remplir pharmacien vérificateur depuis session
+  const verif=document.getElementById('st-verif');
+  if(verif&&!verif.value) verif.value=getPharmacien();
+  // Pré-remplir patient actif
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    const pt=MEDICORE_PATIENT.get();
+    if(pt){
+      const pField=document.getElementById('st-patient');
+      if(pField&&!pField.value) pField.value=(pt.nom||'')+(pt.id?' — '+pt.id:'');
+    }
+  }
+  document.getElementById('modal-stup').classList.add('open');
+}
+function closeStup(){document.getElementById('modal-stup').classList.remove('open')}
+
+function validerStup(){
+  const prod=document.getElementById('st-produit').value;
+  const verif=document.getElementById('st-verif').value;
+  if(!verif){toast('Le second comptage est obligatoire pour les stupéfiants.','error');return}
+  const p=produits.find(x=>x.dci===prod);
+  const qty=parseInt(document.getElementById('st-qty').value)||1;
+  const patient=document.getElementById('st-patient').value;
+  const presc=document.getElementById('st-presc').value;
+  const lot=document.getElementById('st-lot').value||'—';
+  if(p) p.stock=Math.max(0,p.stock-qty);
+  const entry={datetime:new Date().toLocaleString('fr-FR'),produit:prod,lot,patient,presc,service:document.getElementById('st-service').value,mvt:'Sortie',qty,stockApres:p?p.stock:0,verif};
+  registre_stup.push(entry);
+  puiAudit('STUPEFIANTS_SORTIE', prod, `Patient: ${patient} — Presc: ${presc} — Qty: ${qty} — Lot: ${lot} — Vérif: ${verif}`);
+  closeStup();refreshAll();renderStupefiants();
+  toast('Mouvement stupéfiant enregistré et signé.','success');
+}
+
+function openRetro(){
+  document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('r-presc').value=getPharmacien();
+  document.getElementById('modal-retro').classList.add('open');
+}
+function closeRetro(){document.getElementById('modal-retro').classList.remove('open')}
+function validerRetro(){
+  const patient=document.getElementById('r-patient').value;
+  const montant=parseFloat(document.getElementById('r-montant').value)||0;
+  if(!patient||!montant){toast('Remplissez les champs obligatoires.','error');return}
+  const annee=new Date().getFullYear();
+  const ordo=document.getElementById('r-ordo').value||'ORD-'+annee+'-'+String(retrocessions.length+416).padStart(4,'0');
+  const entry={date:document.getElementById('r-date').value,ordo,patient,presc:document.getElementById('r-presc').value,meds:document.getElementById('r-meds').value,montant,pc:document.getElementById('r-pc').value,statut:'En attente'};
+  retrocessions.push(entry);
+  puiAudit('RETROCESSION', ordo, `Patient: ${patient} — ${entry.meds} — ${fmtF(montant)} — ${entry.pc}`);
+  closeRetro();renderRetrocession();
+  toast('Vente par rétrocession enregistrée. Facture générée.','success');
+}
+
+function genererCommande(){toast('Bon de commande généré — '+produits.filter(p=>p.stock<=p.mini).length+' ligne(s).','success')}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='circuit') renderCircuit();
+  if(name==='stupefiants') renderStupefiants();
+  if(name==='depots') renderDepots();
+  if(name==='retroces') renderRetrocession();
+  if(name==='traçabilite') initTraceProduits();
+}
+
+function refreshAll(){updateKPIs();renderStock();
+  // Alertes stock → publier dans le BUS
+  if(typeof MEDICORE_BUS!=='undefined'){
+    const ruptures=produits.filter(p=>p.stock===0);
+    const alertes=produits.filter(p=>p.stock>0&&p.stock<=p.mini);
+    ruptures.forEach(p=>MEDICORE_BUS.publish('STOCK_ALERTE',{produit:p.dci,code:p.code,statut:'Rupture',urgence:'Urgente'}));
+    alertes.forEach(p=>MEDICORE_BUS.publish('STOCK_ALERTE',{produit:p.dci,code:p.code,statut:'Alerte mini',urgence:'Normale'}));
+  }
+
+function exportCSV(){
+  const h=['Code','DCI','Type','Forme','Dépôt','Stock','Mini','Maxi','Péremption','PMP'];
+  const r=produits.map(p=>[p.code,p.dci,p.type,p.forme,p.depot,p.stock,p.mini,p.maxi,p.peremption,p.pmp]);
+  const csv=[h,...r].map(row=>row.map(v=>`"${v}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv'}));a.download='stock_pui.csv';a.click();
+  toast('Export CSV généré.','success');
+}
+
+function toast(msg,type=''){
+  const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;
+  document.getElementById('toast-container').appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMouvStock();closeStup();closeRetro()}});
+document.getElementById('modal-stock').addEventListener('click',e=>{if(e.target===e.currentTarget)closeMouvStock()});
+document.getElementById('modal-stup').addEventListener('click',e=>{if(e.target===e.currentTarget)closeStup()});
+document.getElementById('modal-retro').addEventListener('click',e=>{if(e.target===e.currentTarget)closeRetro()});
+
+refreshAll();
+</script>
+
+<script>
+// Auto-init navigation MediCore
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof initNav === 'function') {
+    initNav('pharmacie_pui', 'Pharmacie (PUI)', '602 · 371 · 411 · Traçabilité',
+      [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Pharmacie (PUI)',file:''}]);
+  }
+});
+</script>
+</body>
+</html>
