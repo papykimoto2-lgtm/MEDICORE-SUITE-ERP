@@ -216,6 +216,12 @@ let FOURNISSEURS = [
   { nom:'SODICI Matériel',   categorie:'Matériel biomédical',      ncc:'CI-6645213', delai:'30 j' },
 ];
 
+// Copies immuables pour la réinitialisation
+const DEFAULT_USERS       = JSON.parse(JSON.stringify(USERS));
+const DEFAULT_SERVICES    = JSON.parse(JSON.stringify(SERVICES));
+const DEFAULT_TARIFS      = JSON.parse(JSON.stringify(TARIFS));
+const DEFAULT_FOURNISSEURS= JSON.parse(JSON.stringify(FOURNISSEURS));
+
 const MODULES_PERM = ['Facturation','Comptabilité','Pharmacie','Laboratoire','Bloc','DPI','RH','Paramétrage'];
 const ROLES_PERM = ['Administrateur','Médecin','Pharmacien','DAF'];
 let PERMISSIONS = {
@@ -261,6 +267,7 @@ const SECTIONS = [
   { id:'seuils',        ic:'🔔', label:'Alertes & seuils', groupe:'Système' },
   { id:'integrations',  ic:'🔌', label:'Intégrations', groupe:'Système' },
   { id:'securite',      ic:'🔒', label:'Sécurité & sauvegardes', groupe:'Système' },
+  { id:'donnees',       ic:'🗑', label:'Données & réinitialisation', groupe:'Système' },
 ];
 
 let currentSection = 'etablissement';
@@ -450,6 +457,72 @@ function renderBody(){
       <div class="save-bar"><button class="btn btn-secondary" onclick="toast('Sauvegarde manuelle lancée…','success')">▶ Sauvegarder maintenant</button>
       <button class="btn btn-primary" onclick="saveSauvegarde()">💾 Enregistrer</button></div></div></div>`;
   }
+  else if(currentSection==='donnees'){
+    // ── Inventaire des clés localStorage par module ─────────────────────────
+    const MODULES_DATA = [
+      { id:'dpi',         label:'DPI — Dossiers patients',  icon:'📋', keys:['medicore_patients','medicore_prescriptions','medicore_timeline','medicore_constantes','medicore_prescriptions_circuit'] },
+      { id:'labo',        label:'Laboratoire',              icon:'🔬', keys:['medicore_demandes_labo','medicore_resultats_labo'] },
+      { id:'imagerie',    label:'Imagerie médicale',        icon:'🩻', keys:['medicore_demandes_img','medicore_cr_imagerie'] },
+      { id:'bloc',        label:'Bloc opératoire',          icon:'🏥', keys:['medicore_interventions','medicore_dmi'] },
+      { id:'pharmacie',   label:'Pharmacie PUI',            icon:'💊', keys:['medicore_stock','medicore_mouvements_stock','medicore_stupefiants','medicore_retrocessions'] },
+      { id:'facturation', label:'Facturation',              icon:'🧾', keys:['medicore_factures'] },
+      { id:'compta',      label:'Comptabilité',             icon:'📊', keys:['medicore_ecritures','medicore_rapprochement'] },
+      { id:'tresorerie',  label:'Trésorerie',               icon:'💰', keys:['medicore_mouvements_tresorerie','medicore_previsions'] },
+      { id:'achats',      label:'Achats & Logistique',      icon:'🛒', keys:['medicore_bons_commande','medicore_receptions'] },
+      { id:'rh',          label:'RH & Paie',                icon:'👥', keys:['medicore_personnel','medicore_presences','medicore_paie'] },
+      { id:'immo',        label:'Immobilisations',          icon:'🏗', keys:['medicore_immo','medicore_cessions'] },
+      { id:'bus',         label:'Bus inter-modules & audit',icon:'🔌', keys:['medicore_bus','medicore_patient_actif'] },
+      { id:'param',       label:'Paramétrage',              icon:'⚙️', keys:[CFG_KEY] },
+    ];
+
+    let totalTaille = 0;
+    const rows = MODULES_DATA.map(mod => {
+      let nb = 0, taille = 0;
+      mod.keys.forEach(k => {
+        try{ const v=localStorage.getItem(k); if(v){ taille+=v.length; const p=JSON.parse(v); nb+=Array.isArray(p)?p.length:Object.keys(p).length; } }catch(e){}
+      });
+      totalTaille += taille;
+      return {mod, nb, taille, ko:(taille/1024).toFixed(1)};
+    });
+    const totalKo = (totalTaille/1024).toFixed(1);
+
+    b.innerHTML = head('Données & réinitialisation','Gestion des données de démonstration et remise à zéro') +
+    '<div style="background:var(--orange-bg);border:1px solid #f3c87a;border-radius:var(--radius);padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-bottom:18px">' +
+      '<span style="font-size:18px;flex-shrink:0">⚠</span>' +
+      '<div><div style="font-weight:600;color:var(--orange);font-size:13.5px">Action irréversible</div>' +
+      '<div style="font-size:12.5px;color:#7a4500;margin-top:2px">La suppression efface définitivement les données du navigateur (localStorage). Exportez la configuration avant si nécessaire.</div></div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h3>Actions globales</h3><div class="sub">Stockage total : <strong>'+totalKo+' Ko</strong> dans ce navigateur</div></div></div>' +
+    '<div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-danger" onclick="supprimerTout()">🗑 Tout effacer (remise à zéro)</button>' +
+      '<button class="btn" style="background:var(--orange-bg);color:var(--orange);border:1px solid #f3c87a" onclick="supprimerDemoSeulement()">🧹 Données démo uniquement</button>' +
+      '<button class="btn btn-secondary" onclick="exportConfig()">⬇ Exporter la config d\'abord</button>' +
+    '</div></div></div>' +
+
+    '<div class="card"><div class="card-head"><div><h3>Données par module</h3><div class="sub">Sélectionnez les modules à effacer</div></div>' +
+    '<div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm" onclick="toutCocher(true)">Tout cocher</button>' +
+    '<button class="btn btn-secondary btn-sm" onclick="toutCocher(false)">Tout décocher</button></div></div>' +
+    '<div class="card-body" style="padding:0"><table><thead><tr>' +
+    '<th style="width:40px;text-align:center"><input type="checkbox" id="chk-all" onchange="toutCocher(this.checked)" checked></th>' +
+    '<th>Module</th><th style="text-align:right">Entrées</th><th style="text-align:right">Volume</th><th style="text-align:right">Action</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(({mod,nb,taille,ko}) => {
+      const vide = taille===0;
+      const coulBg = taille>10000?'var(--orange-bg)':taille>0?'var(--green-bg)':'transparent';
+      const coulTxt = taille>10000?'var(--orange)':taille>0?'var(--green)':'var(--text-muted)';
+      return '<tr style="'+(vide?'opacity:.4':'')+'">' +
+        '<td style="text-align:center"><input type="checkbox" class="chk-module" data-keys="'+mod.keys.join(',')+'" '+(vide?'disabled':'')+' '+(vide?'':'checked')+'/></td>' +
+        '<td><span style="margin-right:6px">'+mod.icon+'</span><strong>'+mod.label+'</strong></td>' +
+        '<td style="text-align:right;font-family:monospace">'+(taille>0?nb:'—')+'</td>' +
+        '<td style="text-align:right"><span style="background:'+coulBg+';color:'+coulTxt+';padding:1px 8px;border-radius:4px;font-size:12px;font-weight:600">'+ko+' Ko</span></td>' +
+        '<td style="text-align:right"><button class="btn btn-danger btn-sm" '+(vide?'disabled style="opacity:.4"':'')+' onclick="supprimerModule(\''+mod.keys.join(',')+'\')">🗑</button></td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody><tfoot><tr><td colspan="3" style="padding:10px 12px;font-weight:600;font-size:13px">Total</td>' +
+    '<td style="text-align:right;padding:10px 12px;font-weight:600">'+totalKo+' Ko</td><td></td></tr></tfoot></table></div>' +
+    '<div class="card-body" style="border-top:1px solid var(--border);display:flex;justify-content:flex-end">' +
+    '<button class="btn btn-danger" onclick="supprimerSelection()">🗑 Effacer la sélection cochée</button></div></div>';
+  }
 }
 
 function head(t,s){ return `<div class="panel-head"><div class="panel-title">${t}</div><div class="panel-sub">${s}</div></div>`; }
@@ -509,6 +582,96 @@ function addTarif(){ const l=prompt('Libellé de l\'acte :'); if(!l)return; cons
 function removeTarif(i){ TARIFS.splice(i,1); persist(); renderBody(); toast('Acte supprimé.','warn'); }
 function addFournisseur(){ const n=prompt('Nom du fournisseur :'); if(!n)return; const cat=prompt('Catégorie :')||'—'; FOURNISSEURS.push({nom:n,categorie:cat,ncc:'—',delai:'—'}); persist(); renderBody(); toast('Fournisseur ajouté.','success'); }
 function removeFournisseur(i){ if(confirm('Supprimer '+FOURNISSEURS[i].nom+' ?')){ FOURNISSEURS.splice(i,1); persist(); renderBody(); toast('Fournisseur supprimé.','warn'); } }
+
+// ── Données démo : clés à conserver même après nettoyage ─────────────────────
+const CLES_PRESERVEES = ['medicore_user']; // session active
+
+// Supprimer des clés spécifiques
+function supprimerCles(keysStr){
+  keysStr.split(',').forEach(k => {
+    try { localStorage.removeItem(k.trim()); } catch(e){}
+  });
+}
+
+// Supprimer un module entier (bouton 🗑 sur la ligne)
+function supprimerModule(keysStr){
+  const labels = keysStr.split(',').join(', ');
+  if(!confirm('Effacer les données de ce module ?\n\n'+labels+'\n\nCette action est irréversible.')) return;
+  supprimerCles(keysStr);
+  toast('Données supprimées.','success');
+  // Rafraîchir l'inventaire
+  setTimeout(()=>renderBody(), 300);
+}
+
+// Supprimer la sélection cochée
+function supprimerSelection(){
+  const cases = document.querySelectorAll('.chk-module:checked:not(:disabled)');
+  if(!cases.length){ toast('Aucun module coché.','warn'); return; }
+  const modules = Array.from(cases).map(c=>c.getAttribute('data-keys'));
+  if(!confirm('Effacer les données de '+cases.length+' module(s) sélectionné(s) ?\n\nCette action est irréversible.')) return;
+  modules.forEach(k => supprimerCles(k));
+  toast(cases.length+' module(s) effacé(s).','success');
+  setTimeout(()=>renderBody(), 300);
+}
+
+// Supprimer TOUTES les données MediCore (sauf session)
+function supprimerTout(){
+  if(!confirm('⚠️ REMISE À ZÉRO COMPLÈTE\n\nToutes les données MediCore seront effacées de ce navigateur.\nLa session de connexion sera préservée.\n\nConfirmer ?')) return;
+  const keysToDelete = [];
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith('medicore_') && !CLES_PRESERVEES.includes(k)){
+      keysToDelete.push(k);
+    }
+  }
+  keysToDelete.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
+  // Réinitialiser les tableaux en mémoire avec les valeurs par défaut
+  CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
+  USERS = JSON.parse(JSON.stringify(DEFAULT_USERS));
+  SERVICES = JSON.parse(JSON.stringify(DEFAULT_SERVICES));
+  TARIFS = JSON.parse(JSON.stringify(DEFAULT_TARIFS));
+  FOURNISSEURS = JSON.parse(JSON.stringify(DEFAULT_FOURNISSEURS));
+  persist();
+  toast('Remise à zéro effectuée — '+keysToDelete.length+' entrée(s) supprimée(s).','success');
+  setTimeout(()=>renderBody(), 300);
+}
+
+// Supprimer uniquement les données démo (patients, prescriptions, examens, mouvements…)
+// Conserve : config établissement, utilisateurs, services, tarifs, fournisseurs
+function supprimerDemoSeulement(){
+  if(!confirm('Supprimer les données de démonstration ?\n\n• Patients et dossiers\n• Prescriptions\n• Examens labo & imagerie\n• Interventions bloc\n• Mouvements stock\n• Factures\n• Écritures comptables\n• Mouvements trésorerie\n\nLa configuration (établissement, utilisateurs, services, tarifs) sera conservée.')) return;
+
+  const CLE_DEMO = [
+    'medicore_patients','medicore_prescriptions','medicore_timeline','medicore_constantes',
+    'medicore_prescriptions_circuit',
+    'medicore_demandes_labo','medicore_resultats_labo',
+    'medicore_demandes_img','medicore_cr_imagerie',
+    'medicore_interventions','medicore_dmi',
+    'medicore_stock','medicore_mouvements_stock','medicore_stupefiants','medicore_retrocessions',
+    'medicore_factures',
+    'medicore_ecritures','medicore_rapprochement',
+    'medicore_mouvements_tresorerie','medicore_previsions',
+    'medicore_bons_commande','medicore_receptions',
+    'medicore_personnel','medicore_presences','medicore_paie',
+    'medicore_immo','medicore_cessions',
+    'medicore_bus','medicore_patient_actif',
+  ];
+  let n = 0;
+  CLE_DEMO.forEach(k => {
+    if(localStorage.getItem(k)!==null){
+      try{ localStorage.removeItem(k); n++; }catch(e){}
+    }
+  });
+  toast('Données démo supprimées — '+n+' entrée(s) effacée(s). Configuration conservée.','success');
+  setTimeout(()=>renderBody(), 300);
+}
+
+// Cocher / décocher tout
+function toutCocher(v){
+  document.querySelectorAll('.chk-module:not(:disabled)').forEach(c=>c.checked=v);
+  const all = document.getElementById('chk-all');
+  if(all) all.checked = v;
+}
 
 // ── Import / Export ───────────────────────────────────────────────────────────
 function exportConfig(){
