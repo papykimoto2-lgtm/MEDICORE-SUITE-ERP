@@ -14,6 +14,7 @@ const MEDICORE_CAISSE = {
     pharmacie_pui: { label:'Caisse Pharmacie',  compteVente:'701' }, // ventes de marchandises
     laboratoire:   { label:'Caisse Laboratoire', compteVente:'706' }, // prestations de services
     imagerie:      { label:'Caisse Imagerie',    compteVente:'706' },
+    bloc_operatoire:{ label:'Caisse Bloc opératoire', compteVente:'706' },
     facturation:   { label:'Caisse Centrale',    compteVente:'706' },
   },
 

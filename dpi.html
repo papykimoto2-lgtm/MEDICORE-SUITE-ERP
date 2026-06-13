@@ -9,6 +9,7 @@
 <script src="qr.js"></script>
 <script src="medicore-prestations.js"></script>
 <script src="medicore-cds.js"></script>
+<script src="medicore-print.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-prescriptions.js"></script>
 <script src="medicore-demandes.js"></script>
@@ -797,10 +798,34 @@ function openDossier(id){
           </div>
           <div style="font-size:10px;color:var(--text-muted);letter-spacing:.3px">${p.ipp}</div>
           <button class="btn btn-secondary btn-sm" style="width:100%" onclick="MEDICORE_PATIENT.printBracelet()">🖨 Bracelet</button>
+          <button class="btn btn-secondary btn-sm" style="width:100%" onclick="imprimerDossier('${id}')">📄 Dossier (PDF)</button>
           <button class="btn btn-primary btn-sm" style="width:100%" onclick="openNote('${id}')">＋ Note</button>
           <button class="btn btn-secondary btn-sm" style="width:100%" onclick="openPrescription('${id}')">💊 Prescrire</button>
           <button class="btn btn-secondary btn-sm" style="width:100%" onclick="openAideConsultation('${id}')">🩺 Aide consultation</button>
           ${p.statut==='Actif'?`<button class="btn btn-secondary btn-sm" style="width:100%" onclick="sortiePatient('${id}')">🚪 Sortie</button>`:''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Antécédents (affichés au scan / à l'ouverture) -->
+    <div class="dossier-section" style="background:var(--surface)">
+      <div class="section-title">Antécédents & terrain</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Antécédents médicaux</div>
+          <div>${p.antecedents||'Aucun antécédent renseigné'}</div>
+        </div>
+        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Allergies</div>
+          <div style="${p.allergies?'color:var(--red);font-weight:600':''}">${p.allergies||'Aucune connue'}</div>
+        </div>
+        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Groupe sanguin</div>
+          <div>${p.groupe||'—'}</div>
+        </div>
+        <div style="background:var(--surface-alt);padding:9px 11px;border-radius:6px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Historique</div>
+          <div>${(typeof MEDICORE_RX!=='undefined'?MEDICORE_RX.pourPatient(id).length:0)} ordonnance(s) · ${(bioResultats[id]||[]).length} résultat(s)</div>
         </div>
       </div>
     </div>
@@ -881,7 +906,16 @@ function renderJournal(id){
 }
 
 function renderPrescriptions(id){
-  const prescs=prescriptions[id]||[];
+  // Fusionne le registre local + le registre PUI partagé (MEDICORE_RX), dédup par id
+  let prescs=(prescriptions[id]||[]).slice();
+  if(typeof MEDICORE_RX!=='undefined'){
+    const map={}; prescs.forEach(p=>map[p.id]=p);
+    MEDICORE_RX.pourPatient(id).forEach(r=>{
+      if(!map[r.id]) prescs.push({ id:r.id, groupe:r.groupe, med:r.med, posologie:r.posologie,
+        voie:r.voie, duree:r.duree, notes:r.notes, statut:r.statut, date:r.date, medecin:r.medecin });
+    });
+  }
+  prescs.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   const div=document.getElementById('rp-prescriptions');
   if(!prescs.length){
     div.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucune prescription</div>
@@ -932,70 +966,63 @@ function renderBio(id){
 }
 
 function renderConstantes(id){
-  const c=constantes[id];
+  const hist = Array.isArray(constantes[id]) ? constantes[id] : (constantes[id]?[constantes[id]]:[]);
   const div=document.getElementById('rp-constantes');
-  if(!c){
+  if(!hist.length){
     div.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucune constante enregistrée</div>
       <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="saisirConstantes('${id}')">＋ Saisir constantes</button>`;
     return;
   }
+  const c=hist[0];
   const fcAlert=c.fc>100||c.fc<60;
   const taAlert=parseInt(c.ta)>140||parseInt(c.ta)<90;
   const spo2Alert=c.spo2<95;
   const tAlert=c.t>38.5||c.t<36;
+  const histo = hist.length>1 ? `
+    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 6px">Historique (${hist.length} relevés)</div>
+    ${hist.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px;font-size:12.5px">
+        <span><strong>TA ${r.ta}</strong> · FC ${r.fc} · T° ${r.t}° · SpO₂ ${r.spo2}%${(r.glycemie!==''&&r.glycemie!=null&&!isNaN(r.glycemie))?' · Gly '+r.glycemie:''}</span>
+        <span style="color:var(--text-muted);font-size:11px;white-space:nowrap">${r.date?new Date(r.date).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</span>
+      </div>`).join('')}` : '';
   div.innerHTML=`
-    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Constantes vitales</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px">Dernier relevé</span>
+      ${c.date?`<span style="font-size:11px;color:var(--text-muted)">${new Date(c.date).toLocaleString('fr-FR')}</span>`:''}
+    </div>
     <div class="vital-grid">
-      <div class="vital-card ${taAlert?'vital-alert':'vital-ok'}">
-        <div class="vital-icon">💉</div>
-        <div class="vital-val" style="color:${taAlert?'var(--red)':'var(--green)'}">${c.ta}</div>
-        <div class="vital-label">TA (mmHg)</div>
-      </div>
-      <div class="vital-card ${fcAlert?'vital-alert':'vital-ok'}">
-        <div class="vital-icon">❤️</div>
-        <div class="vital-val" style="color:${fcAlert?'var(--red)':'var(--green)'}">${c.fc}</div>
-        <div class="vital-label">FC (bpm)</div>
-      </div>
-      <div class="vital-card ${spo2Alert?'vital-alert':'vital-ok'}">
-        <div class="vital-icon">🫁</div>
-        <div class="vital-val" style="color:${spo2Alert?'var(--red)':'var(--green)'}">${c.spo2}%</div>
-        <div class="vital-label">SpO2</div>
-      </div>
-      <div class="vital-card ${tAlert?'vital-warn':'vital-ok'}">
-        <div class="vital-icon">🌡️</div>
-        <div class="vital-val" style="color:${tAlert?'var(--orange)':'var(--green)'}">${c.t}°C</div>
-        <div class="vital-label">Température</div>
-      </div>
+      <div class="vital-card ${taAlert?'vital-alert':'vital-ok'}"><div class="vital-icon">💉</div><div class="vital-val" style="color:${taAlert?'var(--red)':'var(--green)'}">${c.ta}</div><div class="vital-label">TA (mmHg)</div></div>
+      <div class="vital-card ${fcAlert?'vital-alert':'vital-ok'}"><div class="vital-icon">❤️</div><div class="vital-val" style="color:${fcAlert?'var(--red)':'var(--green)'}">${c.fc}</div><div class="vital-label">FC (bpm)</div></div>
+      <div class="vital-card ${spo2Alert?'vital-alert':'vital-ok'}"><div class="vital-icon">🫁</div><div class="vital-val" style="color:${spo2Alert?'var(--red)':'var(--green)'}">${c.spo2}%</div><div class="vital-label">SpO2</div></div>
+      <div class="vital-card ${tAlert?'vital-warn':'vital-ok'}"><div class="vital-icon">🌡️</div><div class="vital-val" style="color:${tAlert?'var(--orange)':'var(--green)'}">${c.t}°C</div><div class="vital-label">Température</div></div>
     </div>
     <div style="margin-top:10px;padding:10px;background:var(--surface-alt);border-radius:6px;font-size:13px">
       <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">FR</span><strong>${c.fr} /min</strong></div>
       <div style="display:flex;justify-content:space-between;margin-top:5px"><span style="color:var(--text-muted)">Poids</span><strong>${c.poids} kg</strong></div>
       ${c.glycemie!==''&&c.glycemie!=null&&!isNaN(c.glycemie)?`<div style="display:flex;justify-content:space-between;margin-top:5px"><span style="color:var(--text-muted)">Glycémie</span><strong>${c.glycemie} g/L</strong></div>`:''}
       ${c.eva!==''&&c.eva!=null&&!isNaN(c.eva)?`<div style="display:flex;justify-content:space-between;margin-top:5px"><span style="color:var(--text-muted)">Douleur EVA</span><strong>${c.eva}/10</strong></div>`:''}
-      ${c.maj?`<div style="margin-top:7px;font-size:11px;color:var(--text-muted);text-align:right">Saisi le ${new Date(c.maj).toLocaleString('fr-FR')}</div>`:''}
     </div>
-    <button class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:12.5px" onclick="saisirConstantes('${id}')">✏ Mettre à jour</button>`;
+    ${histo}
+    <button class="btn btn-primary" style="width:100%;margin-top:10px;font-size:12.5px" onclick="saisirConstantes('${id}')">＋ Nouveau relevé</button>`;
 }
 
 function renderDocs(id){
   document.getElementById('rp-docs').innerHTML=`
     <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Documents</div>
     ${[
-      {icon:'📋',title:'Compte rendu admission',date:TODAY,type:'PDF'},
-      {icon:'📊',title:'Résultats biologie',date:TODAY,type:'PDF'},
-      {icon:'📄',title:'Consentement opératoire',date:TODAY,type:'PDF'},
+      {icon:'📋',title:'Compte rendu d\'admission',fn:`docCRAdmission('${id}')`},
+      {icon:'🔬',title:'Résultats de biologie',fn:`docResultatsBio('${id}')`},
+      {icon:'✍️',title:'Consentement opératoire',fn:`docConsentement('${id}')`},
+      {icon:'📑',title:'Dossier complet (chronologique)',fn:`imprimerDossier('${id}')`},
+      {icon:'🧾',title:'Facture de séjour',fn:`factureSortie('${id}')`},
     ].map(d=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background=''">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
         <span style="font-size:18px">${d.icon}</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:500">${d.title}</div>
-          <div style="font-size:11.5px;color:var(--text-muted)">${d.date} · ${d.type}</div>
-        </div>
-        <button class="btn btn-secondary btn-xs" onclick="toast('Document ouvert.','success')">👁</button>
+        <div style="flex:1"><div style="font-size:13px;font-weight:500">${d.title}</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">Aperçu PDF · imprimable</div></div>
+        <button class="btn btn-secondary btn-xs" onclick="${d.fn}">👁 Aperçu</button>
       </div>`).join('')}
     <div style="margin-top:12px">
-      <a href="facturation.html" class="btn btn-secondary" style="width:100%;justify-content:center;font-size:12.5px;margin-bottom:6px">🧾 Générer facture</a>
-      <a href="laboratoire.html" class="btn btn-secondary" style="width:100%;justify-content:center;font-size:12.5px">🔬 Demander analyse</a>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:12.5px;margin-bottom:6px" onclick="reglerSortie('${id}')">💰 Régler la facture de sortie</button>
     </div>`;
 }
 
@@ -1075,6 +1102,137 @@ function switchView(view){
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────────
+// ══ DOCUMENTS IMPRIMABLES (aperçu + PDF) ════════════════════════════════════════
+function _prescriptionsPatient(id){
+  let arr=(prescriptions[id]||[]).slice();
+  if(typeof MEDICORE_RX!=='undefined'){
+    const m={}; arr.forEach(p=>m[p.id]=1);
+    MEDICORE_RX.pourPatient(id).forEach(r=>{ if(!m[r.id]) arr.push(r); });
+  }
+  return arr.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+}
+function _identiteHTML(p){
+  return `<div class="grid2">
+    <div class="kv">Dossier : <b>${p.id}</b></div><div class="kv">IPP : <b>${p.ipp||'—'}</b></div>
+    <div class="kv">Nom : <b>${p.nom}</b></div><div class="kv">Né(e) le : <b>${fmtDate(p.ddn)}</b> (${age(p.ddn)} ans)</div>
+    <div class="kv">Sexe : <b>${p.sexe==='F'?'Féminin':'Masculin'}</b></div><div class="kv">Service : <b>${p.service}</b></div>
+    <div class="kv">Médecin : <b>${p.medecin}</b></div><div class="kv">Assurance : <b>${p.assurance||'—'}</b></div>
+    <div class="kv">Entrée : <b>${fmtDate(p.entree)}</b></div>${p.sortie?`<div class="kv">Sortie : <b>${fmtDate(p.sortie)}</b></div>`:''}
+  </div>`;
+}
+function imprimerDossier(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  const tl=(timeline[id]||[]);
+  const presc=_prescriptionsPatient(id);
+  const bio=(bioResultats[id]||[]);
+  const cst=Array.isArray(constantes[id])?constantes[id]:(constantes[id]?[constantes[id]]:[]);
+  const corps=`
+    <h3>Identité du patient</h3>${_identiteHTML(p)}
+    <h3>Antécédents & terrain</h3>
+    <div class="kv">Antécédents : <b>${p.antecedents||'Aucun renseigné'}</b></div>
+    <div class="kv">Allergies : <b style="color:${p.allergies?'#b91c1c':'inherit'}">${p.allergies||'Aucune connue'}</b></div>
+    <div class="kv">Groupe sanguin : <b>${p.groupe||'—'}</b></div>
+    <h3>Motif d'admission / Diagnostic</h3><div>${p.motif||'—'}</div>
+    <h3>Historique clinique (chronologique)</h3>
+    ${tl.length?`<div class="tl">${tl.map(e=>`<div class="tl-item"><div class="tl-date">${e.date}</div><div class="tl-type">${e.type}</div><div>${e.detail}</div><div class="tl-date">👤 ${e.auteur}</div></div>`).join('')}</div>`:'<div>Aucun événement.</div>'}
+    <h3>Prescriptions</h3>
+    ${presc.length?`<table><thead><tr><th>Date</th><th>Médicament</th><th>Posologie</th><th>Voie</th><th>Durée</th><th>Statut</th></tr></thead><tbody>
+      ${presc.map(x=>`<tr><td>${x.date||''}</td><td>${x.med}</td><td>${x.posologie||''}</td><td>${x.voie||''}</td><td>${x.duree||''}</td><td>${x.statut||''}</td></tr>`).join('')}</tbody></table>`:'<div>Aucune prescription.</div>'}
+    <h3>Constantes (historique)</h3>
+    ${cst.length?`<table><thead><tr><th>Date</th><th>TA</th><th>FC</th><th>T°</th><th>SpO₂</th><th>Poids</th><th>Glycémie</th></tr></thead><tbody>
+      ${cst.map(c=>`<tr><td>${c.date?new Date(c.date).toLocaleString('fr-FR'):'—'}</td><td>${c.ta}</td><td>${c.fc}</td><td>${c.t}</td><td>${c.spo2}%</td><td>${c.poids}</td><td>${(c.glycemie!==''&&c.glycemie!=null&&!isNaN(c.glycemie))?c.glycemie:'—'}</td></tr>`).join('')}</tbody></table>`:'<div>Aucune constante.</div>'}
+    <h3>Résultats biologiques</h3>
+    ${bio.length?`<table><thead><tr><th>Paramètre</th><th>Valeur</th><th>Réf.</th></tr></thead><tbody>
+      ${bio.map(r=>`<tr><td>${r.param}</td><td class="${r.anormal?'du':''}">${r.val} ${r.unite}</td><td>${r.ref} ${r.unite}</td></tr>`).join('')}</tbody></table>`:'<div>Aucun résultat.</div>'}`;
+  MEDICORE_PRINT.open({ titre:'Dossier patient', sousTitre:`${p.nom} — Dossier ${p.id}`, corpsHTML:corps });
+}
+
+function docCRAdmission(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  const tl=(timeline[id]||[]);
+  const corps=`<h3>Compte rendu d'admission</h3>${_identiteHTML(p)}
+    <h3>Motif d'admission</h3><div>${p.motif||'—'}</div>
+    <h3>Antécédents</h3><div>${p.antecedents||'Aucun renseigné'} · Allergies : ${p.allergies||'aucune'}</div>
+    <h3>Observations</h3>
+    ${tl.length?`<div class="tl">${tl.map(e=>`<div class="tl-item"><div class="tl-date">${e.date} — ${e.type}</div><div>${e.detail}</div></div>`).join('')}</div>`:'<div>—</div>'}
+    <div class="sign"><div><div class="line">Médecin admetteur : ${p.medecin}</div></div><div><div class="line">Signature & cachet</div></div></div>`;
+  MEDICORE_PRINT.open({ titre:'Compte rendu d\'admission', sousTitre:`${p.nom} — ${fmtDate(p.entree)}`, corpsHTML:corps });
+}
+function docResultatsBio(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  const bio=(bioResultats[id]||[]);
+  const corps=`<h3>Résultats de biologie</h3>${_identiteHTML(p)}
+    ${bio.length?`<table><thead><tr><th>Paramètre</th><th>Résultat</th><th>Valeurs de référence</th><th>Interprétation</th></tr></thead><tbody>
+      ${bio.map(r=>`<tr><td>${r.param}</td><td class="${r.anormal?'du':'paye'}">${r.val} ${r.unite}</td><td>${r.ref} ${r.unite}</td><td>${r.anormal?'⚠ Hors norme':'Normal'}</td></tr>`).join('')}</tbody></table>`
+      :'<div>Aucun résultat biologique disponible.</div>'}
+    <div class="sign"><div><div class="line">Biologiste</div></div><div><div class="line">Validation</div></div></div>`;
+  MEDICORE_PRINT.open({ titre:'Résultats de biologie', sousTitre:p.nom, corpsHTML:corps });
+}
+function docConsentement(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  const corps=`<h3>Consentement éclairé — acte opératoire</h3>${_identiteHTML(p)}
+    <p style="margin-top:14px">Je soussigné(e) <b>${p.nom}</b> (ou son représentant légal), reconnais avoir reçu une information claire,
+    loyale et appropriée concernant l'acte / l'intervention proposé(e), ses bénéfices attendus, ses risques éventuels
+    et les alternatives thérapeutiques. J'ai pu poser toutes mes questions et obtenir des réponses satisfaisantes.</p>
+    <p>En conséquence, je donne mon consentement libre et éclairé à la réalisation de cet acte.</p>
+    <div class="grid2" style="margin-top:18px"><div class="kv">Acte / intervention : <b>_______________________</b></div><div class="kv">Date : <b>____ / ____ / ______</b></div></div>
+    <div class="sign"><div><div class="line">Le patient (ou représentant)</div></div><div><div class="line">Le médecin — ${p.medecin}</div></div></div>`;
+  MEDICORE_PRINT.open({ titre:'Consentement opératoire', sousTitre:p.nom, corpsHTML:corps });
+}
+
+// ── Facture de sortie : toutes prestations, ventilées par service, payé/dû ──────
+function _groupesFacture(id){
+  if(typeof MEDICORE_PRESTA==='undefined') return [];
+  const SVC=(typeof MEDICORE_CAISSE!=='undefined')?MEDICORE_CAISSE.SERVICES:{};
+  const LBL=MEDICORE_PRESTA.LABELS_MODULE||{};
+  const g={};
+  MEDICORE_PRESTA.pourPatient(id).filter(x=>x.statut!=='annulée').forEach(x=>{
+    const k=x.module||'autre';
+    if(!g[k]) g[k]={ module:k, label:LBL[k]||k, compte:(SVC[k]&&SVC[k].compteVente)||'706', lignes:[], paye:0, du:0 };
+    g[k].lignes.push(x);
+    if(x.statut==='facturée') g[k].paye+=(+x.montant||0); else g[k].du+=(+x.montant||0);
+  });
+  return Object.values(g);
+}
+function factureSortie(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  const groupes=_groupesFacture(id);
+  const totalPaye=groupes.reduce((s,g)=>s+g.paye,0);
+  const totalDu=groupes.reduce((s,g)=>s+g.du,0);
+  const total=totalPaye+totalDu;
+  const numero='FS-'+new Date().getFullYear()+'-'+String(id).replace(/\D/g,'').slice(-5);
+  const lignes=groupes.map(g=>`
+    <tr><td colspan="4" style="background:#f8f7f2;font-weight:700">${g.label} — compte SYSCOHADA 531 / ${g.compte}</td></tr>
+    ${g.lignes.map(l=>`<tr><td>${l.libelle}</td><td>${l.code||''}</td><td class="right">${(+l.montant||0).toLocaleString('fr-FR')}</td>
+      <td class="right ${l.statut==='facturée'?'paye':'du'}">${l.statut==='facturée'?'Payé':'Dû'}</td></tr>`).join('')}
+    <tr><td colspan="2" class="right" style="font-size:11px;color:#666">Sous-total ${g.label}</td>
+      <td class="right tot">${(g.paye+g.du).toLocaleString('fr-FR')}</td>
+      <td class="right" style="font-size:11px"><span class="paye">${g.paye.toLocaleString('fr-FR')} payé</span> · <span class="du">${g.du.toLocaleString('fr-FR')} dû</span></td></tr>`).join('');
+  const corps=`<h3>Facture de séjour ${numero}</h3>${_identiteHTML(p)}
+    <h3>Détail des prestations (ventilation par service)</h3>
+    ${groupes.length?`<table><thead><tr><th>Prestation</th><th>Code</th><th class="right">Montant (FCFA)</th><th class="right">État</th></tr></thead><tbody>${lignes}</tbody></table>`:'<div>Aucune prestation.</div>'}
+    <h3>Récapitulatif</h3>
+    <table><tbody>
+      <tr><td>Total prestations</td><td class="right tot">${total.toLocaleString('fr-FR')} FCFA</td></tr>
+      <tr><td>Déjà payé (caisses services)</td><td class="right paye">${totalPaye.toLocaleString('fr-FR')} FCFA</td></tr>
+      <tr><td>Reste à régler</td><td class="right du">${totalDu.toLocaleString('fr-FR')} FCFA</td></tr>
+    </tbody></table>
+    <div style="margin-top:8px;font-size:11px;color:#666">${totalDu>0?'Facture NON soldée — règlement attendu à la caisse.':'Facture intégralement soldée.'}</div>
+    <div class="sign"><div><div class="line">Le caissier</div></div><div><div class="line">Le patient</div></div></div>`;
+  MEDICORE_PRINT.open({ titre:'Facture de sortie'+(totalDu>0?' (non soldée)':' (soldée)'), sousTitre:`${p.nom} — ${numero}`, corpsHTML:corps });
+}
+// Règle le reste dû, ventilé par service (SYSCOHADA), puis ré-affiche la facture
+function reglerSortie(id){
+  if(typeof MEDICORE_CAISSE==='undefined'){ toast('Module caisse absent.','error'); return; }
+  const groupes=_groupesFacture(id).filter(g=>g.du>0);
+  if(!groupes.length){ toast('Aucun reste à régler.','info'); factureSortie(id); return; }
+  let total=0;
+  groupes.forEach(g=>{ const t=MEDICORE_CAISSE.encaisserPrestationsPatient(g.module, id, { mode:'Espèces' }); if(t) total+=t.total; });
+  auditLog('REGLEMENT_SORTIE', id, `Règlement sortie — ${total.toLocaleString('fr-FR')} FCFA`, getPrescripteur());
+  toast(`Règlement encaissé : ${total.toLocaleString('fr-FR')} FCFA (ventilé par service).`,'success');
+  factureSortie(id);
+}
+
 function sortiePatient(id){
   const p=patients.find(x=>x.id===id);
   if(p){p.statut='Sorti';p.type='Sorti';p.sortie=TODAY;p.lit='';}
@@ -1090,6 +1248,8 @@ function sortiePatient(id){
   const nomPatient = p?p.nom:id;
   toast('Sortie de '+nomPatient+' enregistree. Facture a generer.','success');
   if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('patients', patients, true);
+  // Aperçu immédiat de la facture de séjour (payé / dû, ventilée par service)
+  if(typeof factureSortie==='function') setTimeout(()=>factureSortie(id), 300);
   if(typeof MEDICORE_GOTO!=='undefined'){
     setTimeout(function(){
       const tc=document.getElementById('toast-container');
@@ -1171,7 +1331,8 @@ function refuserPresc(pid,prescId){
 }
 
 function saisirConstantes(id){
-  const c = constantes[id] || {ta:'120/80',fc:80,fr:16,spo2:98,t:37.0,poids:70,glycemie:'',eva:''};
+  const hist = Array.isArray(constantes[id]) ? constantes[id] : (constantes[id]?[constantes[id]]:[]);
+  const c = hist[0] || {ta:'120/80',fc:80,fr:16,spo2:98,t:37.0,poids:70,glycemie:'',eva:''};
   const nom = (patients.find(p=>p.id===id)||{}).nom || id;
   let ov = document.getElementById('modal-constantes');
   if(ov) ov.remove();
@@ -1213,15 +1374,18 @@ function enregistrerConstantes(id){
   const num = x => x===''||x==null ? '' : parseFloat(x);
   const ta = (v('cst-ta')||'').trim();
   if(ta && !/^\d{2,3}\/\d{2,3}$/.test(ta)){ toast('Format TA invalide (ex : 120/80).','error'); return; }
-  constantes[id] = {
+  const releve = {
     ta: ta||'—',
     fc: num(v('cst-fc')), fr: num(v('cst-fr')), t: num(v('cst-t')),
     spo2: num(v('cst-spo2')), poids: num(v('cst-poids')),
     glycemie: num(v('cst-glycemie')), eva: num(v('cst-eva')),
-    maj: new Date().toISOString()
+    date: new Date().toISOString(), par:(typeof getPrescripteur==='function'?getPrescripteur():'')
   };
+  // Historique : on empile un nouveau relevé (plusieurs dates possibles)
+  if(!Array.isArray(constantes[id])) constantes[id] = constantes[id] ? [constantes[id]] : [];
+  constantes[id].unshift(releve);
   if(typeof MEDICORE_STORE!=='undefined'){ try{ MEDICORE_STORE.save('constantes', constantes, true); }catch(e){} }
-  if(typeof auditLog==='function') auditLog('CONSTANTES_SAISIE', id, `TA ${constantes[id].ta} · FC ${constantes[id].fc} · T° ${constantes[id].t} · SpO₂ ${constantes[id].spo2}%`, (typeof getPrescripteur==='function'?getPrescripteur():''));
+  if(typeof auditLog==='function') auditLog('CONSTANTES_SAISIE', id, `TA ${releve.ta} · FC ${releve.fc} · T° ${releve.t} · SpO₂ ${releve.spo2}%`, releve.par);
   const ov=document.getElementById('modal-constantes'); if(ov) ov.remove();
   renderConstantes(id);
   toast('Constantes enregistrées.','success');
@@ -1239,21 +1403,33 @@ function validerAdmission(){
   const prenom=document.getElementById('adm-prenom').value.trim();
   if(!nom||!prenom){ toast('Saisissez nom et prénom.','error'); return; }
 
-  // ── Identito-vigilance : détection de doublon ─────────────────────────────
+  // ── Unicité du dossier : un patient = un seul dossier = un seul QR ─────────
   const ddn=document.getElementById('adm-ddn').value;
   const sexe=document.getElementById('adm-sexe').value;
   const nomComplet=(nom+' '+prenom).toLowerCase().replace(/\s+/g,' ');
+  // Doublon CERTAIN (même nom complet + même date de naissance) → REFUS
+  const certain=patients.find(p=>{
+    const pNom=(p.nom||'').toLowerCase().replace(/\s+/g,' ');
+    return ddn && p.ddn===ddn && pNom===nomComplet;
+  });
+  if(certain){
+    toast(`Dossier déjà existant pour ce patient : ${certain.id}. Ouverture du dossier.`,'error');
+    auditLog('DOSSIER_DOUBLON_REFUSE', certain.id, `Tentative de création d'un 2e dossier pour ${certain.nom}`, getPrescripteur());
+    closeAdmission(); openDossier(certain.id);
+    return;
+  }
+  // Doublon PROBABLE (homonyme possible) → avertissement, choix de l'agent
   const doublons=patients.filter(p=>{
     const pNom=(p.nom||'').toLowerCase().replace(/\s+/g,' ');
     const ddnMatch=ddn&&p.ddn===ddn;
     const nomMatch=pNom===nomComplet;
     const nomProche=pNom.split(' ').filter(w=>nomComplet.includes(w)&&w.length>2).length>=2;
-    return (ddnMatch&&nomProche)||(nomMatch&&ddnMatch)||(nomMatch&&sexe===p.sexe);
+    return (ddnMatch&&nomProche)||(nomMatch&&sexe===p.sexe);
   });
   if(doublons.length){
     const liste=doublons.map(d=>`${d.nom} — ${d.ddn} — ${d.id}`).join('\n');
-    if(!confirm(`⚠ Identito-vigilance — Doublon potentiel détecté :\n\n${liste}\n\nConfirmer quand même l'admission ?`)){return;}
-    auditLog('DOUBLON_FORCE', document.getElementById('adm-dossier').value, `Doublon détecté : ${liste}`, getPrescripteur());
+    if(!confirm(`⚠ Identito-vigilance — Homonyme possible :\n\n${liste}\n\nS'il s'agit du MÊME patient, annulez et ouvrez son dossier.\nConfirmer une nouvelle admission (patient différent) ?`)){return;}
+    auditLog('DOUBLON_FORCE', document.getElementById('adm-dossier').value, `Homonyme confirmé distinct : ${liste}`, getPrescripteur());
   }
 
   const id=document.getElementById('adm-dossier').value;
