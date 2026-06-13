@@ -122,7 +122,8 @@
         <div class="topbar-title"><h1>Paramétrage</h1><p>Configuration de l'établissement et du système</p></div>
       </div>
       <div class="topbar-actions">
-        <button class="btn btn-secondary btn-sm" onclick="exportConfig()">⬇ Exporter config</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportConfig()">⬇ Config</button>
+        <button class="btn btn-primary btn-sm" onclick="exportTout()" title="Exporter TOUTES les données (patients, factures, stock…)">⬇ Sauvegarde complète</button>
         <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">⬆ Importer</button>
         <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importConfig(this)">
       </div>
@@ -234,25 +235,36 @@ let PERMISSIONS = {
 let CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
 
 function loadConfig(){
+  // Compatibilité : lire d'abord via MEDICORE_STORE (nouveau format v2),
+  // puis fallback sur l'ancienne clé directe si nécessaire.
   try {
-    const raw = localStorage.getItem(CFG_KEY);
-    if(raw){
-      const saved = JSON.parse(raw);
+    let saved = null;
+    if(typeof MEDICORE_STORE !== 'undefined'){
+      saved = MEDICORE_STORE.load('parametrage', null);
+    }
+    if(!saved){
+      // Fallback lecture directe (données pré-migration)
+      const raw = localStorage.getItem(CFG_KEY);
+      if(raw) saved = JSON.parse(raw);
+    }
+    if(saved){
       CFG = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)), saved.cfg||{});
-      if(saved.users) USERS = saved.users;
-      if(saved.services) SERVICES = saved.services;
-      if(saved.tarifs) TARIFS = saved.tarifs;
+      if(saved.users)        USERS        = saved.users;
+      if(saved.services)     SERVICES     = saved.services;
+      if(saved.tarifs)       TARIFS       = saved.tarifs;
       if(saved.fournisseurs) FOURNISSEURS = saved.fournisseurs;
-      if(saved.permissions) PERMISSIONS = saved.permissions;
+      if(saved.permissions)  PERMISSIONS  = saved.permissions;
     }
   } catch(e){}
 }
 function persist(){
-  try {
-    localStorage.setItem(CFG_KEY, JSON.stringify({
-      cfg:CFG, users:USERS, services:SERVICES, tarifs:TARIFS, fournisseurs:FOURNISSEURS, permissions:PERMISSIONS
-    }));
-  } catch(e){}
+  const payload = { cfg:CFG, users:USERS, services:SERVICES,
+    tarifs:TARIFS, fournisseurs:FOURNISSEURS, permissions:PERMISSIONS };
+  if(typeof MEDICORE_STORE !== 'undefined'){
+    MEDICORE_STORE.save('parametrage', payload, true); // immediate = true (config critique)
+  } else {
+    try{ localStorage.setItem(CFG_KEY, JSON.stringify(payload)); }catch(e){}
+  }
 }
 
 // ── Sections ──────────────────────────────────────────────────────────────────
@@ -458,6 +470,9 @@ function renderBody(){
       <button class="btn btn-primary" onclick="saveSauvegarde()">💾 Enregistrer</button></div></div></div>`;
   }
   else if(currentSection==='donnees'){
+    // ── Barre d'utilisation du stockage ──────────────────────────────────────────
+    b.innerHTML += '<div id="storage-usage-bar" style="margin-bottom:16px;padding:12px 14px;background:var(--surface-alt,#f5f4f0);border-radius:8px;border:1px solid var(--border,#e2dfd8)">Calcul en cours…</div>';
+    setTimeout(afficherUsageStockage, 100);
     // ── Inventaire des clés localStorage par module ─────────────────────────
     const MODULES_DATA = [
       { id:'dpi',         label:'DPI — Dossiers patients',  icon:'📋', keys:['medicore_patients','medicore_prescriptions','medicore_timeline','medicore_constantes','medicore_prescriptions_circuit'] },
@@ -625,6 +640,9 @@ function supprimerTout(){
     }
   }
   keysToDelete.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
+  // Invalider le cache mémoire MEDICORE_STORE
+  if(typeof MEDICORE_STORE !== 'undefined'){ MEDICORE_STORE._mem = {}; MEDICORE_STORE._kpiCache = null; }
+  if(typeof MEDICORE_BUS   !== 'undefined'){ MEDICORE_BUS._cache = null; MEDICORE_BUS._counts = null; }
   // Réinitialiser les tableaux en mémoire avec les valeurs par défaut
   CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
   USERS = JSON.parse(JSON.stringify(DEFAULT_USERS));
@@ -675,20 +693,65 @@ function toutCocher(v){
 
 // ── Import / Export ───────────────────────────────────────────────────────────
 function exportConfig(){
+  // Export configuration seulement
   const data=JSON.stringify({cfg:CFG,users:USERS,services:SERVICES,tarifs:TARIFS,fournisseurs:FOURNISSEURS,permissions:PERMISSIONS},null,2);
   const blob=new Blob([data],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='medicore_config_'+CFG.etablissement.exercice+'.json'; a.click();
   toast('Configuration exportée.','success');
 }
+function exportTout(){
+  // Export universel : config + toutes données métier
+  if(typeof MEDICORE_STORE === 'undefined'){ toast('MEDICORE_STORE non chargé.','error'); return; }
+  const n = MEDICORE_STORE.downloadBackup();
+  toast(n+' module(s) exportés dans la sauvegarde complète.','success');
+}
+function afficherUsageStockage(){
+  if(typeof MEDICORE_STORE === 'undefined') return;
+  const u = MEDICORE_STORE.usage();
+  const el = document.getElementById('storage-usage-bar');
+  if(!el) return;
+  const pct = Math.min(u.pct, 100);
+  const color = pct > 80 ? '#b92b2b' : pct > 60 ? '#d97706' : '#2e7d32';
+  el.innerHTML =
+    '<div style="margin-bottom:6px;font-size:12.5px;color:var(--text-muted)">' +
+      '<strong>' + u.usedKB + ' KB</strong> utilisés sur ~5 120 KB — ' + u.pct + '% — ' + u.keys + ' clé(s)</div>' +
+    '<div style="background:#e5e7eb;border-radius:4px;height:10px;overflow:hidden">' +
+      '<div style="height:10px;border-radius:4px;background:'+color+';width:'+pct+'%;transition:width .4s"></div>' +
+    '</div>' +
+    (u.alerte ? '<div style="margin-top:6px;color:#b92b2b;font-size:12px">⚠️ Espace faible — pensez à exporter et purger.</div>' : '');
+}
 function importConfig(input){
-  const f=input.files[0]; if(!f)return;
-  const r=new FileReader();
-  r.onload=e=>{ try{ const d=JSON.parse(e.target.result);
-    if(d.cfg)CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),d.cfg);
-    if(d.users)USERS=d.users; if(d.services)SERVICES=d.services; if(d.tarifs)TARIFS=d.tarifs;
-    if(d.fournisseurs)FOURNISSEURS=d.fournisseurs; if(d.permissions)PERMISSIONS=d.permissions;
-    persist(); renderBody(); toast('Configuration importée.','success');
-  }catch(err){ toast('Fichier invalide.','error'); } };
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try{
+      const d = JSON.parse(e.target.result);
+      // ── Format sauvegarde complète (v2 : { _version, keys:{} }) ──────────
+      if(d._version && d.keys && typeof MEDICORE_STORE !== 'undefined'){
+        if(!confirm('Restaurer une sauvegarde complète ?
+
+Cela remplacera TOUTES les données actuelles (patients, factures, stock…)
+
+Cette action est irréversible. Continuer ?')) return;
+        const n = MEDICORE_STORE.importAll(d);
+        loadConfig(); // Recharger CFG depuis le nouveau store
+        renderBody();
+        setTimeout(afficherUsageStockage, 200);
+        toast(n+' module(s) restaurés depuis la sauvegarde complète.', 'success');
+        return;
+      }
+      // ── Format config seulement (v1) ──────────────────────────────────────
+      if(d.cfg)   CFG          = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)), d.cfg);
+      if(d.users)        USERS        = d.users;
+      if(d.services)     SERVICES     = d.services;
+      if(d.tarifs)       TARIFS       = d.tarifs;
+      if(d.fournisseurs) FOURNISSEURS = d.fournisseurs;
+      if(d.permissions)  PERMISSIONS  = d.permissions;
+      persist();
+      renderBody();
+      toast('Configuration importée.','success');
+    }catch(err){ toast('Fichier invalide : '+err.message,'error'); }
+  };
   r.readAsText(f);
 }
 
@@ -696,6 +759,7 @@ function toast(msg,type=''){ const t=document.createElement('div'); t.className=
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',function(){
+  afficherUsageStockage();
   if(typeof initNav==='function'){
     initNav('parametrage','Paramétrage','Configuration ERP',
       [{label:'Étape 4 — Administration',file:'#'},{label:'Paramétrage',file:''}]);

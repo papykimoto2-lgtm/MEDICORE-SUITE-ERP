@@ -685,21 +685,30 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// MEDICORE_BUS — Canal inter-modules (localStorage, offline-first)
-// Permet aux modules d'échanger des événements sans backend :
-//   prescriptions en attente PUI, résultats labo disponibles,
-//   sorties à facturer, alertes stock, etc.
+// MEDICORE_BUS v2 — Canal inter-modules (localStorage, offline-first)
+// Optimisations : cache compteurs O(1), auto-purge TTL 48h, MAX 200 events.
 // ══════════════════════════════════════════════════════════════════════════════
 const MEDICORE_BUS = {
   KEY: 'medicore_bus',
-  MAX: 100, // limite circulaire
+  MAX: 200,
+  _cache: null,   // cache tableau en mémoire
+  _counts: null,  // cache compteurs { TYPE: n } — évite O(n) par appel
 
-  // Lire tous les événements
-  all(){ try{ return JSON.parse(localStorage.getItem(this.KEY))||[]; }catch(e){ return []; } },
+  // Lire tous les événements (depuis cache mémoire si possible)
+  all(){
+    if(this._cache !== null) return this._cache;
+    try{ this._cache = JSON.parse(localStorage.getItem(this.KEY)) || []; }
+    catch(e){ this._cache = []; }
+    return this._cache;
+  },
+
+  // Persiste le cache et invalide les compteurs
+  _flush(){
+    try{ localStorage.setItem(this.KEY, JSON.stringify(this._cache || [])); }catch(e){}
+    this._counts = null;
+  },
 
   // Publier un événement
-  // type : 'PRESCRIPTION_ATTENTE_PUI' | 'LABO_RESULTATS_PRETS' | 'SORTIE_A_FACTURER' |
-  //        'STOCK_ALERTE' | 'IMMO_ACQUISE' | 'COMPTA_ECRITURE' | etc.
   publish(type, payload){
     const events = this.all();
     events.push({
@@ -709,49 +718,72 @@ const MEDICORE_BUS = {
       lu: false,
       source: location.pathname.split('/').pop().replace('.html','')
     });
-    // Garder les MAX derniers
+    // Auto-purge des lus anciens dès 80% de capacité
+    if(events.length > this.MAX * 0.8) this._purgeRead(events);
+    // Limite dure
     if(events.length > this.MAX) events.splice(0, events.length - this.MAX);
-    try{ localStorage.setItem(this.KEY, JSON.stringify(events)); }catch(e){}
+    this._flush();
     this._updateBadges();
   },
 
-  // Marquer comme lu (par type ou id)
+  // Marquer comme lu (par type)
   markRead(type){
-    const events = this.all().map(e => e.type===type ? {...e, lu:true} : e);
-    try{ localStorage.setItem(this.KEY, JSON.stringify(events)); }catch(e){}
-    this._updateBadges();
+    let changed = false;
+    (this._cache || this.all()).forEach(e => {
+      if(e.type === type && !e.lu){ e.lu = true; changed = true; }
+    });
+    if(changed){ this._flush(); this._updateBadges(); }
   },
 
-  // Compter les non lus par type
-  count(type){ return this.all().filter(e=>!e.lu && e.type===type).length; },
+  // Compter les non-lus par type — O(1) grâce au cache _counts
+  count(type){
+    if(!this._counts){
+      this._counts = {};
+      (this._cache || this.all()).forEach(e => {
+        if(!e.lu) this._counts[e.type] = (this._counts[e.type] || 0) + 1;
+      });
+    }
+    return this._counts[type] || 0;
+  },
 
   // Obtenir les N derniers d'un type
-  get(type, n){ return this.all().filter(e=>e.type===type).slice(-( n||20)); },
+  get(type, n){ return this.all().filter(e => e.type === type).slice(-(n || 20)); },
 
-  // Mettre à jour les badges de la sidebar selon le bus
+  // Supprimer les événements lus de plus de 48h
+  _purgeRead(events){
+    const cutoff = Date.now() - 48 * 3600000;
+    for(let i = events.length - 1; i >= 0; i--){
+      if(events[i].lu && new Date(events[i].ts).getTime() < cutoff)
+        events.splice(i, 1);
+    }
+  },
+
+  // Purge publique (appelée au DOMContentLoaded)
+  purge(){
+    const events = this.all();
+    this._purgeRead(events);
+    this._cache = events;
+    this._flush();
+  },
+
+  // Mettre à jour les badges de la sidebar
   _updateBadges(){
     const BADGE_MAP = {
-      'pharmacie_pui':   ['PRESCRIPTION_ATTENTE_PUI','STOCK_ALERTE'],
-      'laboratoire':     ['LABO_DEMANDE_URGENTE'],
-      'facturation':     ['SORTIE_A_FACTURER'],
-      'dpi':             ['LABO_RESULTATS_PRETS','IMAGERIE_CR_PRET'],
+      'pharmacie_pui':    ['PRESCRIPTION_ATTENTE_PUI','STOCK_ALERTE'],
+      'laboratoire':      ['LABO_DEMANDE_URGENTE'],
+      'facturation':      ['SORTIE_A_FACTURER'],
+      'dpi':              ['LABO_RESULTATS_PRETS','IMAGERIE_CR_PRET'],
       'achats_logistique':['STOCK_ALERTE'],
     };
     Object.entries(BADGE_MAP).forEach(([modId, types]) => {
       const count = types.reduce((s,t) => s + this.count(t), 0);
-      // Mettre à jour le badge dans la nav
       const link = document.querySelector(`.nav-item[href="${modId}.html"] .nav-badge`);
       if(link && count > 0){ link.textContent = count; link.style.display=''; }
     });
   },
-
-  // Nettoyer les événements lus de plus de 7 jours
-  purge(){
-    const cutoff = Date.now() - 7*86400000;
-    const kept = this.all().filter(e => !e.lu || new Date(e.ts).getTime() > cutoff);
-    try{ localStorage.setItem(this.KEY, JSON.stringify(kept)); }catch(e){}
-  }
 };
+
+
 
 // ── Liens profonds inter-modules (navigation contextuelle) ─────────────────────
 // Chaque fonction construit une URL avec le contexte du patient actif + action
@@ -878,38 +910,147 @@ document.addEventListener('DOMContentLoaded', function(){
   // Purge périodique du bus
   try{ MEDICORE_BUS.purge(); }catch(e){}
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
-// MEDICORE_STORE — Persistance & consolidation inter-modules
-// Chaque module sauvegarde ses données ici ; le portail et les tableaux de bord
-// lisent des agrégats calculés en temps réel. Offline-first (localStorage).
+// MEDICORE_STORE v2 — Persistance & consolidation inter-modules
+// Optimisations : versioning schéma, cache mémoire, debounce 200ms,
+//   sync() bug corrigé, KPI cache 30s, gestion quota, export/import universel.
 // ══════════════════════════════════════════════════════════════════════════════
 const MEDICORE_STORE = {
 
-  // ── Persistance générique ───────────────────────────────────────────────────
-  save(cle, donnees){
-    try{ localStorage.setItem('medicore_'+cle, JSON.stringify(donnees)); }catch(e){}
-  },
-  load(cle, defaut){
-    try{
-      const v = localStorage.getItem('medicore_'+cle);
-      return v ? JSON.parse(v) : (defaut !== undefined ? defaut : []);
-    }catch(e){ return defaut !== undefined ? defaut : []; }
+  NS: 'medicore_',
+
+  // ── Versions de schéma par clé ─────────────────────────────────────────────
+  // Incrémenter quand la structure d'un objet change entre deux versions de l'ERP.
+  // La méthode _migrate() applique les transformations nécessaires.
+  SCHEMA: {
+    patients: 1, factures: 1, ecritures: 1, interventions: 1,
+    demandes_labo: 1, mouvements_tresorerie: 1, stock: 1,
+    comptes_bancaires: 1, parametrage: 2,
   },
 
-  // ── Branche un tableau de module sur le store ───────────────────────────────
-  // Usage : patients = MEDICORE_STORE.sync('patients', patients);
-  // → charge les données persistées si présentes, sinon garde le tableau actuel
-  sync(cle, tableauActuel){
-    const sauvegarde = this.load(cle, null);
-    if(sauvegarde && Array.isArray(sauvegarde) && sauvegarde.length > 0){
-      return sauvegarde;
+  // ── Cache mémoire par clé ──────────────────────────────────────────────────
+  _mem: {},
+
+  // ── Cache KPI (30 secondes) ────────────────────────────────────────────────
+  _kpiCache: null,
+  _kpiTs: 0,
+  KPI_TTL: 30000,
+
+  // ── Timers de debounce par clé ─────────────────────────────────────────────
+  _timers: {},
+  DEBOUNCE_MS: 200,
+
+  // ── Clés qui influencent les KPIs ──────────────────────────────────────────
+  _KPI_KEYS: new Set(['patients','factures','ecritures','interventions',
+    'demandes_labo','mouvements_tresorerie','stock','comptes_bancaires']),
+
+  // ── save() — écriture debouncée + cache mémoire immédiat ──────────────────
+  save(cle, donnees, immediate){
+    this._mem[cle] = donnees;
+    if(this._KPI_KEYS.has(cle)) this._kpiCache = null;
+    if(immediate){
+      this._write(cle, donnees);
+    } else {
+      clearTimeout(this._timers[cle]);
+      this._timers[cle] = setTimeout(() => this._write(cle, donnees), this.DEBOUNCE_MS);
     }
-    return tableauActuel || [];
   },
 
-  // ── Agrégats consolidés (calculés à la volée) ───────────────────────────────
+  // ── Écriture physique dans localStorage ────────────────────────────────────
+  _write(cle, donnees){
+    const payload = JSON.stringify({
+      _v: this.SCHEMA[cle] || 1,
+      _ts: Date.now(),
+      d: donnees
+    });
+    try{
+      localStorage.setItem(this.NS + cle, payload);
+    } catch(e){
+      if(e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014){
+        this._handleQuota(cle, donnees, payload);
+      }
+    }
+  },
+
+  // ── Gestion du dépassement de quota ───────────────────────────────────────
+  _handleQuota(cle, donnees, payload){
+    // Tentative 1 : purger le bus (libère jusqu'à ~50 KB)
+    try{ MEDICORE_BUS.purge(); }catch(ex){}
+    try{ localStorage.setItem(this.NS + cle, payload); return; }catch(ex){}
+    // Tentative 2 : supprimer les anciennes clés non critiques
+    const NON_CRITIQUES = ['medicore_bus','medicore_patient_actif'];
+    NON_CRITIQUES.forEach(k => { try{ localStorage.removeItem(k); }catch(ex){} });
+    try{ localStorage.setItem(this.NS + cle, payload); return; }catch(ex){}
+    // Échec : notifier l'utilisateur
+    if(!document.getElementById('_mc_quota_toast')){
+      const t = document.createElement('div');
+      t.id = '_mc_quota_toast';
+      t.style.cssText = 'position:fixed;top:16px;right:16px;z-index:99999;background:#b92b2b;color:#fff;'+
+        'padding:12px 16px;border-radius:8px;font-size:13px;max-width:340px;'+
+        'box-shadow:0 2px 8px rgba(0,0,0,.25);line-height:1.5';
+      t.innerHTML = '<strong>⚠️ Stockage local saturé</strong><br>'+
+        "Allez dans <b>Paramétrage → Données</b> pour exporter et libérer de l'espace.";
+      document.body.appendChild(t);
+      setTimeout(()=>{ if(t.parentNode) t.parentNode.removeChild(t); }, 9000);
+    }
+  },
+
+  // ── load() — lecture avec cache mémoire + migration de schéma ─────────────
+  load(cle, defaut){
+    if(this._mem[cle] !== undefined) return this._mem[cle];
+    const fb = defaut !== undefined ? defaut : [];
+    try{
+      const raw = localStorage.getItem(this.NS + cle);
+      if(raw === null) return fb;
+      const parsed = JSON.parse(raw);
+      // Compatibilité : ancien format = tableau brut, nouveau = { _v, _ts, d }
+      let data = (parsed && parsed.d !== undefined) ? parsed.d : parsed;
+      const version = (parsed && parsed._v) || 1;
+      // Migration de schéma si nécessaire
+      data = this._migrate(cle, version, data);
+      if(data === null || data === undefined) return fb;
+      this._mem[cle] = data;
+      return data;
+    }catch(e){ return fb; }
+  },
+
+  // ── sync() — corrige le bug MediCore v1 ([] ≠ clé absente) ───────────────
+  // v1 bug : sync('x', fallback) retournait fallback si la valeur était []
+  // v2 fix : seul raw === null (clé jamais écrite) déclenche le fallback
+  sync(cle, fallback){
+    const raw = localStorage.getItem(this.NS + cle);
+    if(raw === null) return (fallback !== undefined ? fallback : []);
+    return this.load(cle, fallback !== undefined ? fallback : []);
+  },
+
+  // ── flush() — force l'écriture de tous les debounces en attente ───────────
+  // Appelé automatiquement avant la fermeture de page (beforeunload)
+  flush(){
+    Object.keys(this._timers).forEach(cle => {
+      clearTimeout(this._timers[cle]);
+      if(this._mem[cle] !== undefined) this._write(cle, this._mem[cle]);
+    });
+    this._timers = {};
+  },
+
+  // ── invalidateKPIs() — invalide le cache KPI après modification ────────────
+  invalidateKPIs(){ this._kpiCache = null; },
+
+  // ── Migrations de schéma ───────────────────────────────────────────────────
+  // Ajouter un cas par paire (cle, version_cible) quand la structure change.
+  _migrate(cle, v, data){
+    // Exemple pour une future migration :
+    // if(cle === 'factures' && v < 2){
+    //   return (data||[]).map(f => ({ ...f, total_ttc: f.total_ttc ?? f.montant }));
+    // }
+    return data;
+  },
+
+  // ── Agrégats KPI avec cache 30 secondes ───────────────────────────────────
   kpis(){
+    const now = Date.now();
+    if(this._kpiCache && (now - this._kpiTs) < this.KPI_TTL) return this._kpiCache;
+
     const patients      = this.load('patients');
     const factures      = this.load('factures');
     const ecritures     = this.load('ecritures');
@@ -921,55 +1062,43 @@ const MEDICORE_STORE = {
 
     const auj = new Date().toISOString().split('T')[0];
 
-    // Trésorerie : somme des soldes de comptes + flux
     const soldeComptes = (comptes||[]).reduce((s,c)=>s+(c.solde||0),0);
     const flux = (mouvementsTr||[]).reduce((s,m)=>s+(m.type==='Encaissement'?m.montant:-m.montant),0);
-
-    // CA : factures payées
     const ca = (factures||[]).filter(f=>f.statut==='Payée').reduce((s,f)=>s+(f.montant||0),0);
     const enAttente = (factures||[]).filter(f=>f.statut==='En attente').reduce((s,f)=>s+(f.montant||0),0);
-
-    // Résultat : produits (706/707) - charges (6xx) depuis les écritures
     const produits = (ecritures||[]).filter(e=>String(e.compte).startsWith('7')).reduce((s,e)=>s+(e.credit||0),0);
     const charges  = (ecritures||[]).filter(e=>String(e.compte).startsWith('6')).reduce((s,e)=>s+(e.debit||0),0);
-
-    // Activité
     const patientsActifs = (patients||[]).filter(p=>p.statut==='Actif'||p.type==='Hospitalisé').length;
     const interventionsAuj = (interventions||[]).filter(i=>i.date===auj).length;
     const analysesAuj = (demandesLabo||[]).filter(d=>(d.date||'').startsWith(auj)).length;
-
-    // Stock : ruptures
     const ruptures = (stock||[]).filter(p=>p.stock===0).length;
     const alertesStock = (stock||[]).filter(p=>p.stock>0 && p.stock<=(p.mini||p.stock_mini||0)).length;
 
-    return {
+    this._kpiCache = {
       tresorerie: soldeComptes + flux,
-      ca, enAttente,
-      produits, charges,
+      ca, enAttente, produits, charges,
       resultat: produits - charges,
-      patientsActifs,
-      interventionsAuj,
-      analysesAuj,
+      patientsActifs, interventionsAuj, analysesAuj,
       ruptures, alertesStock,
       nbFactures: (factures||[]).length,
       nbPatients: (patients||[]).length,
     };
+    this._kpiTs = now;
+    return this._kpiCache;
   },
 
-  // ── Injecter les KPIs consolidés dans le portail (index.html) ───────────────
+  // ── Injecter les KPIs dans le portail ─────────────────────────────────────
   remplirPortail(){
     const k = this.kpis();
     const fmtM = v => v ? (v/1000000).toFixed(1).replace('.',',')+' M' : '—';
     const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent = val; };
-
     set('hk-resultat', k.resultat ? (k.resultat>0?'+':'')+fmtM(k.resultat) : '—');
     set('hk-treso',    k.tresorerie ? fmtM(k.tresorerie) : '—');
     set('hk-analyses', k.analysesAuj || '—');
     set('hk-interv',   k.interventionsAuj || '—');
-    // TOL non calculable sans config lits — laisser —
   },
 
-  // ── Alertes temps réel pour la bande d'alertes du portail ───────────────────
+  // ── Alertes temps réel ─────────────────────────────────────────────────────
   alertes(){
     const k = this.kpis();
     const liste = [];
@@ -990,7 +1119,7 @@ const MEDICORE_STORE = {
     return liste;
   },
 
-  // ── Badges sidebar dynamiques (remplace les alertes hardcodées) ─────────────
+  // ── Badges sidebar ─────────────────────────────────────────────────────────
   badgesSidebar(){
     const k = this.kpis();
     const badges = {};
@@ -1018,8 +1147,94 @@ const MEDICORE_STORE = {
         link.appendChild(b);
       }
     });
-  }
+  },
+
+  // ── Statistiques d'utilisation du stockage ────────────────────────────────
+  usage(){
+    let used = 0, keys = 0;
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith(this.NS)){
+        const v = localStorage.getItem(k);
+        used += (k.length + (v||'').length) * 2;
+        keys++;
+      }
+    }
+    return {
+      usedBytes: used,
+      usedKB: Math.round(used / 1024),
+      usedMB: (used / 1048576).toFixed(2),
+      limitKB: 5120,
+      pct: Math.round(used / 51200 * 10) / 10,
+      keys,
+      alerte: used > 3 * 1048576, // alerte à 3 MB (60% de 5 MB)
+    };
+  },
+
+  // ── Export universel — TOUTES les données de l'ERP ────────────────────────
+  exportAll(){
+    const ALL_KEYS = [
+      'patients','prescriptions','timeline','constantes','prescriptions_circuit',
+      'demandes_labo','resultats_labo','demandes_img','cr_imagerie',
+      'interventions','dmi','stock','mouvements_stock','stupefiants','retrocessions',
+      'factures','ecritures','rapprochement',
+      'mouvements_tresorerie','previsions','comptes_bancaires',
+      'bons_commande','receptions',
+      'personnel','presences','paie',
+      'immo','cessions',
+      'parametrage', 'bus',
+    ];
+    const backup = {
+      _version: '2.0',
+      _app: 'MediCore Suite ERP',
+      _date: new Date().toISOString(),
+      _ua: navigator.userAgent.slice(0, 80),
+      keys: {}
+    };
+    let n = 0;
+    ALL_KEYS.forEach(k => {
+      const raw = localStorage.getItem(this.NS + k);
+      if(raw !== null){ backup.keys[k] = raw; n++; }
+    });
+    backup._count = n;
+    return backup;
+  },
+
+  // Télécharger la sauvegarde complète
+  downloadBackup(){
+    const backup = this.exportAll();
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    const d = new Date().toISOString().split('T')[0];
+    a.href = URL.createObjectURL(blob);
+    a.download = 'medicore_backup_'+d+'.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    return backup._count;
+  },
+
+  // ── Import universel — restaurer depuis une sauvegarde ────────────────────
+  importAll(backup){
+    if(!backup || !backup.keys) throw new Error('Format de sauvegarde invalide (clé "keys" manquante)');
+    let n = 0;
+    Object.entries(backup.keys).forEach(([k, raw]) => {
+      try{
+        localStorage.setItem(this.NS + k, raw);
+        delete this._mem[k]; // invalider le cache mémoire
+        n++;
+      }catch(ex){}
+    });
+    this._kpiCache = null;
+    if(typeof MEDICORE_BUS !== 'undefined'){ MEDICORE_BUS._cache = null; MEDICORE_BUS._counts = null; }
+    return n;
+  },
 };
+
+// ── Flush automatique avant fermeture de page ─────────────────────────────────
+// Garantit l'écriture des debounces en attente si l'utilisateur ferme rapidement
+window.addEventListener('beforeunload', () => {
+  try{ MEDICORE_STORE.flush(); }catch(e){}
+});
 
 // Appliquer au chargement de chaque page
 document.addEventListener('DOMContentLoaded', function(){
@@ -1027,7 +1242,6 @@ document.addEventListener('DOMContentLoaded', function(){
     try{
       MEDICORE_STORE.remplirPortail();
       MEDICORE_STORE.appliquerBadges();
-      // Bande d'alertes du portail si présente
       const band = document.getElementById('alertes-band');
       if(band && typeof alertes !== 'undefined' && (!alertes || !alertes.length)){
         const liste = MEDICORE_STORE.alertes();
