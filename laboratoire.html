@@ -206,6 +206,7 @@
   <script src="nav.js"></script>
 <script src="qr.js"></script>
 <script src="medicore-prestations.js"></script>
+<script src="medicore-caisse.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -389,6 +390,15 @@
 
       <!-- ── FACTURATION NABM ── -->
       <div id="tab-facturation" class="tab-panel">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+            <div><div class="card-title">Caisse analyses</div><div class="card-subtitle">Scanner le patient (barre du haut) puis encaisser ses analyses</div></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="ouvrirCaisseAnalyses()">💰 Encaisser (patient actif)</button>
+              <button class="btn btn-secondary btn-sm" onclick="MEDICORE_CAISSE.ouvrirRegistre('laboratoire')">🧾 Registre du jour</button>
+            </div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
           <div class="kpi-card blue"><div class="kpi-label">Actes facturés (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-nb">—</div><span class="kpi-badge neutral">NABM/CCAM</span></div>
           <div class="kpi-card green"><div class="kpi-label">CA biologie (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-ca">—</div><span class="kpi-badge up">▲ FCFA</span></div>
@@ -927,6 +937,39 @@ function openNouvelledemande(){
   document.getElementById('modal-demande').classList.add('open');
 }
 function closeNouvelledemande(){document.getElementById('modal-demande').classList.remove('open'); document.getElementById('modal-demande').dataset.demandeId='';}
+
+// Caisse analyses : encaisse les prestations labo « à facturer » du patient actif
+function ouvrirCaisseAnalyses(){
+  const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;
+  if(!ap || !ap.id){ toast('Scannez d\'abord le patient (bouton 📷 en haut).','warn'); return; }
+  if(typeof MEDICORE_PRESTA==='undefined'){ toast('Module prestations absent.','error'); return; }
+  const lignes=MEDICORE_PRESTA.aFacturer(ap.id).filter(p=>p.module==='laboratoire');
+  if(!lignes.length){ toast('Aucune analyse à encaisser pour ce patient.','info'); return; }
+  const total=lignes.reduce((s,l)=>s+(+l.montant||0),0);
+  let ov=document.getElementById('modal-caisse-labo'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-caisse-labo'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:520px">
+    <div class="modal-header"><div><div class="modal-title">Caisse analyses</div>
+      <div class="modal-subtitle">${ap.nom||ap.id} · ${lignes.length} analyse(s)</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-caisse-labo').remove()">✕</button></div>
+    <div class="modal-body">
+      ${lignes.map(l=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${l.libelle} <span style="font-size:11px;color:var(--text-muted)">${l.code||''}</span></span><strong>${(+l.montant).toLocaleString('fr-FR')} F</strong></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;margin-top:12px"><strong>Total</strong><strong style="color:var(--accent);font-size:18px">${total.toLocaleString('fr-FR')} FCFA</strong></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-caisse-labo').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="encaisserAnalyses('${ap.id}')">💰 Encaisser</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+function encaisserAnalyses(patientId){
+  const txn=MEDICORE_CAISSE.encaisserPrestationsPatient('laboratoire', patientId, { mode:'Espèces', caissier:(typeof getBiologiste==='function'?getBiologiste():'') });
+  const m=document.getElementById('modal-caisse-labo'); if(m) m.remove();
+  if(txn){ laboAudit('ENCAISSEMENT', txn.id, `${txn.patient_nom} — ${txn.total.toLocaleString('fr-FR')} FCFA`); toast(`Encaissé : ${txn.total.toLocaleString('fr-FR')} FCFA.`,'success'); }
+  else toast('Rien à encaisser.','info');
+}
 
 // Prise en charge d'une demande inter-service → ouvre le formulaire natif pré-rempli
 window.onDemandePriseEnCharge = function(d){

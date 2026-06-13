@@ -19,8 +19,10 @@ const MEDICORE_SYNC = {
   STORES: [
     { store:'demandes',              label:'Demandes inter-modules' },
     { store:'prestations',           label:'Prestations facturables' },
+    { store:'caisse',                label:'Caisse / encaissements'  },
     { store:'connexions',            label:'Historique connexions'  },
     { store:'patients',              label:'Patients (DPI)'        },
+    { store:'constantes',            label:'Constantes vitales', kind:'doc' },
     { store:'prescriptions',         label:'Prescriptions'         },
     { store:'demandes_labo',         label:'Demandes labo'         },
     { store:'resultats_labo',        label:'Résultats labo'        },
@@ -31,10 +33,12 @@ const MEDICORE_SYNC = {
     { store:'factures',              label:'Facturation'           },
     { store:'ecritures',             label:'Écritures comptables'  },
     { store:'mouvements_tresorerie', label:'Trésorerie'            },
+    { store:'comptes_bancaires',     label:'Comptes bancaires'     },
     { store:'bons_commande',         label:'Achats & commandes'    },
     { store:'personnel',             label:'RH — Personnel'        },
     { store:'paie',                  label:'Bulletins de paie'     },
     { store:'immo',                  label:'Immobilisations'       },
+    { store:'parametrage',           label:'Paramétrage (config, comptes, droits)', kind:'doc' },
   ],
 
   _busy:  false,
@@ -105,6 +109,21 @@ const MEDICORE_SYNC = {
     }
   },
 
+  // ── Stores-document (objet entier, ex: constantes, parametrage) ─────────────
+  _readDoc(store){
+    try{
+      const raw = localStorage.getItem(this.NS+store);
+      if(raw===null) return { ts:0, data:null };
+      const p = JSON.parse(raw);
+      const data = (p && p.d!==undefined) ? p.d : p;
+      return { ts:(p&&p._ts)||0, data };
+    }catch(e){ return { ts:0, data:null }; }
+  },
+  _writeDoc(store, data){
+    if(typeof MEDICORE_STORE !== 'undefined') MEDICORE_STORE.save(store, data, true);
+    else localStorage.setItem(this.NS+store, JSON.stringify({ _v:1, _ts:Date.now(), d:data }));
+  },
+
   // ── Identifiant stable d'une ligne ──────────────────────────────────────────
   _docId(row, i){
     return String(row.id || row.ipp || row.code || row.reference || row.numero || ('row_'+i));
@@ -142,19 +161,27 @@ const MEDICORE_SYNC = {
     let totalSent = 0, errors = 0;
 
     try{
-      for(const { store, label } of this.STORES){
-        const { rows } = this._read(store);
+      for(const { store, label, kind } of this.STORES){
         const known = meta.hashes[store] || {};
         const fresh = {};
         const batch = [];
-        rows.forEach((r,i)=>{
-          const id = this._docId(r,i);
-          const h  = this._hash(r);
-          fresh[id] = h;
-          if(known[id] !== h){
-            batch.push({ store, doc_id:id, payload:r, updated_at:nowIso, device, deleted:false });
+        if(kind==='doc'){
+          const { data } = this._readDoc(store);
+          if(data!=null){
+            const h=this._hash(data); fresh['_full']=h;
+            if(known['_full']!==h) batch.push({ store, doc_id:'_full', payload:data, updated_at:nowIso, device, deleted:false });
           }
-        });
+        } else {
+          const { rows } = this._read(store);
+          rows.forEach((r,i)=>{
+            const id = this._docId(r,i);
+            const h  = this._hash(r);
+            fresh[id] = h;
+            if(known[id] !== h){
+              batch.push({ store, doc_id:id, payload:r, updated_at:nowIso, device, deleted:false });
+            }
+          });
+        }
         if(batch.length===0){ onProgress && onProgress({store,label,status:'skip',msg:'à jour'}); continue; }
         onProgress && onProgress({store,label,status:'pending',msg:batch.length+' modif.'});
         try{
@@ -207,20 +234,24 @@ const MEDICORE_SYNC = {
       const byStore = {};
       docs.forEach(d=>{ (byStore[d.store]=byStore[d.store]||[]).push(d); if(d.updated_at>maxTs) maxTs=d.updated_at; });
 
-      for(const { store, label } of this.STORES){
+      for(const { store, label, kind } of this.STORES){
         const incoming = byStore[store];
         if(!incoming || !incoming.length){ continue; }
         onProgress && onProgress({store,label,status:'pending',msg:incoming.length+' reçu(s)'});
         try{
-          const { rows } = this._read(store);
-          const map = new Map();
-          rows.forEach((r,i)=> map.set(this._docId(r,i), r));
-          incoming.forEach(d=>{
-            if(d.deleted){ map.delete(d.doc_id); }
-            else { map.set(d.doc_id, d.payload); }   // last-write-wins (tri asc)
-          });
-          const merged = Array.from(map.values());
-          this._write(store, merged);
+          if(kind==='doc'){
+            const full = incoming.filter(d=>!d.deleted).pop();   // dernier (tri asc)
+            if(full) this._writeDoc(store, full.payload);
+          } else {
+            const { rows } = this._read(store);
+            const map = new Map();
+            rows.forEach((r,i)=> map.set(this._docId(r,i), r));
+            incoming.forEach(d=>{
+              if(d.deleted){ map.delete(d.doc_id); }
+              else { map.set(d.doc_id, d.payload); }   // last-write-wins (tri asc)
+            });
+            this._write(store, Array.from(map.values()));
+          }
           totalRecv += incoming.length;
           onProgress && onProgress({store,label,status:'ok',msg:incoming.length+' fusionné(s)'});
         }catch(e){

@@ -204,6 +204,7 @@
   <script src="nav.js"></script>
 <script src="qr.js"></script>
 <script src="medicore-prestations.js"></script>
+<script src="medicore-caisse.js"></script>
 <script src="medicore-prescriptions.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
@@ -816,14 +817,15 @@ function prixDispensation(l){
 function servirOrdonnance(patientId, groupe){
   const lignes = MEDICORE_RX.aServirPatient(patientId).filter(r=>(r.groupe||r.id)===groupe);
   if(!lignes.length){ toast('Ordonnance introuvable.','error'); return; }
-  let total=0; const servies=[], ruptures=[];
+  let total=0; const servies=[], ruptures=[], lignesCaisse=[];
   lignes.forEach(l=>{
     const s=stockPour(l);
     if(s.prod && s.prod.stock>0){
       s.prod.stock-=1;                                   // mouvement de stock (sortie)
       mouvements_stock.unshift({ date:new Date().toISOString(), produit:s.prod.dci, lot:s.prod.lot||'—',
         mvt:'Sortie', qte:1, motif:'Dispensation', patient:l.patient_nom||patientId, ref:l.id });
-      total+=prixDispensation(l);
+      const px=prixDispensation(l); total+=px;
+      lignesCaisse.push({ libelle:l.med, montant:px, ref:l.id });
       MEDICORE_RX.delivrer(l.id, getPharmacien());        // ordonnance servie
       servies.push(l.med);
     } else ruptures.push(l.med);
@@ -831,8 +833,11 @@ function servirOrdonnance(patientId, groupe){
   if(!servies.length){ toast('Tous les produits sont en rupture.','error'); return; }
   // Persistance stock
   if(typeof MEDICORE_STORE!=='undefined'){ MEDICORE_STORE.save('stock', produits, true); MEDICORE_STORE.save('mouvements_stock', mouvements_stock, true); }
-  // Mouvement de caisse — SYSCOHADA : 531 Caisse (débit) / 701 Ventes de marchandises (crédit)
-  enregistrerEncaissementCaisse(total, `Dispensation pharmacie — ${lignes[0].patient_nom||patientId}`, groupe);
+  // Encaissement caisse pharmacie — SYSCOHADA 531 / 701
+  if(typeof MEDICORE_CAISSE!=='undefined'){
+    MEDICORE_CAISSE.encaisser({ service:'pharmacie_pui', patientId, patient_nom:lignes[0].patient_nom||patientId,
+      lignes:lignesCaisse, mode:'Espèces', caissier:getPharmacien() });
+  }
   // Audit + clôture
   puiAudit('DISPENSATION', groupe, `${servies.length} médicament(s) servis — ${total.toLocaleString('fr-FR')} FCFA — ${lignes[0].patient_nom||patientId}`);
   const m=document.getElementById('modal-caisse'); if(m) m.remove();
@@ -905,6 +910,7 @@ function renderCircuit(){
         onkeydown="if(event.key==='Enter')puiFiltrerSaisie()">
       <button class="btn btn-sm" style="background:#1a4b6e;color:#fff" onclick="puiScannerQR()">📷 Scanner</button>
       <button class="btn btn-sm" style="border:1px solid var(--border);background:var(--surface)" onclick="puiFiltrerSaisie()">🔍 Filtrer</button>
+      <button class="btn btn-sm" style="border:1px solid var(--border);background:var(--surface)" onclick="MEDICORE_CAISSE.ouvrirRegistre('pharmacie_pui')">🧾 Caisse</button>
     </div>`;
   }
   pl.innerHTML=banniere+(pending.map(p=>`
