@@ -728,11 +728,7 @@ function importConfig(input){
       const d = JSON.parse(e.target.result);
       // ── Format sauvegarde complète (v2 : { _version, keys:{} }) ──────────
       if(d._version && d.keys && typeof MEDICORE_STORE !== 'undefined'){
-        if(!confirm('Restaurer une sauvegarde complète ?
-
-Cela remplacera TOUTES les données actuelles (patients, factures, stock…)
-
-Cette action est irréversible. Continuer ?')) return;
+        if(!confirm('Restaurer une sauvegarde complète ?\n\nCela remplacera TOUTES les données actuelles (patients, factures, stock\u2026)\n\nCette action est irréversible. Continuer ?')) return;
         const n = MEDICORE_STORE.importAll(d);
         loadConfig(); // Recharger CFG depuis le nouveau store
         renderBody();
