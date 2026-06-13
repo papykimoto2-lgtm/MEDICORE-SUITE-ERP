@@ -66,7 +66,7 @@
     const dock=document.createElement('div'); dock.id='dem-dock';
     dock.innerHTML=`
       <div id="dem-panel">
-        <div class="dem-head"><b>Demandes inter-modules</b><button class="dem-x" onclick="DEM_UI.toggle(false)">✕</button></div>
+        <div class="dem-head"><b>Échanges inter-services</b><button class="dem-x" onclick="DEM_UI.toggle(false)">✕</button></div>
         <div class="dem-tabs">
           ${cible?`<button class="dem-tab active" data-t="recues" onclick="DEM_UI.tab('recues')">Reçues <span class="b" id="dem-b-recues">0</span></button>`:''}
           <button class="dem-tab ${cible?'':'active'}" data-t="retours" onclick="DEM_UI.tab('retours')">Mes retours <span class="b" id="dem-b-retours">0</span></button>
@@ -75,16 +75,19 @@
           ${cible?'<div id="dem-recues"></div>':''}
           <div id="dem-retours" style="${cible?'display:none':''}"></div>
         </div>
-        <div class="dem-foot"><button onclick="DEM_UI.openModal()">＋ Nouvelle demande</button></div>
+        <div class="dem-foot"><button onclick="DEM_UI.openModal()">＋ Demander un autre service</button></div>
       </div>
-      <button id="dem-fab" onclick="DEM_UI.toggle()">📨 Demandes <span class="dem-dot" id="dem-fab-count">0</span></button>`;
+      <button id="dem-fab" onclick="DEM_UI.toggle()">📨 Inter-services <span class="dem-dot" id="dem-fab-count">0</span></button>`;
     document.body.appendChild(dock);
 
     const ov=document.createElement('div'); ov.className='dem-ov'; ov.id='dem-ov';
-    const cibleOpts=Object.entries(D.MODULES).map(([k,m])=>`<option value="${k}">${m.icon} ${m.label}</option>`).join('');
+    const modCour = moduleCourant();
+    const cibleOpts=Object.entries(D.MODULES).filter(([k])=>k!==modCour)
+      .map(([k,m])=>`<option value="${k}">${m.icon} ${m.label}</option>`).join('');
     ov.innerHTML=`<div class="dem-modal">
-      <h3>Nouvelle demande</h3>
-      <label>Module cible</label><select id="dm-cible">${cibleOpts}</select>
+      <h3>Demander un autre service</h3>
+      <div style="font-size:12px;color:#6b6b6b;margin:-8px 0 10px">Pour un examen/acte réalisé par le service où vous êtes, utilisez son propre formulaire.</div>
+      <label>Service sollicité</label><select id="dm-cible">${cibleOpts}</select>
       <label>Type</label><select id="dm-type"><option value="acte">Acte médical</option><option value="service">Service</option></select>
       <label>Objet</label><input id="dm-objet" placeholder="Ex: NFS + CRP en urgence">
       <div class="r2"><div><label>Patient</label><input id="dm-pat" placeholder="Nom"></div><div><label>IPP</label><input id="dm-ipp" placeholder="IPP-001"></div></div>
