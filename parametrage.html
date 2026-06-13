@@ -603,15 +603,62 @@ function saveSauvegarde(){
   persist(); toast('Sauvegardes configurées.','success');
 }
 
+// ── Helper : formulaire modal générique ────────────────────────────────────────
+function formModal(titre, champs, onOk){
+  let ov=document.getElementById('_fm-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='_fm-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  const inputs=champs.map(c=>{
+    const id='fm-'+c.key;
+    let inp;
+    if(c.type==='select') inp=`<select id="${id}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">${c.options.map(o=>`<option value="${o}"${o===c.value?' selected':''}>${o}</option>`).join('')}</select>`;
+    else inp=`<input id="${id}" type="${c.type||'text'}"${c.type==='number'?' step="any"':''} value="${c.value!=null?c.value:''}" placeholder="${c.placeholder||''}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">`;
+    return `<div><label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:3px">${c.label}${c.required?' *':''}${c.sub?` <span style="font-weight:400">(${c.sub})</span>`:''}</label>${inp}</div>`;
+  }).join('');
+  ov.innerHTML=`<div class="modal" style="width:460px">
+    <div class="modal-header"><div><div class="modal-title">${titre}</div></div>
+      <button onclick="document.getElementById('_fm-ov').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-muted)">✕</button></div>
+    <div style="padding:18px 24px;display:grid;gap:11px">${inputs}</div>
+    <div style="padding:0 24px 20px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="document.getElementById('_fm-ov').remove()">Annuler</button>
+      <button class="btn btn-primary" id="fm-ok">Enregistrer</button></div></div>`;
+  document.body.appendChild(ov);
+  document.getElementById('fm-ok').onclick=()=>{
+    const vals={}; let manque=null;
+    champs.forEach(c=>{ const el=document.getElementById('fm-'+c.key); let v=el?el.value:''; if(c.type==='number') v=v===''?0:parseFloat(v); if(c.required && (v===''||v==null)) manque=manque||c.label; vals[c.key]=v; });
+    if(manque){ toast(manque+' requis.','error'); return; }
+    ov.remove(); onOk(vals);
+  };
+  setTimeout(()=>{ const f=ov.querySelector('input,select'); if(f) f.focus(); },50);
+}
+
 // ── CRUD listes ───────────────────────────────────────────────────────────────
-function addUser(){ const l=prompt('Identifiant :'); if(!l)return; const n=prompt('Nom complet :')||l; const r=prompt('Rôle (Administrateur/Médecin/Pharmacien/DAF) :')||'Médecin'; USERS.push({login:l,nom:n,role:r,twofa:false,actif:true}); persist(); renderBody(); toast('Utilisateur ajouté.','success'); }
+function addUser(){ formModal('Nouvel utilisateur',[
+    {key:'login',label:'Identifiant',required:true,placeholder:'j.kessie'},
+    {key:'nom',label:'Nom complet',placeholder:'KESSIE Jean'},
+    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Médecin','Pharmacien','DAF','Infirmier','Laborantin'],value:'Médecin'}
+  ], v=>{ USERS.push({login:v.login,nom:v.nom||v.login,role:v.role,twofa:false,actif:true}); persist(); renderBody(); toast('Utilisateur ajouté.','success'); }); }
 function removeUser(i){ if(confirm('Supprimer '+USERS[i].login+' ?')){ USERS.splice(i,1); persist(); renderBody(); toast('Utilisateur supprimé.','warn'); } }
 function togglePerm(r,m,v){ if(!PERMISSIONS[r])PERMISSIONS[r]={}; PERMISSIONS[r][m]=v?1:0; }
-function addService(){ const n=prompt('Nom du service :'); if(!n)return; const c=prompt('Code :')||n.slice(0,3).toUpperCase(); const li=+prompt('Nombre de lits :')||0; SERVICES.push({nom:n,code:c,pole:'—',responsable:'—',lits:li}); persist(); renderBody(); toast('Service ajouté.','success'); }
+function addService(){ formModal('Nouveau service',[
+    {key:'nom',label:'Nom du service',required:true,placeholder:'Chirurgie'},
+    {key:'code',label:'Code',placeholder:'CHI'},
+    {key:'lits',label:'Nombre de lits',type:'number',value:0}
+  ], v=>{ SERVICES.push({nom:v.nom,code:v.code||v.nom.slice(0,3).toUpperCase(),pole:'—',responsable:'—',lits:+v.lits||0}); persist(); renderBody(); toast('Service ajouté.','success'); }); }
 function removeService(i){ if(confirm('Supprimer '+SERVICES[i].nom+' ?')){ SERVICES.splice(i,1); persist(); renderBody(); toast('Service supprimé.','warn'); } }
-function addTarif(){ const l=prompt('Libellé de l\'acte :'); if(!l)return; const c=prompt('Code :')||''; const t=+prompt('Tarif FCFA :')||0; TARIFS.push({libelle:l,code:c,tarif:t}); persist(); renderBody(); toast('Acte ajouté.','success'); }
+function addTarif(){ formModal('Nouvel acte / tarif',[
+    {key:'libelle',label:'Libellé de l\'acte',required:true,placeholder:'Consultation spécialiste'},
+    {key:'code',label:'Code',placeholder:'CS01'},
+    {key:'tarif',label:'Tarif',sub:'FCFA',type:'number',value:0}
+  ], v=>{ TARIFS.push({libelle:v.libelle,code:v.code||'',tarif:+v.tarif||0}); persist(); renderBody(); toast('Acte ajouté.','success'); }); }
 function removeTarif(i){ TARIFS.splice(i,1); persist(); renderBody(); toast('Acte supprimé.','warn'); }
-function addFournisseur(){ const n=prompt('Nom du fournisseur :'); if(!n)return; const cat=prompt('Catégorie :')||'—'; FOURNISSEURS.push({nom:n,categorie:cat,ncc:'—',delai:'—'}); persist(); renderBody(); toast('Fournisseur ajouté.','success'); }
+function addFournisseur(){ formModal('Nouveau fournisseur',[
+    {key:'nom',label:'Nom du fournisseur',required:true},
+    {key:'categorie',label:'Catégorie',placeholder:'Médicaments'},
+    {key:'ncc',label:'NCC',sub:'optionnel'},
+    {key:'delai',label:'Délai livraison',sub:'ex 7 j'}
+  ], v=>{ FOURNISSEURS.push({nom:v.nom,categorie:v.categorie||'—',ncc:v.ncc||'—',delai:v.delai||'—'}); persist(); renderBody(); toast('Fournisseur ajouté.','success'); }); }
 function removeFournisseur(i){ if(confirm('Supprimer '+FOURNISSEURS[i].nom+' ?')){ FOURNISSEURS.splice(i,1); persist(); renderBody(); toast('Fournisseur supprimé.','warn'); } }
 
 // ── Données démo : clés à conserver même après nettoyage ─────────────────────

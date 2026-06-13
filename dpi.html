@@ -966,6 +966,9 @@ function renderConstantes(id){
     <div style="margin-top:10px;padding:10px;background:var(--surface-alt);border-radius:6px;font-size:13px">
       <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">FR</span><strong>${c.fr} /min</strong></div>
       <div style="display:flex;justify-content:space-between;margin-top:5px"><span style="color:var(--text-muted)">Poids</span><strong>${c.poids} kg</strong></div>
+      ${c.glycemie!==''&&c.glycemie!=null&&!isNaN(c.glycemie)?`<div style="display:flex;justify-content:space-between;margin-top:5px"><span style="color:var(--text-muted)">Glycémie</span><strong>${c.glycemie} g/L</strong></div>`:''}
+      ${c.eva!==''&&c.eva!=null&&!isNaN(c.eva)?`<div style="display:flex;justify-content:space-between;margin-top:5px"><span style="color:var(--text-muted)">Douleur EVA</span><strong>${c.eva}/10</strong></div>`:''}
+      ${c.maj?`<div style="margin-top:7px;font-size:11px;color:var(--text-muted);text-align:right">Saisi le ${new Date(c.maj).toLocaleString('fr-FR')}</div>`:''}
     </div>
     <button class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:12.5px" onclick="saisirConstantes('${id}')">✏ Mettre à jour</button>`;
 }
@@ -1114,9 +1117,60 @@ function refuserPresc(pid,prescId){
 }
 
 function saisirConstantes(id){
-  const c=constantes[id]||{ta:'120/80',fc:80,fr:16,spo2:98,t:37.0,poids:70};
-  const vals=prompt(`Constantes de ${patients.find(p=>p.id===id)?.nom}\n\nTA (ex: 120/80) :`,c.ta);
-  if(vals){constantes[id]={...c,ta:vals};renderConstantes(id);toast('Constantes mises à jour.','success');}
+  const c = constantes[id] || {ta:'120/80',fc:80,fr:16,spo2:98,t:37.0,poids:70,glycemie:'',eva:''};
+  const nom = (patients.find(p=>p.id===id)||{}).nom || id;
+  let ov = document.getElementById('modal-constantes');
+  if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'modal-constantes';
+  ov.className = 'overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e=>{ if(e.target===ov) ov.remove(); };
+  const champ = (lbl,sub,inp)=>`<div class="form-group"><label style="font-size:12px;font-weight:600;color:var(--text-muted)">${lbl}${sub?` <span style="font-weight:400">(${sub})</span>`:''}</label>${inp}</div>`;
+  ov.innerHTML = `
+    <div class="modal" style="width:520px">
+      <div class="modal-header">
+        <div><div class="modal-title">Constantes vitales</div><div class="modal-subtitle">${nom} · ${new Date().toLocaleString('fr-FR')}</div></div>
+        <button onclick="document.getElementById('modal-constantes').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-muted)">✕</button>
+      </div>
+      <div style="padding:18px 24px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          ${champ('Tension artérielle','mmHg, ex 120/80',`<input id="cst-ta" type="text" value="${c.ta||''}" placeholder="120/80">`)}
+          ${champ('Fréquence cardiaque','bpm',`<input id="cst-fc" type="number" min="0" max="300" value="${c.fc||''}">`)}
+          ${champ('Fréquence respiratoire','/min',`<input id="cst-fr" type="number" min="0" max="80" value="${c.fr||''}">`)}
+          ${champ('Température','°C',`<input id="cst-t" type="number" step="0.1" min="30" max="45" value="${c.t||''}">`)}
+          ${champ('SpO₂','%',`<input id="cst-spo2" type="number" min="0" max="100" value="${c.spo2||''}">`)}
+          ${champ('Poids','kg',`<input id="cst-poids" type="number" step="0.1" min="0" max="400" value="${c.poids||''}">`)}
+          ${champ('Glycémie','g/L · optionnel',`<input id="cst-glycemie" type="number" step="0.01" value="${c.glycemie||''}" placeholder="—">`)}
+          ${champ('Douleur EVA','0–10 · optionnel',`<input id="cst-eva" type="number" min="0" max="10" value="${c.eva||''}" placeholder="—">`)}
+        </div>
+      </div>
+      <div style="padding:0 24px 20px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-constantes').remove()">Annuler</button>
+        <button class="btn btn-primary" onclick="enregistrerConstantes('${id}')">💾 Enregistrer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  setTimeout(()=>{ const f=document.getElementById('cst-ta'); if(f) f.focus(); }, 50);
+}
+
+function enregistrerConstantes(id){
+  const v = sel => (document.getElementById(sel)||{}).value;
+  const num = x => x===''||x==null ? '' : parseFloat(x);
+  const ta = (v('cst-ta')||'').trim();
+  if(ta && !/^\d{2,3}\/\d{2,3}$/.test(ta)){ toast('Format TA invalide (ex : 120/80).','error'); return; }
+  constantes[id] = {
+    ta: ta||'—',
+    fc: num(v('cst-fc')), fr: num(v('cst-fr')), t: num(v('cst-t')),
+    spo2: num(v('cst-spo2')), poids: num(v('cst-poids')),
+    glycemie: num(v('cst-glycemie')), eva: num(v('cst-eva')),
+    maj: new Date().toISOString()
+  };
+  if(typeof MEDICORE_STORE!=='undefined'){ try{ MEDICORE_STORE.save('constantes', constantes, true); }catch(e){} }
+  if(typeof auditLog==='function') auditLog('CONSTANTES_SAISIE', id, `TA ${constantes[id].ta} · FC ${constantes[id].fc} · T° ${constantes[id].t} · SpO₂ ${constantes[id].spo2}%`, (typeof getPrescripteur==='function'?getPrescripteur():''));
+  const ov=document.getElementById('modal-constantes'); if(ov) ov.remove();
+  renderConstantes(id);
+  toast('Constantes enregistrées.','success');
 }
 
 // ── Modals ─────────────────────────────────────────────────────────────────────
@@ -1402,6 +1456,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if(typeof MEDICORE_STORE!=='undefined'){
     patients = MEDICORE_STORE.sync('patients', patients);
     window.patients = patients; // expose la bonne référence aux autres modules
+    try{ const cst = MEDICORE_STORE.load('constantes', null); if(cst && typeof cst==='object') constantes = Object.assign({}, constantes, cst); }catch(e){}
   }
 
   if(typeof initNav==='function'){
