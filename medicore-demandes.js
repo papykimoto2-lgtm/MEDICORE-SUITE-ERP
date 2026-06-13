@@ -188,6 +188,23 @@ const MEDICORE_DEMANDES = {
   // Toutes les demandes émises par un module
   emisesPar(module){ return this._read().filter(d=> d.module_demandeur===module); },
 
+  // Demandes refusées concernant un module (comme cible OU demandeur)
+  refusees(module){
+    return this._read().filter(d=> d.statut===this.S.REFUSEE &&
+      (d.module_cible===module || d.module_demandeur===module))
+      .sort((a,b)=> (b.maj_le||'').localeCompare(a.maj_le||''));
+  },
+
+  // Lie l'entrée du registre natif à la demande prise en charge (appelé à l'enregistrement)
+  finaliserLien(registreId, resume){
+    if(typeof window==='undefined' || !window.__demLiee) return;
+    const rows=this._read(); const d=rows.find(x=>x.id===window.__demLiee);
+    if(d){ d.registreId=registreId; d.resultat=resume||('Enregistrée au registre (réf '+registreId+')'); this._write(rows); }
+    window.__demLiee=null;
+    if(typeof DEM_UI!=='undefined') DEM_UI.refresh();
+    return d;
+  },
+
   _triPriorite(a,b){
     const ordre={ 'Vitale':0,'Urgente':1,'Normale':2 };
     const pa=ordre[a.priorite]??2, pb=ordre[b.priorite]??2;
@@ -267,13 +284,42 @@ const MEDICORE_DEMANDES = {
       </div>`).join('');
   },
 
+  // Liste des demandes refusées (état)
+  renderRefusees(module, containerId){
+    const el = document.getElementById(containerId);
+    if(!el) return;
+    const list = this.refusees(module);
+    if(!list.length){ el.innerHTML = this._vide('Aucune demande refusée.'); return; }
+    el.innerHTML = list.map(d=>{
+      const sens = d.module_cible===module ? 'Refusée par vous' : 'Refusée par '+(this.MODULES[d.module_cible]?.label||d.module_cible);
+      return `<div style="border:1px solid #fecaca;border-radius:8px;padding:12px 14px;margin-bottom:8px;background:#fff1f2">
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px">
+          <strong>${d.objet||'(sans objet)'}</strong> ${this._chip(d.statut)}
+        </div>
+        <div style="font-size:12.5px;color:#6b6b6b">
+          👤 ${this._patient(d)} · ${sens}
+          ${d.demandeur?.nom?' · Demandé par '+d.demandeur.nom:''}
+        </div>
+        ${d.motif?`<div style="margin-top:6px;font-size:12.5px;color:#b91c1c">Motif : ${d.motif}</div>`:''}
+        <div style="margin-top:4px;font-size:11px;color:#9ca3af">${d.maj_le?new Date(d.maj_le).toLocaleString('fr-CI'):''}</div>
+      </div>`;
+    }).join('');
+  },
+
   _btn(c,outline){ return outline
     ? `padding:6px 12px;border:1px solid ${c};border-radius:6px;background:#fff;color:${c};cursor:pointer;font-size:12.5px;font-weight:600`
     : `padding:6px 12px;border:none;border-radius:6px;background:${c};color:#fff;cursor:pointer;font-size:12.5px;font-weight:600`; },
   _vide(t){ return `<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px">${t}</div>`; },
 
   // ── Handlers UI internes ─────────────────────────────────────────────────────────
-  _uiPrendre(id, cid, module){ this.prendreEnCharge(id); this.renderFileAttente(module, cid); },
+  _uiPrendre(id, cid, module){
+    this.prendreEnCharge(id);
+    // Hook module : matérialiser la demande dans le registre natif (ouvre son formulaire)
+    if(typeof window!=='undefined' && typeof window.onDemandePriseEnCharge==='function'){
+      try{ window.onDemandePriseEnCharge(this.get(id)); }catch(e){}
+    }
+    this.renderFileAttente(module, cid);
+  },
   _uiRefuser(id, cid, module){
     const m = prompt('Motif du refus :'); if(m===null) return;
     this.refuser(id, m); this.renderFileAttente(module, cid);

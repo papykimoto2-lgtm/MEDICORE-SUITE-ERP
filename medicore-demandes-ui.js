@@ -70,10 +70,12 @@
         <div class="dem-tabs">
           ${cible?`<button class="dem-tab active" data-t="recues" onclick="DEM_UI.tab('recues')">Reçues <span class="b" id="dem-b-recues">0</span></button>`:''}
           <button class="dem-tab ${cible?'':'active'}" data-t="retours" onclick="DEM_UI.tab('retours')">Mes retours <span class="b" id="dem-b-retours">0</span></button>
+          <button class="dem-tab" data-t="refusees" onclick="DEM_UI.tab('refusees')">Refusées <span class="b" id="dem-b-refusees">0</span></button>
         </div>
         <div class="dem-body">
           ${cible?'<div id="dem-recues"></div>':''}
           <div id="dem-retours" style="${cible?'display:none':''}"></div>
+          <div id="dem-refusees" style="display:none"></div>
         </div>
         <div class="dem-foot"><button onclick="DEM_UI.openModal()">＋ Demander un autre service</button></div>
       </div>
@@ -109,19 +111,22 @@
     tab(t){
       this._tab=t;
       document.querySelectorAll('.dem-tab').forEach(b=>b.classList.toggle('active', b.dataset.t===t));
-      const r=document.getElementById('dem-recues'), q=document.getElementById('dem-retours');
+      const r=document.getElementById('dem-recues'), q=document.getElementById('dem-retours'), x=document.getElementById('dem-refusees');
       if(r) r.style.display = t==='recues'?'':'none';
       if(q) q.style.display = t==='retours'?'':'none';
+      if(x) x.style.display = t==='refusees'?'':'none';
       this.refresh();
     },
     refresh(){
       const mod=moduleCourant();
       if(estCible(mod) && document.getElementById('dem-recues')) D.renderFileAttente(mod,'dem-recues');
       if(document.getElementById('dem-retours')) D.renderMesRetours(mod,'dem-retours');
+      if(document.getElementById('dem-refusees')) D.renderRefusees(mod,'dem-refusees');
       const nA = estCible(mod)?D.enAttente(mod).length+D.enTraitement(mod).length:0;
       const nR = D.nbRetours(mod);
+      const nX = D.refusees(mod).length;
       const setB=(id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
-      setB('dem-b-recues', nA); setB('dem-b-retours', nR);
+      setB('dem-b-recues', nA); setB('dem-b-retours', nR); setB('dem-b-refusees', nX);
       const tot=nA+nR; const fc=document.getElementById('dem-fab-count');
       if(fc){ fc.textContent=tot; fc.style.display=tot>0?'':'none'; }
     },

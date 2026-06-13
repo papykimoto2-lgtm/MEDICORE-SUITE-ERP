@@ -970,6 +970,15 @@ function openModalOp(){
   document.getElementById('modal-op').classList.add('open');
 }
 function closeModalOp(){document.getElementById('modal-op').classList.remove('open')}
+window.onDemandePriseEnCharge=function(d){
+  if(!d||d.module_cible!=='bloc_operatoire')return;
+  openModalOp();
+  const set=(id,v)=>{const e=document.getElementById(id);if(e!=null)e.value=v;};
+  set('op-patient',((d.patient&&d.patient.nom)||'')+((d.patient&&d.patient.id)?' — '+d.patient.id:''));
+  set('op-acte',d.objet||'');
+  const o=document.getElementById('op-obs'); if(o&&d.details)o.value=d.details;
+  window.__demLiee=d.id;
+};
 
 function validerIntervention(){
   const patient=document.getElementById('op-patient').value;
@@ -980,6 +989,7 @@ function validerIntervention(){
   const id='OP-'+annee+'-0'+String(interventions.length+841).padStart(4,'0');
   const newOp={id,patient,chirurgien:document.getElementById('op-chirurgien').value,acte,salle:document.getElementById('op-salle').value.split('—')[0].trim(),date:document.getElementById('op-date').value,heure:document.getElementById('op-heure').value,duree:parseInt(document.getElementById('op-duree').value)||90,anesth:document.getElementById('op-anesthtype').value,anesthMed:document.getElementById('op-anesth').value.split('—')[0].trim(),type:document.getElementById('op-type').value,statut:'Programmée',obs:document.getElementById('op-obs').value,dmi:document.getElementById('op-dmi').value||'—'};
   interventions.push(newOp);
+  if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id,'Intervention programmée (réf '+id+')');
   blocAudit('INTERVENTION_PROGRAMMEE',id,`${patient} — ${acte} — ${newOp.salle} ${newOp.date} ${newOp.heure}`);
   closeModalOp();renderPlanning();renderInterventions();
   toast('Intervention '+id+' inscrite au programme.','success');

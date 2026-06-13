@@ -1035,6 +1035,16 @@ function openDemande(){
   document.getElementById('modal-dem').classList.add('open');
 }
 function closeDemande(){document.getElementById('modal-dem').classList.remove('open')}
+window.onDemandePriseEnCharge=function(d){
+  if(!d||d.module_cible!=='imagerie')return;
+  openDemande();
+  const set=(id,v)=>{const e=document.getElementById(id);if(e!=null)e.value=v;};
+  set('d-patient',((d.patient&&d.patient.nom)||'')+((d.patient&&d.patient.id)?' — '+d.patient.id:''));
+  const pr=document.getElementById('d-presc'); if(pr){pr.readOnly=false;pr.value=(d.demandeur&&d.demandeur.nom||'')+' — '+(d.module_demandeur||'');}
+  set('d-indication',(d.objet?d.objet+' — ':'')+(d.details||''));
+  const sp=document.getElementById('d-priorite'); if(sp)for(let i=0;i<sp.options.length;i++){if(new RegExp(d.priorite,'i').test(sp.options[i].value+sp.options[i].text)){sp.selectedIndex=i;break;}}
+  window.__demLiee=d.id;
+};
 function validerDemande(){
   const patient=document.getElementById('d-patient').value;
   const indication=document.getElementById('d-indication').value;
@@ -1042,6 +1052,7 @@ function validerDemande(){
   const id=document.getElementById('d-num').value;
   const newDem={id,patient,presc:document.getElementById('d-presc').value,type:document.getElementById('d-type').value,examen:document.getElementById('d-examen').value,equip:document.getElementById('d-equip').value,priorite:document.getElementById('d-priorite').value,date:document.getElementById('d-date').value,statut:'En attente',ccam:document.getElementById('d-ccam').value||'—'};
   demandes.unshift(newDem);
+  if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id,'Examen planifié (réf '+id+')');
   imgAudit('DEMANDE_PLANIFIEE', id, `${patient} — ${newDem.examen} — ${newDem.priorite}`);
   closeDemande();renderDemandes();updateKPIs();
   toast(`Examen ${id} planifié.`,'success');

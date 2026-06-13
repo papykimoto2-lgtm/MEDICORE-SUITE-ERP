@@ -1052,6 +1052,15 @@ function openModal() {
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
 }
+window.onDemandePriseEnCharge=function(d){
+  if(!d||d.module_cible!=='facturation')return;
+  openModal();
+  const set=(id,v)=>{const e=document.getElementById(id);if(e!=null)e.value=v;};
+  set('f-nom',(d.patient&&d.patient.nom)||'');
+  set('f-nss',(d.patient&&d.patient.ipp)||'');
+  const o=document.getElementById('f-obs'); if(o)o.value=(d.objet?d.objet+' — ':'')+(d.details||'');
+  window.__demLiee=d.id;
+};
 
 function addActe() {
   const id = 'acte-' + (++acteCount);
@@ -1176,6 +1185,7 @@ function submitFacture() {
   if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('factures', factures); return; }
   const f = collectFactureData('En attente');
   factures.push(f);
+  if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(f.id,'Facture émise (réf '+f.id+')');
   factAudit('FACTURE_EMISE', f.id, `${f.nom} — ${fmt(f.montant)} — ${f.am} — ${f.type}`);
   closeModal();
   renderTable();

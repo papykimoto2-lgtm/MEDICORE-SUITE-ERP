@@ -925,7 +925,47 @@ function openNouvelledemande(){
   document.getElementById('nd-type').onchange=function(){renderExamensCheckboxes(this.value)};
   document.getElementById('modal-demande').classList.add('open');
 }
-function closeNouvelledemande(){document.getElementById('modal-demande').classList.remove('open')}
+function closeNouvelledemande(){document.getElementById('modal-demande').classList.remove('open'); document.getElementById('modal-demande').dataset.demandeId='';}
+
+// Prise en charge d'une demande inter-service → ouvre le formulaire natif pré-rempli
+window.onDemandePriseEnCharge = function(d){
+  if(!d || d.module_cible!=='laboratoire') return;
+  openNouvelledemande();
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e!=null) e.value=v; };
+  set('nd-dossier', (d.patient&&d.patient.id)||'');
+  set('nd-patient', (d.patient&&d.patient.nom)||'');
+  const presc=document.getElementById('nd-presc');
+  if(presc){ presc.readOnly=false; presc.value=(d.demandeur&&d.demandeur.nom||'')+' — '+(d.module_demandeur||''); }
+  set('nd-rens', d.details||'');
+  // Priorité : Vitale→STAT, Urgente→Urgente, sinon Normale
+  const pr={Vitale:'STAT',Urgente:'Urgente'}[d.priorite]||'Normale';
+  const selp=document.getElementById('nd-priorite'); if(selp) for(let i=0;i<selp.options.length;i++){ if(selp.options[i].value===pr){selp.selectedIndex=i;break;} }
+  // Tente de cocher l'examen correspondant à l'objet (sur toute spécialité)
+  precocherExamen(d.objet||'');
+  // Lien avec la demande inter-service prise en charge
+  document.getElementById('modal-demande').dataset.demandeId=d.id;
+  window.__demLiee=d.id;
+};
+
+// Cherche la spécialité dont le catalogue matche l'objet, l'active et coche l'examen
+function precocherExamen(objet){
+  if(!objet || typeof EXAMENS_CATALOGUE==='undefined') return;
+  const o=objet.toLowerCase();
+  for(const spec of Object.keys(EXAMENS_CATALOGUE)){
+    const match=(EXAMENS_CATALOGUE[spec]||[]).filter(ex=>{
+      const e=ex.toLowerCase(); return o.includes(e.split(' ')[0]) || e.includes(o.split(' ')[0]);
+    });
+    if(match.length){
+      const sel=document.getElementById('nd-type');
+      if(sel){ for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===spec){sel.selectedIndex=i;break;} } }
+      renderExamensCheckboxes(spec);
+      document.querySelectorAll('#examens-checkboxes label').forEach(l=>{
+        if(match.some(m=>l.textContent.trim()===m)){ const cb=l.querySelector('input'); if(cb) cb.checked=true; }
+      });
+      return;
+    }
+  }
+}
 
 function renderExamensCheckboxes(type){
   const examens=EXAMENS_CATALOGUE[type]||[];
@@ -946,6 +986,8 @@ function validerDemande(){
   const horodate=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   const newDemande={id,dossier,patient,presc:document.getElementById('nd-presc').value,service:document.getElementById('nd-service').value,examens:checked.join(', '),type:document.getElementById('nd-type').value,heure:horodate,priorite:document.getElementById('nd-priorite').value,statut:'En attente prélèvement',critique:false};
   demandes.push(newDemande);
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('demandes_labo', demandes, true);
+  if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id, 'Enregistrée au registre labo (réf '+id+') — en cours d\'analyse');
   laboAudit('DEMANDE_ENREGISTRER', id, `${patient} — ${checked.join(', ')} — ${newDemande.priorite}`);
   closeNouvelledemande();renderDemandes();updateKPIs();
   toast('Demande '+id+' enregistrée. Étiquettes prêtes.','success');
