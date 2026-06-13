@@ -492,82 +492,24 @@
 
 <script>
 // ── Données ────────────────────────────────────────────────────────────────────
+// Structure vide — à alimenter depuis les modules opérationnels
+const DATA_VIDE = {
+  produits:0, charges:0, tresorerie:0,
+  sejours:0, consul:0, urgences:0, tol:0, dms:0, satisf:0,
+  poles:[], moisData:[],
+};
 const DATA = {
-  'T2-2025': {
-    produits:450100000, charges:417800000, tresorerie:160000000,
-    sejours:1250, consul:3840, urgences:1560, tol:72, dms:4.1,
-    satisf:82,
-    poles:[
-      { pole:'Médecine générale', sejours:240, dms:4.2, lits:60, produits:52000000, charges:48500000, couleur:'#1a4b6e' },
-      { pole:'Chirurgie',         sejours:180, dms:5.8, lits:40, produits:94500000, charges:86200000, couleur:'#c8702a' },
-      { pole:'Maternité',         sejours:310, dms:3.1, lits:50, produits:38200000, charges:32100000, couleur:'#1e7a4e' },
-      { pole:'Pharmacie',         sejours:0,   dms:0,   lits:0,  produits:31500000, charges:28400000, couleur:'#6b21a8' },
-      { pole:'Laboratoire',       sejours:0,   dms:0,   lits:0,  produits:22800000, charges:19600000, couleur:'#0f766e' },
-      { pole:'Urgences',          sejours:520, dms:0.8, lits:20, produits:14200000, charges:15300000, couleur:'#b92b2b' },
-    ],
-    moisData:[
-      {m:'Jan',prod:148200000,ch:141800000},{m:'Fév',prod:152400000,ch:143200000},
-      {m:'Mar',prod:158600000,ch:148200000},{m:'Avr',prod:146800000,ch:139200000},
-      {m:'Mai',prod:151200000,ch:141800000},{m:'Juin',prod:152100000,ch:136800000},
-    ],
-  },
-  'T1-2025': {
-    produits:427400000, charges:400200000, tresorerie:148000000,
-    sejours:1150, consul:3520, urgences:1480, tol:68, dms:4.3,
-    satisf:79,
-    poles:[
-      { pole:'Médecine générale', sejours:210, dms:4.0, lits:60, produits:49000000, charges:45200000, couleur:'#1a4b6e' },
-      { pole:'Chirurgie',         sejours:165, dms:5.5, lits:40, produits:88000000, charges:79800000, couleur:'#c8702a' },
-      { pole:'Maternité',         sejours:285, dms:3.0, lits:50, produits:35800000, charges:30500000, couleur:'#1e7a4e' },
-      { pole:'Pharmacie',         sejours:0,   dms:0,   lits:0,  produits:29200000, charges:26100000, couleur:'#6b21a8' },
-      { pole:'Laboratoire',       sejours:0,   dms:0,   lits:0,  produits:21000000, charges:18400000, couleur:'#0f766e' },
-      { pole:'Urgences',          sejours:480, dms:0.8, lits:20, produits:13200000, charges:14100000, couleur:'#b92b2b' },
-    ],
-    moisData:[
-      {m:'Oct',prod:140200000,ch:135800000},{m:'Nov',prod:143400000,ch:138200000},
-      {m:'Déc',prod:143800000,ch:126200000},{m:'Jan',prod:148200000,ch:141800000},
-      {m:'Fév',prod:152400000,ch:143200000},{m:'Mar',prod:158600000,ch:148200000},
-    ],
-  },
-  'AN-2025': {
-    produits:877500000, charges:818000000, tresorerie:160000000,
-    sejours:2400, consul:7360, urgences:3040, tol:70, dms:4.2,
-    satisf:81,
-    poles:[
-      { pole:'Médecine générale', sejours:450, dms:4.1, lits:60, produits:101000000, charges:93700000, couleur:'#1a4b6e' },
-      { pole:'Chirurgie',         sejours:345, dms:5.7, lits:40, produits:182500000, charges:166000000, couleur:'#c8702a' },
-      { pole:'Maternité',         sejours:595, dms:3.1, lits:50, produits:74000000, charges:62600000, couleur:'#1e7a4e' },
-      { pole:'Pharmacie',         sejours:0,   dms:0,   lits:0,  produits:60700000, charges:54500000, couleur:'#6b21a8' },
-      { pole:'Laboratoire',       sejours:0,   dms:0,   lits:0,  produits:43800000, charges:38000000, couleur:'#0f766e' },
-      { pole:'Urgences',          sejours:1000,dms:0.8, lits:20, produits:27400000, charges:29400000, couleur:'#b92b2b' },
-    ],
-    moisData:[
-      {m:'Jan',prod:148200000,ch:141800000},{m:'Fév',prod:152400000,ch:143200000},
-      {m:'Mar',prod:158600000,ch:148200000},{m:'Avr',prod:146800000,ch:139200000},
-      {m:'Mai',prod:151200000,ch:141800000},{m:'Juin',prod:152100000,ch:136800000},
-    ],
-  },
+  'T2-2025': {...DATA_VIDE},
+  'T1-2025': {...DATA_VIDE},
+  'AN-2025': {...DATA_VIDE},
 };
 
 const ACTES_DATA = [
-  { code:'06C02J', lib:'Appendicite & oper. appendice', sejours:48, val:8880000 },
-  { code:'08C371', lib:'Prothèse totale hanche (PTH)', sejours:36, val:15120000 },
-  { code:'14C02J', lib:'Accouchement par césarienne', sejours:85, val:20400000 },
-  { code:'01C07J', lib:'Craniotomies pour tumeurs', sejours:14, val:8120000 },
-  { code:'06C021', lib:'Cholécystectomie cœlioscopie', sejours:42, val:6930000 },
-  { code:'11C10J', lib:'Prostatectomie radicale', sejours:18, val:7560000 },
-  { code:'10M05Z', lib:'Endoscopie digestive diag.', sejours:62, val:5890000 },
-  { code:'14Z08Z', lib:'Séjour maternité (ARM)', sejours:142, val:9230000 },
-  { code:'09C10J', lib:'Fractures diaphysaires fémur', sejours:28, val:10640000 },
-  { code:'28Z14Z', lib:'Séances chim. (hors forfait)', sejours:55, val:17600000 },
+  // (données démo supprimées)
 ];
 
 const DOSSIERS_CODAGE = [
-  { sejour:'SJ-2025-04821', patient:'DUPONT Marie', service:'Chirurgie', entree:'2025-06-02', sortie:'2025-06-07', dp:'K35.8 — Appendicite aiguë', ghm:'06C02J', statut:'À valider' },
-  { sejour:'SJ-2025-04822', patient:'TRAORÉ Moussa', service:'Orthopédie', entree:'2025-06-10', sortie:'2025-06-16', dp:'M16.1 — Coxarthrose', ghm:'08C371', statut:'Validé' },
-  { sejour:'SJ-2025-04823', patient:'DIALLO Fatoumata', service:'Maternité', entree:'2025-06-12', sortie:'2025-06-15', dp:'O82.0 — Accouchement par césarienne', ghm:'14C02J', statut:'Transmis' },
-  { sejour:'SJ-2025-04824', patient:'OUATTARA Seydou', service:'Médecine', entree:'2025-06-14', sortie:'2025-06-19', dp:'N18.3 — Maladie rénale chronique st.3', ghm:'11M09J', statut:'À coder' },
-  { sejour:'SJ-2025-04825', patient:'SORO Aïcha', service:'Neurochirurgie', entree:'2025-06-19', sortie:'2025-06-25', dp:'S06.4 — Hémorragie extra-durale', ghm:'01C07J', statut:'À valider' },
+  // (données démo supprimées)
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -612,37 +554,8 @@ function renderSynthese(){
 
   // Scorecards
   const scorecards=[
-    { id:'sc-finance', icon:'💰', module:'Finance', status:res>=0?'✓ Équilibré':'⚠ Déficitaire', ok:res>=0, metrics:[
-      {l:'Résultat', v:fmtM(Math.abs(res))},
-      {l:'Trésorerie', v:fmtM(d.tresorerie)},
-      {l:'Taux couverture', v:Math.round(d.produits/d.charges*100)+'%'},
-    ]},
-    { id:'sc-activite', icon:'🏥', module:'Activité médicale', status:'✓ En croissance', ok:true, metrics:[
-      {l:'Séjours', v:fmt(d.sejours)},
-      {l:'Consultations', v:fmt(d.consul)},
-      {l:'TO lits', v:d.tol+'%'},
-    ]},
-    { id:'sc-qualite', icon:'⭐', module:'Qualité & Sécurité', status:d.satisf>=80?'✓ Bonne':'→ À améliorer', ok:d.satisf>=80, metrics:[
-      {l:'Satisfaction', v:d.satisf+'%'},
-      {l:'Infections noso.', v:'1,2%'},
-      {l:'Non-conformités', v:'3 ouvertes'},
-    ]},
-    { id:'sc-pharmacie', icon:'💊', module:'Pharmacie PUI', status:'⚠ 2 ruptures', ok:false, metrics:[
-      {l:'Références stock', v:'12 actives'},
-      {l:'Valeur stock', v:'48,2 M FCFA'},
-      {l:'Alertes', v:'2 ruptures'},
-    ]},
-    { id:'sc-labo', icon:'🔬', module:'Laboratoire', status:'✓ Opérationnel', ok:true, metrics:[
-      {l:'Demandes/jour', v:'42 moy.'},
-      {l:'Délai rendu', v:'2h18 moy.'},
-      {l:'CQI conformes', v:'94%'},
-    ]},
-    { id:'sc-bloc', icon:'🏥', module:'Bloc Opératoire', status:'→ TO à optimiser', ok:false, metrics:[
-      {l:'Interventions/sem', v:'28'},
-      {l:'TO salles', v:'65%'},
-      {l:'DMI tracés', v:'100%'},
-    ]},
-  ];
+  // (données démo supprimées)
+];
   scorecards.forEach(sc=>{
     document.getElementById(sc.id).innerHTML=`
       <div class="scorecard-icon">${sc.icon}</div>
@@ -655,12 +568,8 @@ function renderSynthese(){
 
   // Points d'attention
   const pts=[
-    {lvl:'red',txt:'Rupture de gants chirurgicaux stériles au bloc opératoire — commande urgente requise.'},
-    {lvl:'warn',txt:'3 valeurs biologiques critiques non notifiées au laboratoire ce matin.'},
-    {lvl:'warn',txt:'Taux d\'occupation bloc opératoire à 65% — objectif 75%. Réviser le programme hebdomadaire.'},
-    {lvl:'warn',txt:'5 dossiers en attente de codage — facturation CNAM-CI à compléter.'},
-    {lvl:'green',txt:'Résultat financier T2 excédentaire : +'+fmtM(res)+'. Bonne maîtrise des charges.'},
-  ];
+  // (données démo supprimées)
+];
   document.getElementById('points-attention').innerHTML=pts.map(p=>`
     <div class="alert-box ${p.lvl}" style="margin-bottom:8px">
       <span class="alert-icon">${p.lvl==='red'?'🚨':p.lvl==='warn'?'⚠️':'✅'}</span>
@@ -728,32 +637,19 @@ function renderFinancier(){
 
   // Donut charges
   const charges_repartition=[
-    {label:'Personnel médical',pct:38,color:'#1a4b6e'},
-    {label:'Personnel non-médical',pct:17,color:'#4f8ef7'},
-    {label:'Médicaments & réactifs',pct:18,color:'#c8702a'},
-    {label:'Amortissements',pct:8,color:'#6b21a8'},
-    {label:'Charges indirectes',pct:19,color:'#1e7a4e'},
-  ];
+  // (données démo supprimées)
+];
   renderDonut('chart-charges-repartition', charges_repartition);
 
   const produits_repartition=[
-    {label:'Dotation État',pct:44,color:'#1a4b6e'},
-    {label:'CNAM-CI / Soins hospitaliers',pct:28,color:'#1e7a4e'},
-    {label:'Consultations externes',pct:12,color:'#c8702a'},
-    {label:'Pharmacie / Rétrocession',pct:9,color:'#6b21a8'},
-    {label:'Autres produits',pct:7,color:'#0f766e'},
-  ];
+  // (données démo supprimées)
+];
   renderDonut('chart-produits-repartition', produits_repartition);
 
   // Ratios
   const ratios=[
-    {label:'Taux de charges de personnel',val:Math.round((d.charges*0.55)/d.produits*100)+'%',cible:'< 60%',ok:Math.round((d.charges*0.55)/d.produits*100)<60},
-    {label:'Taux d\'autofinancement',val:Math.round((d.produits-d.charges)/d.produits*100)+'%',cible:'> 3%',ok:(d.produits-d.charges)/d.produits>0.03},
-    {label:'Ratio charges / produits',val:(d.charges/d.produits).toFixed(2),cible:'< 1,00',ok:d.charges<d.produits},
-    {label:'Couverture charges fixes (jours)',val:Math.round(d.tresorerie/(d.charges/90))+' jours',cible:'> 30 jours',ok:d.tresorerie/(d.charges/90)>30},
-    {label:'Recettes propres / Produits totaux',val:Math.round((d.produits*0.56)/d.produits*100)+'%',cible:'> 50%',ok:true},
-    {label:'Coût moyen par séjour (FCFA)',val:fmt(Math.round(d.charges/d.sejours)),cible:'< 500 000',ok:d.charges/d.sejours<500000},
-  ];
+  // (données démo supprimées)
+];
   document.getElementById('ratios-fin').innerHTML=ratios.map(r=>`
     <div class="indic-row" style="padding:10px 20px">
       <div class="indic-label">${r.label}</div>
@@ -826,8 +722,8 @@ function renderActivite(){
 
   // Line chart mensuel entrées
   const moisE=[
-    {m:'Jan',v:380},{m:'Fév',v:395},{m:'Mar',v:420},{m:'Avr',v:390},{m:'Mai',v:410},{m:'Juin',v:425},
-  ];
+  // (données démo supprimées)
+];
   const maxE=Math.max(...moisE.map(m=>m.v));
   const W=460,H=90;
   const pts=moisE.map((m,i)=>({x:i/(moisE.length-1)*W,y:H-(m.v/maxE*(H-16))-8}));
@@ -863,12 +759,8 @@ function renderActivite(){
 // ── Activité médicale ──────────────────────────────────────────────────────────
 function renderActiviteMedicale(){
   const flow=[
-    {icon:'🏥',label:'Séjours hospitalisés',count:'1 250 séjours',color:'#1a4b6e'},
-    {icon:'📝',label:'Codage CIM-10',count:'1 188 codés',color:'#1e7a4e'},
-    {icon:'⚕️',label:'Actes CCAM',count:'892 actes saisis',color:'#c8702a'},
-    {icon:'🔢',label:'Codage actes CNAM-CI',count:'1 142 groupés',color:'#6b21a8'},
-    {icon:'📤',label:'Transmission ATIH',count:'1 098 transmis',color:'#0f766e'},
-  ];
+  // (données démo supprimées)
+];
   document.getElementById('pmsi-flow').innerHTML=flow.map(s=>`
     <div class="pmsi-step">
       <div class="pmsi-icon" style="background:${s.color}18;border-color:${s.color}40;color:${s.color}">${s.icon}</div>
@@ -886,12 +778,8 @@ function renderActiviteMedicale(){
     </tr>`).join('');
 
   const pmsiIndic=[
-    {l:'Taux de codage complet',v:'91,4%',ok:true,cible:'>90%'},
-    {l:'Séjours sans diagnostic',v:'62',ok:false,cible:'< 30'},
-    {l:'Taux de rejet ATIH',v:'2,8%',ok:true,cible:'< 5%'},
-    {l:'Délai moyen de codage',v:'4,2 jours',ok:true,cible:'< 7 jours'},
-    {l:'Valorisation CNAM-CI',v:fmtM(ACTES_DATA.reduce((s,g)=>s+g.val,0)),ok:true,cible:'Budget alloué'},
-  ];
+  // (données démo supprimées)
+];
   document.getElementById('pmsi-indicateurs').innerHTML=pmsiIndic.map(i=>`
     <div class="indic-row">
       <span class="indic-label">${i.l}</span>
@@ -948,9 +836,8 @@ function renderBI(){
 
   // Stock pharmacie rotation
   const stockRot=[
-    {prod:'Amoxicilline',rot:8.2},{prod:'Paracétamol',rot:6.1},{prod:'Artémether',rot:4.8},
-    {prod:'Ceftriaxone',rot:9.4},{prod:'Metformine',rot:3.2},{prod:'Herceptin',rot:1.4},
-  ];
+  // (données démo supprimées)
+];
   const maxRot=Math.max(...stockRot.map(s=>s.rot));
   document.getElementById('bi-stock').innerHTML=stockRot.map(s=>`
     <div class="bar-row">
@@ -961,12 +848,8 @@ function renderBI(){
 
   // Labo performance
   const laboPerf=[
-    {spec:'Biochimie',nb:248,delai:'1h42'},
-    {spec:'Hématologie',nb:312,delai:'1h15'},
-    {spec:'Bactériologie',nb:34,delai:'48h00'},
-    {spec:'Immunologie',nb:56,delai:'3h20'},
-    {spec:'Coagulation',nb:88,delai:'2h05'},
-  ];
+  // (données démo supprimées)
+];
   const maxNb=Math.max(...laboPerf.map(l=>l.nb));
   document.getElementById('bi-labo').innerHTML=laboPerf.map(l=>`
     <div class="bar-row">
@@ -977,12 +860,8 @@ function renderBI(){
 
   // Top 5 dépenses
   const depenses=[
-    {l:'Charges de personnel médical',m:d.charges*0.38,c:'#1a4b6e'},
-    {l:'Médicaments & réactifs',m:d.charges*0.18,c:'#c8702a'},
-    {l:'Charges de personnel non-médical',m:d.charges*0.17,c:'#4f8ef7'},
-    {l:'Charges indirectes réparties',m:d.charges*0.15,c:'#1e7a4e'},
-    {l:'Amortissements équipements',m:d.charges*0.08,c:'#6b21a8'},
-  ];
+  // (données démo supprimées)
+];
   const maxDep=Math.max(...depenses.map(x=>x.m));
   document.getElementById('bi-depenses').innerHTML=depenses.map(x=>`
     <div class="bar-row">
