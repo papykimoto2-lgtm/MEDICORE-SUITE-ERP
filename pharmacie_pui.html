@@ -763,6 +763,98 @@ function puiFiltrerPatient(ref){
 }
 function puiClearFiltre(){ puiRxFiltre=null; renderCircuit(); }
 
+// ══ CAISSE / DISPENSATION — patient scanné → ordonnances non servies ════════════
+function ouvrirCaisseDispensation(patientId){
+  if(typeof MEDICORE_RX==='undefined'){ toast('Registre ordonnances absent.','error'); return; }
+  const aServir = MEDICORE_RX.aServirPatient(patientId);
+  if(!aServir.length){ toast('Aucune ordonnance validée à servir pour ce patient.','info'); return; }
+  // Groupe par ordonnance (groupe), sinon par ligne
+  const groupes={};
+  aServir.forEach(r=>{ const g=r.groupe||r.id; (groupes[g]=groupes[g]||[]).push(r); });
+  const nom=aServir[0].patient_nom||patientId;
+  let ov=document.getElementById('modal-caisse'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-caisse'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  const blocs=Object.entries(groupes).map(([g,lignes])=>{
+    const total=lignes.reduce((s,l)=>s+prixDispensation(l),0);
+    const items=lignes.map(l=>{
+      const px=prixDispensation(l); const st=stockPour(l);
+      return `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0">
+        <span>${l.med}${l.posologie?' — '+l.posologie:''} ${st.ok?'':'<span style=\"color:#b91c1c\">(rupture)</span>'}</span>
+        <span>${px.toLocaleString('fr-FR')} F</span></div>`;
+    }).join('');
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <strong>Ordonnance ${lignes[0].date||''}</strong>
+        <span style="font-size:12px;color:var(--text-muted)">${lignes[0].medecin||''}</span>
+      </div>
+      ${items}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <strong style="color:var(--accent)">Total : ${total.toLocaleString('fr-FR')} FCFA</strong>
+        <button class="btn btn-primary btn-sm" onclick="servirOrdonnance('${patientId}','${g}')">💰 Servir & encaisser</button>
+      </div></div>`;
+  }).join('');
+  ov.innerHTML=`<div class="modal" style="width:560px;max-width:96vw;max-height:90vh;overflow-y:auto">
+    <div class="modal-header"><div><div class="modal-title">Caisse pharmacie — dispensation</div>
+      <div class="modal-subtitle">${nom} · ${Object.keys(groupes).length} ordonnance(s) à servir · le patient choisit</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-caisse').remove()">✕</button></div>
+    <div class="modal-body">${blocs}</div></div>`;
+  document.body.appendChild(ov);
+}
+
+function stockPour(l){
+  const toks=(l.med||'').toLowerCase().split(/[\s/0-9µ%.,()-]+/).filter(w=>w.length>3);
+  const p=produits.find(pr=>{ const d=(pr.dci||'').toLowerCase(); return toks.some(t=>d.includes(t)); });
+  return { ok:!!(p&&p.stock>0), prod:p };
+}
+function prixDispensation(l){
+  if(l.montant) return +l.montant;
+  const s=stockPour(l); return s.prod?(s.prod.pmp||0):0;   // à défaut, PMP
+}
+
+function servirOrdonnance(patientId, groupe){
+  const lignes = MEDICORE_RX.aServirPatient(patientId).filter(r=>(r.groupe||r.id)===groupe);
+  if(!lignes.length){ toast('Ordonnance introuvable.','error'); return; }
+  let total=0; const servies=[], ruptures=[];
+  lignes.forEach(l=>{
+    const s=stockPour(l);
+    if(s.prod && s.prod.stock>0){
+      s.prod.stock-=1;                                   // mouvement de stock (sortie)
+      mouvements_stock.unshift({ date:new Date().toISOString(), produit:s.prod.dci, lot:s.prod.lot||'—',
+        mvt:'Sortie', qte:1, motif:'Dispensation', patient:l.patient_nom||patientId, ref:l.id });
+      total+=prixDispensation(l);
+      MEDICORE_RX.delivrer(l.id, getPharmacien());        // ordonnance servie
+      servies.push(l.med);
+    } else ruptures.push(l.med);
+  });
+  if(!servies.length){ toast('Tous les produits sont en rupture.','error'); return; }
+  // Persistance stock
+  if(typeof MEDICORE_STORE!=='undefined'){ MEDICORE_STORE.save('stock', produits, true); MEDICORE_STORE.save('mouvements_stock', mouvements_stock, true); }
+  // Mouvement de caisse — SYSCOHADA : 531 Caisse (débit) / 701 Ventes de marchandises (crédit)
+  enregistrerEncaissementCaisse(total, `Dispensation pharmacie — ${lignes[0].patient_nom||patientId}`, groupe);
+  // Audit + clôture
+  puiAudit('DISPENSATION', groupe, `${servies.length} médicament(s) servis — ${total.toLocaleString('fr-FR')} FCFA — ${lignes[0].patient_nom||patientId}`);
+  const m=document.getElementById('modal-caisse'); if(m) m.remove();
+  renderCircuit(); if(typeof updateKPIs==='function') updateKPIs(); if(typeof renderStock==='function') renderStock();
+  toast(`Ordonnance servie — ${total.toLocaleString('fr-FR')} FCFA encaissés.`+(ruptures.length?` (${ruptures.length} en rupture)`:''),'success');
+}
+
+// Écrit un encaissement dans la trésorerie (lisible par le module Trésorerie)
+function enregistrerEncaissementCaisse(montant, libelle, ref){
+  try{
+    let arr=[];
+    if(typeof MEDICORE_STORE!=='undefined') arr=MEDICORE_STORE.load('mouvements_tresorerie', []);
+    arr.unshift({
+      id:'CAI'+Date.now().toString(36), date:new Date().toISOString(),
+      libelle, montant, sens:'Entrée', mode:'Espèces', journal:'Caisse pharmacie',
+      compte_debit:'531', compte_credit:'701', ref, module:'pharmacie_pui'
+    });
+    if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('mouvements_tresorerie', arr, true);
+    if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.publish('ENCAISSEMENT', { montant, libelle });
+  }catch(e){}
+}
+
 // Hook scan universel (bouton topbar) → filtre la PUI sur le patient scanné
 window.onPatientScanned = function(p){
   if(!p || (!p.id && !p.ipp)) return;
@@ -802,7 +894,10 @@ function renderCircuit(){
     pending=pending.filter(p=>p.patientId===puiRxFiltre.id || (puiRxFiltre.ipp && p.patient_ipp===puiRxFiltre.ipp));
     banniere=`<div style="display:flex;justify-content:space-between;align-items:center;background:#e8f0f7;border:1px solid #1a4b6e33;border-radius:8px;padding:10px 14px;margin-bottom:12px">
       <div style="font-size:13px;color:#1a4b6e">🪪 <strong>${puiRxFiltre.nom||puiRxFiltre.ipp||puiRxFiltre.id}</strong> — ${pending.length}/${av} ordonnance(s) en attente</div>
-      <button class="btn btn-sm" style="border:1px solid #1a4b6e33;background:#fff;color:#1a4b6e" onclick="puiClearFiltre()">Voir tous</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" style="background:#15803d;color:#fff" onclick="ouvrirCaisseDispensation('${puiRxFiltre.id}')">💊 Servir à la caisse</button>
+        <button class="btn btn-sm" style="border:1px solid #1a4b6e33;background:#fff;color:#1a4b6e" onclick="puiClearFiltre()">Voir tous</button>
+      </div>
     </div>`;
   } else {
     banniere=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">

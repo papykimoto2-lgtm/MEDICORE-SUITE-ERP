@@ -62,17 +62,24 @@ const MEDICORE_RX = {
     if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.markRead('PRESCRIPTION_ATTENTE_PUI');
     return r;
   },
-  valider(id, par){
-    const r = this._maj(id, { statut:this.S.VALIDEE, valideePar:par||'', valideTs:new Date().toISOString() });
-    // Prestation facturable (dispensation pharmacie)
-    if(r && typeof MEDICORE_PRESTA!=='undefined' && r.patientId){
-      MEDICORE_PRESTA.ajouter({
-        patientId:r.patientId, patient_nom:r.patient_nom, patient_ipp:r.patient_ipp,
-        module:'pharmacie_pui', libelle:(r.med||'Médicament')+(r.posologie?' — '+r.posologie:''),
-        code:'PUI', montant:r.montant||0, ref:r.id
-      });
-    }
-    return r;
+  valider(id, par){ return this._maj(id, { statut:this.S.VALIDEE, valideePar:par||'', valideTs:new Date().toISOString() }); },
+
+  // Modifier une ligne — uniquement tant qu'elle est en attente
+  modifierLigne(id, patch){
+    const rows=this._read(); const r=rows.find(x=>x.id===id);
+    if(!r || r.statut!==this.S.ATTENTE) return null;
+    Object.assign(r, patch, { maj_le:new Date().toISOString() });
+    this._write(rows); return r;
+  },
+  // Supprimer une ligne — uniquement tant qu'elle est en attente
+  supprimer(id){
+    const rows=this._read(); const r=rows.find(x=>x.id===id);
+    if(!r || r.statut!==this.S.ATTENTE) return false;
+    this._write(rows.filter(x=>x.id!==id)); return true;
+  },
+  // Ordonnances validées non servies d'un patient (à livrer), groupées
+  aServirPatient(patientId){
+    return this._read().filter(r=>r.patientId===patientId && r.statut===this.S.VALIDEE);
   },
   refuser(id, par, motif){ return this._maj(id, { statut:this.S.REFUSEE, refusPar:par||'', refusMotif:motif||'', refusTs:new Date().toISOString() }); },
   delivrer(id, par){ return this._maj(id, { statut:this.S.DELIVREE, delivrePar:par||'', delivreTs:new Date().toISOString() }); },
