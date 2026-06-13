@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="supabase.js"></script>
+<script src="medicore-sync.js"></script>
 <link rel="stylesheet" href="mobile.css">
 <style>
   :root {
@@ -472,8 +474,13 @@ function renderBody(){
   }
   else if(currentSection==='cloud'){
     b.innerHTML = renderCloud();
-    // Lance le ping Supabase après injection du DOM
     setTimeout(pingSupa, 200);
+    setTimeout(refreshSyncMeta, 250);
+    // Mise à jour live de l'UI pendant l'auto-sync
+    if(!window._syncUIHook){
+      window._syncUIHook = true;
+      MEDICORE_SYNC.on((ev)=>{ if(currentSection==='cloud') refreshSyncMeta(); });
+    }
   }
   else if(currentSection==='donnees'){
     // ── Barre d'utilisation du stockage ──────────────────────────────────────────
@@ -734,171 +741,125 @@ const SYNC_MAP = [
   { lsKey:'medicore_immo',                  table:'immobilisations',      label:'Immobilisations'          },
 ];
 
-// ── État synchro global ───────────────────────────────────────────────────────
-let syncState = {
-  connexion: 'unknown',   // 'ok' | 'error' | 'unknown'
-  latence: null,
-  derniere: localStorage.getItem('medicore_sync_last') || null,
-  enCours: false,
-  log: [],
-};
+// ── État synchro (piloté par MEDICORE_SYNC) ───────────────────────────────────
+let syncState = { enCours:false, log:[] };
 
-// ── Ping Supabase ─────────────────────────────────────────────────────────────
+// ── Ping Supabase via moteur ──────────────────────────────────────────────────
 async function pingSupa(){
-  const { url, key } = getSBCreds();
   const badge = document.getElementById('sb-ping-badge');
   const latEl = document.getElementById('sb-latence');
   if(!badge) return;
-  if(!url || !key){
-    badge.className='sb-badge sb-badge-warn'; badge.textContent='Non configuré';
-    return;
+  if(!MEDICORE_SYNC.configured()){
+    badge.className='sb-badge sb-badge-warn'; badge.textContent='Non configuré'; return;
   }
   badge.className='sb-badge sb-badge-pending'; badge.textContent='Test…';
-  const t0 = Date.now();
   try{
-    const r = await fetch(url+'/rest/v1/parametrage?select=cle&limit=1', {
-      headers:{ 'apikey':key, 'Authorization':'Bearer '+key }
-    });
-    const ms = Date.now()-t0;
-    if(r.ok || r.status===200 || r.status===406){
-      syncState.connexion='ok'; syncState.latence=ms;
-      badge.className='sb-badge sb-badge-ok'; badge.textContent='Connecté';
-      if(latEl) latEl.textContent=ms+' ms';
-    } else {
-      throw new Error('HTTP '+r.status);
-    }
-  } catch(e){
-    syncState.connexion='error';
+    const ms = await MEDICORE_SYNC.ping();
+    badge.className='sb-badge sb-badge-ok'; badge.textContent='Connecté';
+    if(latEl) latEl.textContent=ms+' ms';
+  }catch(e){
     badge.className='sb-badge sb-badge-err'; badge.textContent='Erreur';
     if(latEl) latEl.textContent='—';
   }
 }
 
-// ── Sauvegarde credentials ────────────────────────────────────────────────────
+// ── Credentials ───────────────────────────────────────────────────────────────
 function saveCloudCreds(){
-  const url = (document.getElementById('sb-url')||{}).value||'';
-  const key = (document.getElementById('sb-key')||{}).value||'';
-  if(!url || !key){ toast('URL et clé requis.','error'); return; }
+  const url=(document.getElementById('sb-url')||{}).value||'';
+  const key=(document.getElementById('sb-key')||{}).value||'';
+  if(!url||!key){ toast('URL et clé requis.','error'); return; }
   saveSBCreds(url.trim(), key.trim());
   toast('Credentials Supabase enregistrés.','success');
   pingSupa();
 }
 
-// ── Envoi (Push) localStorage → Supabase ─────────────────────────────────────
-async function syncPush(){
-  if(syncState.enCours){ toast('Sync déjà en cours…','warn'); return; }
-  const { url, key } = getSBCreds();
-  if(!url || !key){ toast('Configurez d\'abord la connexion Supabase.','error'); return; }
-  syncState.enCours = true;
-  syncState.log = [];
+// ── Callback progression → journal ────────────────────────────────────────────
+function syncProgress(p){
+  const ICONS={ok:'✅',error:'❌',pending:'⏳',skip:'⏭'};
+  updateLog(p.label, p.status, ICONS[p.status]||'•', p.label, p.msg);
   renderSyncLog();
-  updateSyncBtn(true);
-
-  let total=0, erreurs=0;
-  for(const m of SYNC_MAP){
-    let raw;
-    try{ raw = JSON.parse(localStorage.getItem(m.lsKey)||'[]'); }
-    catch(e){ raw=[]; }
-    if(!Array.isArray(raw) || raw.length===0){
-      addLog('skip','⏭', m.label, '0 entrée(s) — ignoré');
-      continue;
-    }
-    addLog('pending','⏳', m.label, raw.length+' entrée(s) en cours…');
-    renderSyncLog();
-    try{
-      const r = await fetch(url+'/rest/v1/'+m.table, {
-        method:'POST',
-        headers:{
-          'apikey':key, 'Authorization':'Bearer '+key,
-          'Content-Type':'application/json',
-          'Prefer':'resolution=merge-duplicates,return=minimal'
-        },
-        body: JSON.stringify(raw)
-      });
-      if(r.ok || r.status===201 || r.status===200){
-        updateLog(m.lsKey,'ok','✅', m.label, raw.length+' enregistrements envoyés');
-        total += raw.length;
-      } else {
-        const txt = await r.text();
-        throw new Error('HTTP '+r.status+' — '+txt.slice(0,120));
-      }
-    } catch(e){
-      updateLog(m.lsKey,'error','❌', m.label, e.message);
-      erreurs++;
-    }
-  }
-
-  const now = new Date().toLocaleString('fr-CI');
-  syncState.derniere = now;
-  syncState.enCours = false;
-  localStorage.setItem('medicore_sync_last', now);
-  updateSyncBtn(false);
-  renderSyncLog();
-  const el = document.getElementById('sync-last');
-  if(el) el.textContent = now;
-  toast(erreurs===0
-    ? '✅ Synchronisation terminée — '+total+' enregistrements envoyés.'
-    : '⚠️ '+erreurs+' erreur(s) — '+total+' envoyés. Vérifiez le journal.',
-    erreurs===0?'success':'warn');
 }
 
-// ── Réception (Pull) Supabase → localStorage ─────────────────────────────────
+// ── PUSH delta ────────────────────────────────────────────────────────────────
+async function syncPush(){
+  if(syncState.enCours){ toast('Sync déjà en cours…','warn'); return; }
+  if(!MEDICORE_SYNC.configured()){ toast('Configurez Supabase d\'abord.','error'); return; }
+  syncState.enCours=true; syncState.log=[]; renderSyncLog(); updateSyncBtn(true);
+  try{
+    const r = await MEDICORE_SYNC.push(syncProgress);
+    refreshSyncMeta();
+    toast(r.errors===0
+      ? '✅ Envoi terminé — '+r.sent+' ligne(s) modifiée(s).'
+      : '⚠️ '+r.errors+' erreur(s) — '+r.sent+' envoyée(s).',
+      r.errors===0?'success':'warn');
+  }catch(e){ toast('Erreur push : '+e.message,'error'); }
+  finally{ syncState.enCours=false; updateSyncBtn(false); renderSyncLog(); }
+}
+
+// ── PULL incrémental non destructif ──────────────────────────────────────────
 async function syncPull(){
   if(syncState.enCours){ toast('Sync déjà en cours…','warn'); return; }
-  const { url, key } = getSBCreds();
-  if(!url || !key){ toast('Configurez d\'abord la connexion Supabase.','error'); return; }
-  if(!confirm('Écraser les données locales avec celles de Supabase ?\n\nLes données locales plus récentes seront remplacées.\nContinuer ?')) return;
-  syncState.enCours = true;
-  syncState.log = [];
-  renderSyncLog();
-  updateSyncBtn(true);
+  if(!MEDICORE_SYNC.configured()){ toast('Configurez Supabase d\'abord.','error'); return; }
+  syncState.enCours=true; syncState.log=[]; renderSyncLog(); updateSyncBtn(true);
+  try{
+    const r = await MEDICORE_SYNC.pull(syncProgress);
+    refreshSyncMeta();
+    toast(r.errors===0
+      ? '✅ Réception terminée — '+r.received+' ligne(s) fusionnée(s).'
+      : '⚠️ '+r.errors+' erreur(s) — '+r.received+' reçue(s).',
+      r.errors===0?'success':'warn');
+  }catch(e){ toast('Erreur pull : '+e.message,'error'); }
+  finally{ syncState.enCours=false; updateSyncBtn(false); renderSyncLog(); }
+}
 
-  let total=0, erreurs=0;
-  for(const m of SYNC_MAP){
-    addLog('pending','⏳', m.label, 'Récupération en cours…');
-    renderSyncLog();
-    try{
-      const r = await fetch(url+'/rest/v1/'+m.table+'?select=*&limit=5000', {
-        headers:{ 'apikey':key, 'Authorization':'Bearer '+key }
-      });
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const data = await r.json();
-      localStorage.setItem(m.lsKey, JSON.stringify(data));
-      updateLog(m.lsKey,'ok','✅', m.label, data.length+' enregistrements reçus');
-      total += data.length;
-    } catch(e){
-      updateLog(m.lsKey,'error','❌', m.label, e.message);
-      erreurs++;
-    }
+// ── SYNC complète ────────────────────────────────────────────────────────────
+async function syncFull(){
+  if(syncState.enCours){ toast('Sync déjà en cours…','warn'); return; }
+  if(!MEDICORE_SYNC.configured()){ toast('Configurez Supabase d\'abord.','error'); return; }
+  syncState.enCours=true; syncState.log=[]; renderSyncLog(); updateSyncBtn(true);
+  try{
+    const r = await MEDICORE_SYNC.sync(syncProgress);
+    refreshSyncMeta();
+    toast('✅ Sync complète — '+(r.sent||0)+' envoyé(s), '+(r.received||0)+' reçu(s).','success');
+  }catch(e){ toast('Erreur sync : '+e.message,'error'); }
+  finally{ syncState.enCours=false; updateSyncBtn(false); renderSyncLog(); }
+}
+
+// ── Auto-sync toggle ──────────────────────────────────────────────────────────
+function toggleAutoSync(){
+  if(MEDICORE_SYNC.isAuto()){ MEDICORE_SYNC.stopAuto(); toast('Auto-sync désactivée.','warn'); }
+  else{
+    if(!MEDICORE_SYNC.configured()){ toast('Configurez Supabase d\'abord.','error'); return; }
+    MEDICORE_SYNC.startAuto(); toast('Auto-sync activée (60 s).','success');
   }
+  refreshSyncMeta();
+}
 
-  const now = new Date().toLocaleString('fr-CI');
-  syncState.derniere = now;
-  syncState.enCours = false;
-  localStorage.setItem('medicore_sync_last', now);
-  updateSyncBtn(false);
-  renderSyncLog();
-  const el = document.getElementById('sync-last');
-  if(el) el.textContent = now;
-  toast(erreurs===0
-    ? '✅ Données reçues — '+total+' enregistrements chargés localement.'
-    : '⚠️ '+erreurs+' erreur(s) — '+total+' reçus.',
-    erreurs===0?'success':'warn');
+// ── Rafraîchir badges statut ──────────────────────────────────────────────────
+function refreshSyncMeta(){
+  const s = MEDICORE_SYNC.status();
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
+  set('sc-pending', s.pending);
+  set('sc-last', s.lastSync ? new Date(s.lastSync).toLocaleString('fr-CI') : '—');
+  set('sync-last', s.lastSync ? new Date(s.lastSync).toLocaleString('fr-CI') : '—');
+  const net=document.getElementById('sync-net');
+  if(net){ net.className='sb-badge '+(s.online?'sb-badge-ok':'sb-badge-err'); net.textContent=s.online?'En ligne':'Hors ligne'; }
+  const auto=document.getElementById('auto-toggle');
+  if(auto){ auto.checked=s.auto; }
+  const autoLbl=document.getElementById('auto-state');
+  if(autoLbl){ autoLbl.textContent=s.auto?'Activée':'Désactivée'; autoLbl.style.color=s.auto?'#15803d':'var(--text-muted)'; }
 }
 
 // ── Helpers journal ───────────────────────────────────────────────────────────
-function addLog(status, ic, label, msg){
-  syncState.log.push({ id:label, status, ic, label, msg });
-}
+function addLog(status, ic, label, msg){ syncState.log.push({ id:label, status, ic, label, msg }); }
 function updateLog(id, status, ic, label, msg){
-  const e = syncState.log.find(x=>x.label===label);
-  if(e){ e.status=status; e.ic=ic; e.msg=msg; }
-  else  addLog(status, ic, label, msg);
+  const e=syncState.log.find(x=>x.label===label);
+  if(e){ e.status=status; e.ic=ic; e.msg=msg; } else addLog(status, ic, label, msg);
 }
 function renderSyncLog(){
-  const el = document.getElementById('sync-log');
+  const el=document.getElementById('sync-log');
   if(!el || !syncState.log.length) return;
-  el.innerHTML = syncState.log.map(e=>`
+  el.innerHTML=syncState.log.map(e=>`
     <div class="sync-log-row sync-log-${e.status}">
       <span class="sync-log-ic">${e.ic}</span>
       <span class="sync-log-label">${e.label}</span>
@@ -906,7 +867,7 @@ function renderSyncLog(){
     </div>`).join('');
 }
 function updateSyncBtn(busy){
-  ['btn-push','btn-pull'].forEach(id=>{
+  ['btn-push','btn-pull','btn-sync'].forEach(id=>{
     const el=document.getElementById(id);
     if(el){ el.disabled=busy; el.style.opacity=busy?'.5':'1'; }
   });
@@ -915,13 +876,12 @@ function updateSyncBtn(busy){
 // ── Rendu HTML de la section ──────────────────────────────────────────────────
 function renderCloud(){
   const creds = getSBCreds();
-  const urlVal  = creds.url;
-  const keyMask = creds.key ? creds.key.slice(0,18)+'…' : '';
-  const last    = syncState.derniere || '—';
-  let totalLocalRecords = 0;
-  SYNC_MAP.forEach(m=>{ try{ const v=JSON.parse(localStorage.getItem(m.lsKey)||'[]'); if(Array.isArray(v)) totalLocalRecords+=v.length; }catch(e){} });
+  const st    = MEDICORE_SYNC.status();
+  const last  = st.lastSync ? new Date(st.lastSync).toLocaleString('fr-CI') : '—';
+  let totalLocal = 0;
+  MEDICORE_SYNC.STORES.forEach(s=>{ totalLocal += MEDICORE_SYNC._read(s.store).rows.length; });
 
-  return head('Cloud & Synchro','Connexion Supabase — synchronisation multi-appareils') + `
+  return head('Cloud & Synchro','Synchronisation multi-appareils offline-first — delta + fusion non destructive') + `
   <style>
     .sb-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
     .sb-badge::before{content:'';width:7px;height:7px;border-radius:50%;display:inline-block}
@@ -933,108 +893,106 @@ function renderCloud(){
     .sync-log{max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt,#f8f7f2)}
     .sync-log-row{display:grid;grid-template-columns:28px 200px 1fr;align-items:center;gap:6px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12.5px}
     .sync-log-row:last-child{border-bottom:none}
-    .sync-log-pending{opacity:.7}
-    .sync-log-ok{background:#f0fdf4}
-    .sync-log-error{background:#fff1f2}
-    .sync-log-skip{opacity:.45}
-    .sync-log-ic{font-size:14px;text-align:center}
-    .sync-log-label{font-weight:600;color:var(--text)}
+    .sync-log-pending{opacity:.7}.sync-log-ok{background:#f0fdf4}.sync-log-error{background:#fff1f2}.sync-log-skip{opacity:.45}
+    .sync-log-ic{font-size:14px;text-align:center}.sync-log-label{font-weight:600;color:var(--text)}
     .sync-log-msg{color:var(--text-muted);font-family:monospace;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .latence-chip{font-size:11.5px;color:var(--text-muted);margin-left:10px}
-    .cred-key-display{font-family:monospace;font-size:12px;color:var(--text-muted);background:var(--surface-alt);padding:4px 10px;border-radius:5px;border:1px solid var(--border)}
-    .sync-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:0}
+    .sync-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
     .sync-stat{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
     .sync-stat-val{font-size:22px;font-weight:700;color:var(--accent)}
     .sync-stat-lbl{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+    .auto-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt)}
+    .switch{position:relative;width:46px;height:26px;display:inline-block}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;inset:0;background:#cbd5e1;border-radius:26px;transition:.2s;cursor:pointer}
+    .slider::before{content:'';position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+    .switch input:checked + .slider{background:#16a34a}
+    .switch input:checked + .slider::before{transform:translateX(20px)}
   </style>
 
   <!-- Connexion -->
   <div class="card">
     <div class="card-head">
-      <div><h3>Connexion Supabase</h3><div class="sub">Projet : bjsgivzfarknjfdxhqth · eu-west-3 Paris</div></div>
+      <div><h3>Connexion Supabase</h3><div class="sub">Appareil : <span class="mono" style="font-size:11px">${st.device.slice(0,18)}…</span></div></div>
       <div style="display:flex;align-items:center;gap:8px">
+        <span id="sync-net" class="sb-badge ${st.online?'sb-badge-ok':'sb-badge-err'}">${st.online?'En ligne':'Hors ligne'}</span>
         <span id="sb-ping-badge" class="sb-badge sb-badge-pending">Test…</span>
         <span class="latence-chip">⏱ <span id="sb-latence">—</span></span>
       </div>
     </div>
     <div class="card-body">
       <div class="form-grid">
-        <div class="form-group">
-          <label>URL Supabase</label>
-          <input id="sb-url" type="url" placeholder="https://xxxx.supabase.co" value="${urlVal}">
-        </div>
-        <div class="form-group">
-          <label>Clé publique (anon / publishable)</label>
-          <input id="sb-key" type="text" placeholder="sb_publishable_…" value="${creds.key}">
-        </div>
+        <div class="form-group"><label>URL Supabase</label>
+          <input id="sb-url" type="url" placeholder="https://xxxx.supabase.co" value="${creds.url}"></div>
+        <div class="form-group"><label>Clé publique (anon / publishable)</label>
+          <input id="sb-key" type="text" placeholder="sb_publishable_…" value="${creds.key}"></div>
       </div>
       <div class="save-bar">
         <button class="btn btn-secondary" onclick="pingSupa()">🔌 Tester la connexion</button>
         <button class="btn btn-primary"   onclick="saveCloudCreds()">💾 Enregistrer</button>
       </div>
+      <div style="margin-top:8px;font-size:11.5px;color:var(--text-muted)">⚠️ Exécutez <code>sync_schema.sql</code> dans Supabase avant la première synchro.</div>
     </div>
   </div>
 
-  <!-- Statistiques locales -->
+  <!-- État -->
   <div class="card">
-    <div class="card-head"><div><h3>État du stockage local</h3><div class="sub">Données en attente de synchronisation</div></div></div>
+    <div class="card-head"><div><h3>État de synchronisation</h3><div class="sub">Stockage local = source de vérité</div></div></div>
     <div class="card-body">
       <div class="sync-stat-grid">
-        <div class="sync-stat">
-          <div class="sync-stat-val" id="sc-tables">${SYNC_MAP.length}</div>
-          <div class="sync-stat-lbl">Tables configurées</div>
+        <div class="sync-stat"><div class="sync-stat-val">${MEDICORE_SYNC.STORES.length}</div><div class="sync-stat-lbl">Modules</div></div>
+        <div class="sync-stat"><div class="sync-stat-val">${totalLocal}</div><div class="sync-stat-lbl">Lignes locales</div></div>
+        <div class="sync-stat"><div class="sync-stat-val" id="sc-pending">${st.pending}</div><div class="sync-stat-lbl">En attente</div></div>
+        <div class="sync-stat"><div class="sync-stat-val" id="sc-last" style="font-size:12px;padding-top:6px">${last==='—'?'—':last.split(' ')[1]||last}</div><div class="sync-stat-lbl">Dernière sync</div></div>
+      </div>
+      <div class="auto-row" style="margin-top:14px">
+        <div>
+          <div style="font-weight:600;font-size:13.5px">Synchronisation automatique</div>
+          <div style="font-size:12px;color:var(--text-muted)">Toutes les 60 s · reprise au retour réseau · <span id="auto-state" style="${st.auto?'color:#15803d':''}">${st.auto?'Activée':'Désactivée'}</span></div>
         </div>
-        <div class="sync-stat">
-          <div class="sync-stat-val" id="sc-records">${totalLocalRecords}</div>
-          <div class="sync-stat-lbl">Enregistrements locaux</div>
-        </div>
-        <div class="sync-stat">
-          <div class="sync-stat-val" id="sc-last" style="font-size:13px;padding-top:4px">${last==='—'?'—':last.split(' ')[1]||last}</div>
-          <div class="sync-stat-lbl">Dernière synchronisation</div>
-        </div>
+        <label class="switch"><input id="auto-toggle" type="checkbox" ${st.auto?'checked':''} onclick="toggleAutoSync()"><span class="slider"></span></label>
       </div>
     </div>
   </div>
 
-  <!-- Actions de synchronisation -->
+  <!-- Actions -->
   <div class="card">
-    <div class="card-head">
-      <div><h3>Synchronisation</h3><div class="sub">Dernière sync : <strong id="sync-last">${last}</strong></div></div>
-    </div>
+    <div class="card-head"><div><h3>Actions</h3><div class="sub">Dernière sync : <strong id="sync-last">${last}</strong></div></div></div>
     <div class="card-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
         <div style="border:1px solid var(--border);border-radius:8px;padding:16px">
-          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">↑ Envoi vers Supabase</div>
-          <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">Pousse toutes les données locales (localStorage) vers PostgreSQL. Utilise <code>upsert</code> — aucune donnée distante n'est écrasée si elle est plus récente.</div>
-          <button id="btn-push" class="btn btn-primary" style="width:100%" onclick="syncPush()">⬆ Envoyer vers le cloud</button>
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">⬆ Push delta</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Envoie uniquement les lignes modifiées (hash). Upsert merge-duplicates.</div>
+          <button id="btn-push" class="btn btn-secondary" style="width:100%" onclick="syncPush()">Envoyer</button>
         </div>
         <div style="border:1px solid var(--border);border-radius:8px;padding:16px">
-          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">↓ Réception depuis Supabase</div>
-          <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">Rapatrie toutes les données Supabase en local. Utile pour initialiser un nouvel appareil ou récupérer des données saisies ailleurs.</div>
-          <button id="btn-pull" class="btn btn-secondary" style="width:100%" onclick="syncPull()">⬇ Recevoir depuis le cloud</button>
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">⬇ Pull fusion</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Récupère le delta distant, fusionne par id. Non destructif.</div>
+          <button id="btn-pull" class="btn btn-secondary" style="width:100%" onclick="syncPull()">Recevoir</button>
+        </div>
+        <div style="border:1px solid var(--accent);border-radius:8px;padding:16px;background:var(--surface-alt)">
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">🔄 Sync complète</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Push puis pull en une fois. Recommandé.</div>
+          <button id="btn-sync" class="btn btn-primary" style="width:100%" onclick="syncFull()">Synchroniser</button>
         </div>
       </div>
-
-      <!-- Journal de synchronisation -->
       <div style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Journal</div>
       <div class="sync-log" id="sync-log">
-        <div style="padding:18px;text-align:center;color:var(--text-muted);font-size:13px">Aucune synchronisation effectuée dans cette session.</div>
+        <div style="padding:18px;text-align:center;color:var(--text-muted);font-size:13px">Aucune synchronisation dans cette session.</div>
       </div>
     </div>
   </div>
 
-  <!-- Modules synchronisés -->
+  <!-- Modules -->
   <div class="card">
-    <div class="card-head"><div><h3>Modules synchronisés</h3><div class="sub">${SYNC_MAP.length} tables mappées</div></div></div>
+    <div class="card-head"><div><h3>Modules synchronisés</h3><div class="sub">${MEDICORE_SYNC.STORES.length} stores → table medicore_sync_docs</div></div></div>
     <div class="card-body" style="padding:0">
-      <table><thead><tr><th>Module</th><th>Clé localStorage</th><th>Table Supabase</th><th style="text-align:right">Entrées locales</th></tr></thead>
-      <tbody>${SYNC_MAP.map(m=>{
-        let n=0;
-        try{ const v=JSON.parse(localStorage.getItem(m.lsKey)||'[]'); if(Array.isArray(v)) n=v.length; }catch(e){}
+      <table><thead><tr><th>Module</th><th>Store local</th><th style="text-align:right">Lignes</th></tr></thead>
+      <tbody>${MEDICORE_SYNC.STORES.map(s=>{
+        const n = MEDICORE_SYNC._read(s.store).rows.length;
         return `<tr>
-          <td><strong>${m.label}</strong></td>
-          <td><span class="mono" style="font-size:11.5px">${m.lsKey}</span></td>
-          <td><span class="mono" style="font-size:11.5px;color:var(--accent)">${m.table}</span></td>
+          <td><strong>${s.label}</strong></td>
+          <td><span class="mono" style="font-size:11.5px;color:var(--accent)">${MEDICORE_SYNC.NS+s.store}</span></td>
           <td style="text-align:right;font-family:monospace">${n>0?n:'<span style="color:var(--text-muted)">—</span>'}</td>
         </tr>`;
       }).join('')}
