@@ -4,8 +4,8 @@
 // Remplace progressivement localStorage par un vrai backend PostgreSQL.
 // ══════════════════════════════════════════════════════════════════════════════
 
-const SUPABASE_URL  = 'https://euxjdpxhofwpvgelwyxv.supabase.co';
-const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1eGpkcHhob2Z3cHZnZWx3eXh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODExNzEsImV4cCI6MjA5Njg1NzE3MX0.hYU7WOn2UzGz1AROie0KfMg8z0LFyLI56w0pTmwTcXc';
+const SUPABASE_URL  = 'https://bjsgivzfarknjfdxhqth.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_5o2aTSbtPVAmjdMpYmmkNA_HrActrOj';
 
 // ── Client fetch léger (pas de dépendance npm) ─────────────────────────────────
 const DB = {
