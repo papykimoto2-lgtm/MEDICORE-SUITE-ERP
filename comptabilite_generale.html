@@ -561,40 +561,12 @@ const planComptable = {
 
 // ── Données écritures ──────────────────────────────────────────────────────────
 let ecritures = [
-  // Juin 2025
-  // Juin 2025 — SYSCOHADA / FCFA
-  { id:'EC-2025-0081', date:'2025-06-02', journal:'VT', piece:'FAC-2025-0041', compte:'411', libelle:'Facturation séjour KONÉ Aminata', debit:185000, credit:0, lettre:'A1' },
-  { id:'EC-2025-0082', date:'2025-06-02', journal:'VT', piece:'FAC-2025-0041', compte:'706', libelle:'Produit soins CNAM-CI — KONÉ Aminata', debit:0, credit:185000, lettre:'A1' },
-  { id:'EC-2025-0083', date:'2025-06-05', journal:'BQ', piece:'RLV-0612', compte:'512', libelle:'Encaissement CNAM-CI — juin', debit:8450000, credit:0, lettre:'B1' },
-  { id:'EC-2025-0084', date:'2025-06-05', journal:'BQ', piece:'RLV-0612', compte:'431', libelle:'Remboursement CNAM-CI reçu', debit:0, credit:8450000, lettre:'B1' },
-  { id:'EC-2025-0085', date:'2025-06-07', journal:'AC', piece:'FA-PHARMA-001', compte:'602', libelle:'Achat médicaments — Laborex CI', debit:12400000, credit:0, lettre:'' },
-  { id:'EC-2025-0086', date:'2025-06-07', journal:'AC', piece:'FA-PHARMA-001', compte:'401', libelle:'Fournisseur Laborex CI', debit:0, credit:12400000, lettre:'' },
-  { id:'EC-2025-0087', date:'2025-06-10', journal:'BQ', piece:'RLV-0613', compte:'401', libelle:'Règlement fournisseur Laborex CI', debit:12400000, credit:0, lettre:'C1' },
-  { id:'EC-2025-0088', date:'2025-06-10', journal:'BQ', piece:'RLV-0613', compte:'512', libelle:'Virement Laborex CI', debit:0, credit:12400000, lettre:'C1' },
-  { id:'EC-2025-0089', date:'2025-06-12', journal:'PA', piece:'BS-062025', compte:'641', libelle:'Salaires juin 2025 — personnel médical', debit:48200000, credit:0, lettre:'' },
-  { id:'EC-2025-0090', date:'2025-06-12', journal:'PA', piece:'BS-062025', compte:'645', libelle:'Charges sociales juin 2025 — CNPS', debit:14600000, credit:0, lettre:'' },
-  { id:'EC-2025-0091', date:'2025-06-12', journal:'PA', piece:'BS-062025', compte:'421', libelle:'Rémunérations à payer', debit:0, credit:48200000, lettre:'' },
-  { id:'EC-2025-0092', date:'2025-06-12', journal:'PA', piece:'BS-062025', compte:'431', libelle:'Cotisations CNPS', debit:0, credit:14600000, lettre:'' },
-  { id:'EC-2025-0093', date:'2025-06-15', journal:'OD', piece:'OD-2025-06', compte:'681', libelle:'Dotation amortissements équip. médical', debit:3200000, credit:0, lettre:'' },
-  { id:'EC-2025-0094', date:'2025-06-15', journal:'OD', piece:'OD-2025-06', compte:'164', libelle:'Amortissements constatés', debit:0, credit:3200000, lettre:'' },
-  { id:'EC-2025-0095', date:'2025-06-18', journal:'VT', piece:'FAC-2025-0044', compte:'411', libelle:'Facturation consultation DIALLO Fatoumata', debit:8000, credit:0, lettre:'' },
-  { id:'EC-2025-0096', date:'2025-06-18', journal:'VT', piece:'FAC-2025-0044', compte:'706', libelle:'Produit consultation externe', debit:0, credit:8000, lettre:'' },
-  { id:'EC-2025-0097', date:'2025-06-20', journal:'BQ', piece:'RLV-0620', compte:'512', libelle:'Dotation globale financement — MINSANTE', debit:95000000, credit:0, lettre:'D1' },
-  { id:'EC-2025-0098', date:'2025-06-20', journal:'BQ', piece:'RLV-0620', compte:'741', libelle:'DGF — Ministère Santé CI juin', debit:0, credit:95000000, lettre:'D1' },
-  // Mai 2025
-  { id:'EC-2025-0071', date:'2025-05-05', journal:'BQ', piece:'RLV-0521', compte:'512', libelle:'Encaissement CNAM-CI — mai', debit:7820000, credit:0, lettre:'E1' },
-  { id:'EC-2025-0072', date:'2025-05-05', journal:'BQ', piece:'RLV-0521', compte:'431', libelle:'Remboursement CNAM-CI reçu mai', debit:0, credit:7820000, lettre:'E1' },
-  { id:'EC-2025-0073', date:'2025-05-14', journal:'AC', piece:'FA-LAB-001', compte:'601', libelle:'Achat réactifs laboratoire — Beckman CI', debit:4100000, credit:0, lettre:'' },
-  { id:'EC-2025-0074', date:'2025-05-14', journal:'AC', piece:'FA-LAB-001', compte:'401', libelle:'Fournisseur Beckman Coulter CI', debit:0, credit:4100000, lettre:'' },
+  // (données démo supprimées)
 ];
 
 // Données rapprochement bancaire
 let releve = [
-  { id:'BQ01', date:'2025-06-05', lib:'Virement CNAM-CI', montant:8450000, rapproche:false },
-  { id:'BQ02', date:'2025-06-10', lib:'Prélèvement Laborex CI', montant:-12400000, rapproche:false },
-  { id:'BQ03', date:'2025-06-12', lib:'Virement MINSANTE DGF', montant:95000000, rapproche:false },
-  { id:'BQ04', date:'2025-06-20', lib:'Prélèvement assurance bâtiment SANLAM', montant:-1240000, rapproche:false },
-  { id:'BQ05', date:'2025-06-25', lib:'Virement Mutuelle CI', montant:6400000, rapproche:false },
+  // (données démo supprimées)
 ];
 
 let compta512 = ecritures.filter(e => e.compte === '512').map(e => ({...e, rapproche:false}));

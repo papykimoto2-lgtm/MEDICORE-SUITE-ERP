@@ -557,15 +557,7 @@ const TODAY = new Date().toISOString().split('T')[0];
 let currentDate = TODAY;
 
 let interventions = [
-  { id:'OP-2025-0841', patient:'KONÉ Aminata — D205812', chirurgien:'Dr. TOURÉ Mamadou', acte:'HHFA025 — Appendicectomie cœlioscopie', salle:'Salle 1', date:TODAY, heure:'08:00', duree:90, anesth:'AG', anesthMed:'Dr. TRAORÉ', type:'Programmée', statut:'Terminée', obs:'Classe ASA II', dmi:'—' },
-  { id:'OP-2025-0842', patient:'TRAORÉ Moussa — D205814', chirurgien:'Dr. KONÉ Issa', acte:'NEKA010 — PTH cimentée droite', salle:'Salle 2', date:TODAY, heure:'09:30', duree:120, anesth:'Rachianesthésie', anesthMed:'Dr. SORO', type:'Programmée', statut:'En cours', obs:'ALD — anticoag. pré-op.', dmi:'Prothèse totale hanche cimentée' },
-  { id:'OP-2025-0843', patient:'DIALLO Fatoumata — D205820', chirurgien:'Dr. BAMBA Aïcha', acte:'JQQP002 — Césarienne', salle:'Salle 3', date:TODAY, heure:'11:00', duree:60, anesth:'Rachianesthésie', anesthMed:'Dr. YÉO', type:'Urgence', statut:'Programmée', obs:'Urgence obstétricale', dmi:'—' },
-  { id:'OP-2025-0844', patient:'OUATTARA Seydou — D205825', chirurgien:'Dr. COULIBALY Seydou', acte:'JDFA001 — Prostatectomie', salle:'Salle 1', date:TODAY, heure:'14:00', duree:150, anesth:'AG', anesthMed:'Dr. TRAORÉ', type:'Programmée', statut:'Programmée', obs:'', dmi:'—' },
-  { id:'OP-2025-0845', patient:'YÉO Mariame — D205830', chirurgien:'Dr. TOURÉ Mamadou', acte:'HGLA200 — Cholécystectomie cœlioscopie', salle:'Salle 5', date:TODAY, heure:'15:30', duree:75, anesth:'AG', anesthMed:'Dr. TRAORÉ', type:'Ambulatoire', statut:'Programmée', obs:'', dmi:'—' },
-  // Interventions historiques
-  { id:'OP-2025-0840', patient:'SORO Aïcha — D205800', chirurgien:'Dr. DIABATÉ Oumar', acte:'BFGA016 — Craniotomie décompressive', salle:'Salle 4', date:'2025-06-19', heure:'08:30', duree:240, anesth:'AG', anesthMed:'Dr. YÉO', type:'Urgence', statut:'Terminée', obs:'Traumatisme crânien grave', dmi:'Dérivation ventriculaire' },
-  { id:'OP-2025-0839', patient:'BAMBA Issouf — D205795', chirurgien:'Dr. KONÉ Issa', acte:'NEKA005 — Ostéosynthèse fémur', salle:'Salle 2', date:'2025-06-19', heure:'10:00', duree:110, anesth:'ALR', anesthMed:'Dr. SORO', type:'Urgence', statut:'Terminée', obs:'Fracture fermée', dmi:'Clou centromédullaire' },
-  { id:'OP-2025-0838', patient:'GNONSOA Marie — D205788', chirurgien:'Dr. BAMBA Aïcha', acte:'JNPA006 — Hystérectomie totale', salle:'Salle 3', date:'2025-06-18', heure:'09:00', duree:130, anesth:'AG', anesthMed:'Dr. TRAORÉ', type:'Programmée', statut:'Terminée', obs:'Fibrome utérin', dmi:'—' },
+  // (données démo supprimées)
 ];
 
 const SALLES = [
@@ -591,18 +583,11 @@ const ANESTH = [
 ];
 
 let dmi_registre = [
-  { date:TODAY, patient:'TRAORÉ Moussa', interv:'OP-2025-0842', dmi:'Prothèse totale hanche cimentée', fab:'Stryker', ref:'STR-HIP-001', lot:'LOT2025-DMI-041', serie:'SN-20250615-001', cout:480000 },
-  { date:'2025-06-19', patient:'BAMBA Issouf', interv:'OP-2025-0839', dmi:'Clou centromédullaire — fémur', fab:'Synthes', ref:'SYN-CMN-08', lot:'LOT2025-DMI-038', serie:'SN-20250619-002', cout:380000 },
-  { date:'2025-06-19', patient:'SORO Aïcha', interv:'OP-2025-0840', dmi:'Dérivation ventriculaire externe', fab:'Medtronic', ref:'MDT-VPD-100', lot:'LOT2025-DMI-040', serie:'SN-20250619-001', cout:920000 },
+  // (données démo supprimées)
 ];
 
 const CONSOMMABLES_BLOC = [
-  { desig:'Fils de suture résorbables Vicryl 2/0', ref:'VIC-2/0', stock:220, mini:100, statut:'OK' },
-  { desig:'Compresses stériles 10×10 (× 100)', ref:'COMP-100', stock:48, mini:50, statut:'Alerte' },
-  { desig:'Gants chirurgicaux stériles T7.5 (paires)', ref:'GANT-75', stock:0, mini:40, statut:'Rupture' },
-  { desig:'Draps de table stériles (sachets)', ref:'DRAP-ST', stock:85, mini:30, statut:'OK' },
-  { desig:'Seringues 10 mL (boîtes × 100)', ref:'SER-10', stock:22, mini:20, statut:'OK' },
-  { desig:'Cathéters veineux périphériques G18', ref:'CVP-18', stock:14, mini:30, statut:'Alerte' },
+  // (données démo supprimées)
 ];
 
 // Actes opératoires — nomenclature CNAM-CI (tarifs FCFA)
@@ -617,11 +602,7 @@ const CNAMCI_ACTES = [
 ];
 
 const STAT_SPEC = [
-  { spec:'Chirurgie générale', nb:28, couleur:'#1a4b6e' },
-  { spec:'Orthopédie', nb:18, couleur:'#c8702a' },
-  { spec:'Gynéco-Obstétrique', nb:32, couleur:'#1e7a4e' },
-  { spec:'Urologie', nb:12, couleur:'#6b21a8' },
-  { spec:'Neurochirurgie', nb:6, couleur:'#b92b2b' },
+  // (données démo supprimées)
 ];
 
 const OP_COLORS = {
@@ -796,12 +777,8 @@ function terminerOp(id){
 function openFicheOp(id){
   const op=interventions.find(x=>x.id===id);if(!op) return;
   const steps=[
-    {time:'J-1 veille',title:'Préparation pré-opératoire',detail:'Vérification dossier, bilan biologique, consentement signé, check-list OMS',color:'var(--accent)',done:true},
-    {time:op.heure,title:'Entrée salle — Anesthésie',detail:`${op.anesth} par ${op.anesthMed} · Vérification identité · Time-out OMS`,color:'var(--teal)',done:op.statut!=='Programmée'},
-    {time:'Incision',title:'Acte opératoire',detail:op.acte+' · '+op.chirurgien+(op.dmi&&op.dmi!=='—'?' · DMI : '+op.dmi:''),color:'var(--purple)',done:op.statut==='Terminée'||op.statut==='En cours'},
-    {time:'Fin intervention',title:'Réveil & Surveillance SSPI',detail:'Salle de soins post-interventionnelle — Score de Aldrete',color:'var(--green)',done:op.statut==='Terminée'},
-    {time:'H+2',title:'Retour en service',detail:'Compte rendu opératoire + prescriptions post-op transmis au service',color:'var(--accent2)',done:op.statut==='Terminée'},
-  ];
+  // (données démo supprimées)
+];
 
   const modal = document.createElement('div');
   modal.className='overlay open';
@@ -958,13 +935,8 @@ function renderStatistiques(){
     </div>`).join('');
 
   const indicateurs=[
-    {label:'Taux d\'occupation global des salles',val:'65%',cible:'≥ 70%',ok:false},
-    {label:'Taux d\'interventions débutant à l\'heure',val:'78%',cible:'≥ 80%',ok:false},
-    {label:'Taux d\'annulations le jour J',val:'4,2%',cible:'< 5%',ok:true},
-    {label:'Durée moyenne de nettoyage inter-opératoire',val:'18 min',cible:'< 20 min',ok:true},
-    {label:'Taux de complications per-opératoires',val:'1,1%',cible:'< 2%',ok:true},
-    {label:'Traçabilité DMI complète',val:'100%',cible:'100%',ok:true},
-  ];
+  // (données démo supprimées)
+];
   document.getElementById('stat-indicateurs').innerHTML=indicateurs.map(ind=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="font-size:13px">${ind.label}</div>

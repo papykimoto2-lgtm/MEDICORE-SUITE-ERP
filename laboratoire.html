@@ -488,22 +488,11 @@
 <script>
 // ── Données ────────────────────────────────────────────────────────────────────
 let demandes = [
-  { id:'BIO-2025-0841', dossier:'D205812', patient:'KONÉ Aminata', presc:'Dr. Bamba — Médecine', service:'Médecine générale', examens:'NFS, CRP, Glycémie, Créatinine', type:'Biochimie', heure:'08:15', priorite:'Normale', statut:'Validé', critique:false },
-  { id:'BIO-2025-0842', dossier:'D205814', patient:'TRAORÉ Moussa', presc:'Dr. Touré — Chirurgie', service:'Chirurgie', examens:'NFS, TP, TCA, Fibrinogène', type:'Coagulation', heure:'08:42', priorite:'Urgente', statut:'À valider', critique:false },
-  { id:'BIO-2025-0843', dossier:'D205820', patient:'OUATTARA Seydou', presc:'Dr. Coulibaly — Médecine', service:'Médecine générale', examens:'Ionogramme, Urée, Créatinine, Glucose', type:'Biochimie', heure:'09:05', priorite:'STAT', statut:'À valider', critique:true },
-  { id:'BIO-2025-0844', dossier:'D205825', patient:'DIALLO Fatoumata', presc:'Dr. Konan — Maternité', service:'Maternité', examens:'NFS, Groupe sanguin, RAI', type:'Hématologie', heure:'09:30', priorite:'Urgente', statut:'En analyse', critique:false },
-  { id:'BIO-2025-0845', dossier:'D205830', patient:'YÉO Mariame', presc:'Dr. Diabaté — Urgences', service:'Urgences', examens:'Hémoculture × 2, ECBU', type:'Bactériologie', heure:'10:12', priorite:'STAT', statut:'En analyse', critique:false },
-  { id:'BIO-2025-0846', dossier:'D205835', patient:'SORO Aïcha', presc:'Dr. Camara — Médecine', service:'Médecine générale', examens:'TSH, T3, T4 libre', type:'Immunologie', heure:'10:45', priorite:'Normale', statut:'Prélevé', critique:false },
-  { id:'BIO-2025-0847', dossier:'D205840', patient:'BAMBA Issouf', presc:'Dr. Gbagbo — Chirurgie', service:'Chirurgie', examens:'NFS, CRP, Procalcitonine', type:'Biochimie', heure:'11:20', priorite:'Urgente', statut:'En analyse', critique:false },
-  { id:'BIO-2025-0848', dossier:'D205845', patient:'GNONSOA Marie', presc:'Dr. Koné — Oncologie', service:'Consultation externe', examens:'NFS, Bilan hépatique complet', type:'Biochimie', heure:'11:55', priorite:'Normale', statut:'En attente prélèvement', critique:false },
-  { id:'BIO-2025-0849', dossier:'D205850', patient:'TOURÉ Kadiatou', presc:'Dr. Bamba — Médecine', service:'Médecine générale', examens:'ECBU, Antibiogramme', type:'Bactériologie', heure:'12:10', priorite:'Normale', statut:'Prélevé', critique:false },
-  { id:'BIO-2025-0850', dossier:'D205855', patient:'DIABATÉ Omar', presc:'Dr. Touré — Médecine', service:'Médecine générale', examens:'Sérologie VIH, Ag HBs, Ac VHC', type:'Immunologie', heure:'13:00', priorite:'Normale', statut:'Validé', critique:false },
+  // (données démo supprimées)
 ];
 
 const CRITIQUES = [
-  { heure:'09:05', patient:'OUATTARA Seydou — D205820', service:'Médecine', examen:'Kaliémie (K+)', resultat:'6,8 mmol/L', reference:'3,5–5,0 mmol/L', criticite:'Critique haute', presc:'Dr. Coulibaly', notif:'Non notifié' },
-  { heure:'08:42', patient:'TRAORÉ Moussa — D205814', service:'Chirurgie', examen:'TP (%)', resultat:'18%', reference:'70–100%', criticite:'Critique basse', presc:'Dr. Touré', notif:'Notifié 08:55' },
-  { heure:'10:12', patient:'YÉO Mariame — D205830', service:'Urgences', examen:'Hémoglobine', resultat:'4,2 g/dL', reference:'11,5–16,5 g/dL', criticite:'Critique basse', presc:'Dr. Diabaté', notif:'Notifié 10:28' },
+  // (données démo supprimées)
 ];
 
 const AUTOMATES = [
@@ -516,11 +505,7 @@ const AUTOMATES = [
 ];
 
 const WORKLIST = [
-  { tube:'TUB-2025-0841-A', patient:'KONÉ Aminata', examens:'NFS', automate:'Sysmex XN-1000', heure:'09:10', progression:100, statut:'Terminé' },
-  { tube:'TUB-2025-0842-A', patient:'TRAORÉ Moussa', examens:'TP, TCA', automate:'STA-R Max', heure:'09:25', progression:0, statut:'En attente' },
-  { tube:'TUB-2025-0843-A', patient:'OUATTARA Seydou', examens:'Ionogramme, Urée', automate:'Beckman AU480', heure:'09:35', progression:75, statut:'En cours' },
-  { tube:'TUB-2025-0844-A', patient:'DIALLO Fatoumata', examens:'NFS', automate:'Sysmex XN-1000', heure:'10:00', progression:60, statut:'En cours' },
-  { tube:'TUB-2025-0847-A', patient:'BAMBA Issouf', examens:'CRP, Procalcitonine', automate:'Beckman AU480', heure:'11:30', progression:30, statut:'En cours' },
+  // (données démo supprimées)
 ];
 
 // Nomenclature CNAM-CI (Caisse Nationale d'Assurance Maladie — Côte d'Ivoire)
@@ -537,17 +522,11 @@ const CNAMCI_ACTES = [
 ];
 
 const NON_CONFORMITES = [
-  { date:'2025-06-10', type:'CQI', automate:'STA-R Max', description:'Règle 1-2s violée sur contrôle niveau 2', regle:'Règle de Westgard 1-2s', action:'Recalibration effectuée', statut:'Clôturée' },
-  { date:'2025-06-14', type:'Pré-analytique', automate:'—', description:'Tube hémolysé — ionogramme OUATTARA', regle:'Critères acceptabilité', action:'Nouveau prélèvement demandé', statut:'Clôturée' },
-  { date:'2025-06-20', type:'CQI', automate:'Beckman AU480', description:'Règle 2-2s sur Glucose — dérive observée', regle:'Règle de Westgard 2-2s', action:'En cours d\'investigation', statut:'En cours' },
+  // (données démo supprimées)
 ];
 
 const DOCUMENTS = [
-  { doc:'MO-BIO-001 — Mode opératoire NFS', version:'v3.2', date:'2025-03-15', statut:'En vigueur' },
-  { doc:'MO-BIO-002 — Procédure hémocultures', version:'v2.1', date:'2025-01-10', statut:'En vigueur' },
-  { doc:'MO-BIO-003 — Contrôle qualité Biochimie', version:'v4.0', date:'2025-05-20', statut:'En vigueur' },
-  { doc:'PROC-PRE-001 — Conditions de prélèvement', version:'v2.5', date:'2024-12-01', statut:'À réviser' },
-  { doc:'MO-BACT-001 — Antibiogramme VITEK 2', version:'v1.8', date:'2025-04-12', statut:'En vigueur' },
+  // (données démo supprimées)
 ];
 
 const AUDIT_TRAIL = [
@@ -804,12 +783,8 @@ function renderLJ(){
   const H=60;
   const getY=v=>H-((v-minY)/rangeY*H);
   const lines=[
-    {y:getY(target+3*sd),color:'#b92b2b',dash:'4,2',label:'+3s'},
-    {y:getY(target+2*sd),color:'#b05b00',dash:'3,2',label:'+2s'},
-    {y:getY(target),color:'#1e7a4e',dash:'2,2',label:'X̄'},
-    {y:getY(target-2*sd),color:'#b05b00',dash:'3,2',label:'-2s'},
-    {y:getY(target-3*sd),color:'#b92b2b',dash:'4,2',label:'-3s'},
-  ];
+  // (données démo supprimées)
+];
   const svgLines=lines.map(l=>`<line x1="0" y1="${l.y}" x2="${W}" y2="${l.y}" stroke="${l.color}" stroke-width=".4" stroke-dasharray="${l.dash}"/><text x="${W+1}" y="${l.y+1}" font-size="2.5" fill="${l.color}" font-family="DM Sans">${l.label}</text>`).join('');
   const svgPath=`<polyline points="${points.map((p,i)=>`${i/(points.length-1)*W},${getY(p.y)}`).join(' ')}" fill="none" stroke="var(--accent)" stroke-width=".8"/>`;
   const svgDots=points.map((p,i)=>`<circle cx="${i/(points.length-1)*W}" cy="${getY(p.y)}" r="${p.warn?1.8:1.2}" fill="${p.warn?'var(--red)':'var(--accent)'}"/>`).join('');
@@ -882,13 +857,8 @@ function renderFacturation(){
 // ── Qualité & Accréditation ────────────────────────────────────────────────────
 function renderQualite(){
   const indicateurs=[
-    {label:'Taux de résultats dans les délais',val:'94,2%',target:'≥ 90%',ok:true},
-    {label:'Taux d\'échantillons non conformes',val:'1,8%',target:'< 3%',ok:true},
-    {label:'Taux de valeurs critiques notifiées < 30 min',val:'87%',target:'≥ 95%',ok:false},
-    {label:'Taux de participation EEQ',val:'100%',target:'100%',ok:true},
-    {label:'Nombre de NC/mois (CQI)',val:NON_CONFORMITES.length,target:'< 5',ok:NON_CONFORMITES.length<5},
-    {label:'Délai moyen rendu résultats urgents',val:'2h 18min',target:'< 2h',ok:false},
-  ];
+  // (données démo supprimées)
+];
   document.getElementById('qualite-indicateurs').innerHTML=indicateurs.map(ind=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="font-size:13px">${ind.label}</div>

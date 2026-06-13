@@ -615,40 +615,17 @@ const CHARGES_INDIRECTES = [
 
 // Imputations analytiques
 let imputations = [
-  { date:'2025-04-01', piece:'BS-042025', compte:'901', section:'MED', nature:'Personnel',     libelle:'Salaires médecins — Médecine — avril', debit:8200000, credit:0 },
-  { date:'2025-04-01', piece:'BS-042025', compte:'901', section:'CHI', nature:'Personnel',     libelle:'Salaires chirurgiens — avril',          debit:14500000, credit:0 },
-  { date:'2025-04-01', piece:'BS-042025', compte:'901', section:'MAT', nature:'Personnel',     libelle:'Salaires sages-femmes — avril',         debit:5100000, credit:0 },
-  { date:'2025-04-05', piece:'FA-PHA-01', compte:'902', section:'PHA', nature:'Médicaments',   libelle:'Achat médicaments — Laborex CI avril',      debit:6800000, credit:0 },
-  { date:'2025-04-05', piece:'FA-LAB-01', compte:'902', section:'LAB', nature:'Médicaments',   libelle:'Réactifs laboratoire — avril',          debit:3400000, credit:0 },
-  { date:'2025-04-10', piece:'REC-0401',  compte:'971', section:'MED', nature:'Produits soins',libelle:'Recettes hospitalisation — Médecine',    debit:0, credit:17800000 },
-  { date:'2025-04-10', piece:'REC-0401',  compte:'971', section:'CHI', nature:'Produits soins',libelle:'Recettes hospitalisation — Chirurgie',   debit:0, credit:32400000 },
-  { date:'2025-04-15', piece:'FA-FCT-01', compte:'903', section:'CHI', nature:'Fonctionnement',libelle:'Consommables bloc opératoire',           debit:4200000, credit:0 },
-  { date:'2025-04-20', piece:'ODA-0401',  compte:'905', section:'CHI', nature:'Amortissements',libelle:'Amort. équipements chirurgicaux',        debit:2800000, credit:0 },
-  { date:'2025-05-01', piece:'BS-052025', compte:'901', section:'MED', nature:'Personnel',     libelle:'Salaires médecins — mai',               debit:8200000, credit:0 },
-  { date:'2025-05-01', piece:'BS-052025', compte:'901', section:'CHI', nature:'Personnel',     libelle:'Salaires chirurgiens — mai',            debit:14500000, credit:0 },
-  { date:'2025-05-10', piece:'REC-0501',  compte:'972', section:'MED', nature:'Produits consul.',libelle:'Recettes consultations — mai',         debit:0, credit:9200000 },
-  { date:'2025-05-10', piece:'REC-0501',  compte:'973', section:'PHA', nature:'Produits consul.',libelle:'Recettes rétrocession — mai',          debit:0, credit:10500000 },
-  { date:'2025-06-01', piece:'BS-062025', compte:'901', section:'URG', nature:'Personnel',     libelle:'Salaires personnel urgences — juin',    debit:5100000, credit:0 },
-  { date:'2025-06-05', piece:'FA-URG-01', compte:'903', section:'URG', nature:'Fonctionnement',libelle:'Consommables urgences — juin',           debit:1800000, credit:0 },
+  // (données démo supprimées)
 ];
 
 // Actes consultations/labo
 const ACTES = [
-  { activite:'Consultation médecine',    actes:1240, coutTotal:6820000,  tarif:8000  },
-  { activite:'Consultation spécialisée', actes:820,  coutTotal:7380000,  tarif:12000 },
-  { activite:'Consultation urgences',    actes:1560, coutTotal:9360000,  tarif:7500  },
-  { activite:'Analyse biologique std.',  actes:3200, coutTotal:9600000,  tarif:4500  },
-  { activite:'Bactériologie',            actes:480,  coutTotal:5280000,  tarif:15000 },
-  { activite:'Imagerie (écho)',          actes:360,  coutTotal:7200000,  tarif:25000 },
+  // (données démo supprimées)
 ];
 
 // Natures de charges pour Chirurgie
 const NATURES_CHI = [
-  { nature:'Personnel médical',    montant:28600000, color:'#1a4b6e' },
-  { nature:'Médicaments/Consomm.', montant:18400000, color:'#c8702a' },
-  { nature:'Amortissements',       montant:12200000, color:'#6b21a8' },
-  { nature:'Charges indirectes',   montant:16400000, color:'#0f766e' },
-  { nature:'Fonctionnement',       montant:10600000, color:'#b92b2b' },
+  // (données démo supprimées)
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -854,17 +831,8 @@ function renderImputations() {
 function renderResultat() {
   const d = getData();
   const RUBRIQUES = [
-    { label:'+ Produits des soins',      key:'produits', factor:0.7, style:'color:var(--green);font-weight:600' },
-    { label:'+ Produits consultations',  key:'produits', factor:0.2, style:'color:var(--green)' },
-    { label:'+ Autres produits',         key:'produits', factor:0.1, style:'color:var(--green)' },
-    { label:'= TOTAL PRODUITS',          key:'produits', factor:1,   style:'font-weight:700;border-top:2px solid var(--border)' },
-    { label:'— Charges de personnel',    key:'charges',  factor:0.55, style:'color:var(--red)' },
-    { label:'— Médicaments & réactifs',  key:'charges',  factor:0.20, style:'color:var(--red)' },
-    { label:'— Charges indirectes',      key:'charges',  factor:0.15, style:'color:var(--red)' },
-    { label:'— Amortissements',          key:'charges',  factor:0.10, style:'color:var(--red)' },
-    { label:'= TOTAL CHARGES',           key:'charges',  factor:1,    style:'font-weight:700;border-top:2px solid var(--border)' },
-    { label:'= RÉSULTAT ANALYTIQUE',     key:'resultat', factor:1,    style:'font-weight:800;font-size:13.5px;border-top:3px solid var(--accent);color:var(--accent)' },
-  ];
+  // (données démo supprimées)
+];
 
   let totP=0, totC=0;
   SECTIONS.forEach(s=>{ totP+=d[s.code].produits; totC+=d[s.code].charges; });

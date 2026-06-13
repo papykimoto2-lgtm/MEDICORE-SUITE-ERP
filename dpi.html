@@ -565,14 +565,7 @@ function ippFromDossier(id){ return 'IPP-'+String(id).replace(/\D/g,'').slice(-6
 
 // ── Données patients ──────────────────────────────────────────────────────────
 let patients = [
-  { id:'D205812', nom:'KONÉ Aminata',      ddn:'1985-04-12', sexe:'F', service:'Médecine générale', type:'Hospitalisé', lit:'101-A', medecin:'Dr. COULIBALY Seydou', entree:TODAY,      sortie:'', assurance:'CNAM',    allergies:'Aucune', motif:'Insuffisance rénale chronique décompensée', statut:'Actif' },
-  { id:'D205814', nom:'TRAORÉ Moussa',     ddn:'1962-08-23', sexe:'M', service:'Chirurgie',         type:'Hospitalisé', lit:'204-B', medecin:'Dr. TOURÉ Mamadou',    entree:TODAY,      sortie:'', assurance:'Mutuelle', allergies:'Pénicilline', motif:'Prothèse totale hanche droite', statut:'Actif' },
-  { id:'D205820', nom:'DIALLO Fatoumata',  ddn:'1996-01-30', sexe:'F', service:'Maternité',         type:'Hospitalisé', lit:'301-C', medecin:'Dr. BAMBA Aïcha',     entree:TODAY,      sortie:'', assurance:'CNAM',    allergies:'', motif:'Grossesse 38 SA — César programmée', statut:'Actif' },
-  { id:'D205825', nom:'OUATTARA Seydou',   ddn:'1978-11-05', sexe:'M', service:'Urgences',          type:'Urgences',    lit:'URG-02',medecin:'Dr. DIABATÉ Oumar',   entree:TODAY,      sortie:'', assurance:'Aucune',  allergies:'Aspirine', motif:'Polytraumatisme AVP — GCS 14', statut:'Actif' },
-  { id:'D205830', nom:'YÉO Mariame',       ddn:'1990-07-18', sexe:'F', service:'Chirurgie',         type:'Ambulatoire', lit:'AMBU-1',medecin:'Dr. TOURÉ Mamadou',   entree:TODAY,      sortie:'', assurance:'Privée',  allergies:'', motif:'Cholécystectomie cœlioscopie programmée', statut:'Actif' },
-  { id:'D205835', nom:'SORO Aïcha',        ddn:'2001-03-22', sexe:'F', service:'Médecine générale', type:'Consultation',lit:'CONS-3',medecin:'Dr. COULIBALY Seydou', entree:TODAY,      sortie:'', assurance:'CNAM',    allergies:'', motif:'Diabète type 2 — suivi trimestriel', statut:'Actif' },
-  { id:'D205788', nom:'GNONSOA Marie',     ddn:'1972-09-14', sexe:'F', service:'Médecine générale', type:'Sorti',       lit:'',      medecin:'Dr. COULIBALY Seydou', entree:'2025-06-10',sortie:'2025-06-16', assurance:'CNAM', allergies:'', motif:'Pneumonie communautaire', statut:'Sorti' },
-  { id:'D205795', nom:'BAMBA Issouf',      ddn:'1955-12-01', sexe:'M', service:'Chirurgie',         type:'Sorti',       lit:'',      medecin:'Dr. TOURÉ Mamadou',   entree:'2025-06-12',sortie:'2025-06-19', assurance:'Mutuelle', allergies:'', motif:'Fracture fémur — traitement chirurgical', statut:'Sorti' },
+  // (données démo supprimées)
 ];
 window.patients = patients; // exposé pour le suivi "patient actif" (nav.js / QR)
 

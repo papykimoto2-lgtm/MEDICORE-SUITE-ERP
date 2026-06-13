@@ -577,26 +577,11 @@
 <script>
 // ── Données personnel ──────────────────────────────────────────────────────────
 let personnel = [
-  { mat:'MED-001', nom:'TOURÉ Mamadou',    cat:'Médical',     fonction:'Médecin spécialiste',   service:'Chirurgie',         contrat:'CDI',  entree:'2018-03-01', finContrat:'', salaire:850000, indem:150000, cnps:'CI-CNPS-001234', statut:'Actif' },
-  { mat:'MED-002', nom:'BAMBA Aïcha',      cat:'Médical',     fonction:'Médecin spécialiste',   service:'Maternité',         contrat:'CDI',  entree:'2019-06-15', finContrat:'', salaire:820000, indem:120000, cnps:'CI-CNPS-001235', statut:'Actif' },
-  { mat:'MED-003', nom:'COULIBALY Seydou', cat:'Médical',     fonction:'Médecin spécialiste',   service:'Médecine générale', contrat:'CDI',  entree:'2020-01-10', finContrat:'', salaire:810000, indem:120000, cnps:'CI-CNPS-001236', statut:'Congé' },
-  { mat:'MED-004', nom:'DIABATÉ Oumar',    cat:'Médical',     fonction:'Médecin spécialiste',   service:'Chirurgie',         contrat:'CDI',  entree:'2017-09-01', finContrat:'', salaire:870000, indem:180000, cnps:'CI-CNPS-001237', statut:'Actif' },
-  { mat:'PAR-001', nom:'KONÉ Mariam',      cat:'Paramédical', fonction:'Infirmier(ère) diplômé(e)', service:'Médecine générale', contrat:'CDI', entree:'2021-04-01', finContrat:'', salaire:420000, indem:60000,  cnps:'CI-CNPS-002001', statut:'Actif' },
-  { mat:'PAR-002', nom:'SORO Awa',         cat:'Paramédical', fonction:'Sage-femme',            service:'Maternité',         contrat:'CDI',  entree:'2020-07-01', finContrat:'', salaire:440000, indem:70000,  cnps:'CI-CNPS-002002', statut:'Actif' },
-  { mat:'PAR-003', nom:'DOSSO Ramatou',    cat:'Paramédical', fonction:'Laborantin',            service:'Laboratoire',       contrat:'CDI',  entree:'2022-02-14', finContrat:'', salaire:380000, indem:50000,  cnps:'CI-CNPS-002003', statut:'Actif' },
-  { mat:'PAR-004', nom:'YÉO Koffi',        cat:'Paramédical', fonction:'Technicien biomédical', service:'Maintenance',       contrat:'CDD',  entree:'2024-01-01', finContrat:'2025-08-15', salaire:320000, indem:40000, cnps:'CI-CNPS-002004', statut:'Actif' },
-  { mat:'ADM-001', nom:'GNONSOA Paul',     cat:'Non-médical', fonction:'Administratif',         service:'Administration',    contrat:'CDI',  entree:'2016-05-01', finContrat:'', salaire:280000, indem:30000,  cnps:'CI-CNPS-003001', statut:'Actif' },
-  { mat:'ADM-002', nom:'TRAORÉ Fatouma',   cat:'Non-médical', fonction:'Cuisinier',             service:'Restauration',      contrat:'CDI',  entree:'2019-03-01', finContrat:'', salaire:220000, indem:20000,  cnps:'CI-CNPS-003002', statut:'Actif' },
-  { mat:'ADM-003', nom:'OUATTARA Salimata',cat:'Non-médical', fonction:'Agent d\'entretien',    service:'Entretien',         contrat:'CDI',  entree:'2020-11-01', finContrat:'', salaire:200000, indem:15000,  cnps:'CI-CNPS-003003', statut:'Maladie' },
-  { mat:'MED-005', nom:'KONAN Adjoua',     cat:'Médical',     fonction:'Pharmacien(ne)',        service:'Pharmacie',         contrat:'CDI',  entree:'2021-08-01', finContrat:'', salaire:780000, indem:100000, cnps:'CI-CNPS-001238', statut:'Actif' },
+  // (données démo supprimées)
 ];
 
 let congesDemandes = [
-  { id:'CG-001', agent:'MED-003', nom:'COULIBALY Seydou', service:'Médecine générale', type:'Annuel',   debut:'2025-06-10', fin:'2025-06-24', jours:11, soldeAvant:22, statut:'Validé' },
-  { id:'CG-002', agent:'ADM-003', nom:'OUATTARA Salimata', service:'Entretien',       type:'Maladie',  debut:'2025-06-12', fin:'2025-06-28', jours:13, soldeAvant:18, statut:'Validé' },
-  { id:'CG-003', agent:'PAR-001', nom:'KONÉ Mariam',       service:'Médecine',        type:'Annuel',   debut:'2025-07-01', fin:'2025-07-14', jours:10, soldeAvant:15, statut:'En attente' },
-  { id:'CG-004', agent:'PAR-002', nom:'SORO Awa',          service:'Maternité',       type:'Maternité',debut:'2025-07-15', fin:'2025-10-14', jours:92, soldeAvant:8,  statut:'En attente' },
-  { id:'CG-005', agent:'MED-001', nom:'TOURÉ Mamadou',     service:'Chirurgie',       type:'Formation',debut:'2025-06-25', fin:'2025-06-27', jours:3,  soldeAvant:28, statut:'Refusé' },
+  // (données démo supprimées)
 ];
 
 const FORMATIONS = [
@@ -615,10 +600,7 @@ const DIPLOMES = [
 ];
 
 const CNPS_HISTORIQUE = [
-  { periode:'Mai 2025',   brut:6270000, patron:802560,  salarie:395010, total:1197570, versement:'2025-06-10', statut:'Versé' },
-  { periode:'Avril 2025', brut:6270000, patron:802560,  salarie:395010, total:1197570, versement:'2025-05-09', statut:'Versé' },
-  { periode:'Mars 2025',  brut:6120000, patron:783360,  salarie:385560, total:1168920, versement:'2025-04-08', statut:'Versé' },
-  { periode:'Juin 2025',  brut:6420000, patron:821760,  salarie:404460, total:1226220, versement:'',           statut:'À déclarer' },
+  // (données démo supprimées)
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

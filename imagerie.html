@@ -599,35 +599,11 @@ let currentCRId = null;
 
 // ── Données ────────────────────────────────────────────────────────────────────
 let demandes = [
-  { id:'IMG-2025-0141', patient:'OUATTARA Seydou — D205825', presc:'Dr. DIABATÉ Oumar',   type:'Scanner',     examen:'TDM thorax-abdomen-pelvis avec PDC',     equip:'Scanner', priorite:'STAT',    date:TODAY+' 08:30', statut:'CR à rédiger', ccam:'ZBQK002' },
-  { id:'IMG-2025-0142', patient:'TRAORÉ Moussa — D205814',   presc:'Dr. TOURÉ Mamadou',   type:'Radiologie',  examen:'Radiographie thorax face et profil',     equip:'Radio 1', priorite:'Normale',  date:TODAY+' 09:00', statut:'Transmis',     ccam:'ZBQK001' },
-  { id:'IMG-2025-0143', patient:'KONÉ Aminata — D205812',    presc:'Dr. COULIBALY Seydou',type:'Échographie', examen:'Écho abdominale complète',               equip:'Echo 1',  priorite:'Urgente', date:TODAY+' 09:45', statut:'En cours',     ccam:'ZCQM001' },
-  { id:'IMG-2025-0144', patient:'DIALLO Fatoumata — D205820',presc:'Dr. BAMBA Aïcha',     type:'Échographie', examen:'Écho obstétricale 3e trimestre',         equip:'Echo 1',  priorite:'Normale',  date:TODAY+' 10:30', statut:'En attente',   ccam:'ZCQM002' },
-  { id:'IMG-2025-0145', patient:'YÉO Mariame — D205830',     presc:'Dr. TOURÉ Mamadou',   type:'Radiologie',  examen:'Radiographie abdomen sans préparation',  equip:'Radio 1', priorite:'Normale',  date:TODAY+' 11:00', statut:'En attente',   ccam:'ZBQK003' },
-  { id:'IMG-2025-0146', patient:'SORO Aïcha — D205835',      presc:'Dr. COULIBALY Seydou',type:'IRM',         examen:'IRM cérébrale sans et avec injection',   equip:'IRM',     priorite:'Urgente', date:TODAY+' 14:00', statut:'En attente',   ccam:'CBQK001' },
-  { id:'IMG-2025-0138', patient:'GNONSOA Marie — D205788',   presc:'Dr. BAMBA Aïcha',     type:'Mammographie',examen:'Mammographie bilatérale + écho sein',    equip:'Mammo',   priorite:'Normale',  date:'2025-06-18 09:00', statut:'Transmis', ccam:'QEQE001' },
-  { id:'IMG-2025-0139', patient:'BAMBA Issouf — D205795',    presc:'Dr. TOURÉ Mamadou',   type:'Radiologie',  examen:'Radiographie fémur face et profil',      equip:'Radio 1', priorite:'Urgente', date:'2025-06-19 08:00', statut:'Transmis', ccam:'ZBQK004' },
+  // (données démo supprimées)
 ];
 
 const CR_DATA = [
-  {
-    id:'CR-2025-0141', demId:'IMG-2025-0141', patient:'OUATTARA Seydou',
-    type:'Scanner', examen:'TDM thorax-abdomen-pelvis',
-    radio:'Dr. MENSAH Eric', date:TODAY,
-    technique:'Examen TDM thorax-abdomen-pelvis réalisé sans puis avec injection intraveineuse de produit de contraste iodé (80 mL Iohexol 350). Coupes de 2,5 mm. Reconstructions multiplanaires.',
-    description:'THORAX : Parenchyme pulmonaire sans anomalie focale. Pas d\'épanchement pleural. Médiastin de morphologie habituelle. Pas d\'adénopathie médiastinale.\nABDOMEN : Foie de taille normale, homogène. Voies biliaires non dilatées. Vésicule biliaire sans calcul. Rate et pancréas normaux. Reins symétriques sans anomalie. Pas d\'adénopathie rétropéritonéale.\nPELVIS : Pas d\'anomalie décelée.',
-    conclusion:'Absence d\'anomalie visible au TDM thoraco-abdomino-pelvien avec injection. Pas de lésion en rapport avec le contexte clinique.',
-    statut:'Validé',
-  },
-  {
-    id:'CR-2025-0142', demId:'IMG-2025-0142', patient:'TRAORÉ Moussa',
-    type:'Radiologie', examen:'Radiographie thorax F+P',
-    radio:'Dr. ASSOUMOU Claire', date:TODAY,
-    technique:'Clichés thoraciques de face et de profil en inspiration.',
-    description:'Champs pulmonaires clairs et bien aérés. Pas de syndrome alvéolaire ni interstitiel. Silhouette cardiaque de taille normale. Coupoles diaphragmatiques régulières. Pas d\'épanchement pleural.',
-    conclusion:'Examen radiographique thoracique normal.',
-    statut:'Transmis',
-  },
+  // (données démo supprimées)
 ];
 
 const EQUIPEMENTS = [
@@ -642,11 +618,7 @@ const EQUIPEMENTS = [
 ];
 
 const MAINTENANCE_HIST = [
-  { equip:'Scanner (TDM)',        type:'Maintenance préventive',       date:'2025-05-15', prochaine:'2025-10-01', tech:'Siemens Healthineers CI', statut:'Effectuée' },
-  { equip:'IRM 3T',               type:'Calibration magnétique',       date:'2025-04-20', prochaine:'2025-11-15', tech:'Philips Medical CI',      statut:'Effectuée' },
-  { equip:'Échographie — Salle 2',type:'Réparation sonde',             date:'2025-06-20', prochaine:'2025-07-01', tech:'GE Healthcare',            statut:'En cours' },
-  { equip:'Radiologie — Salle 1', type:'Contrôle dosimétrique',        date:'2025-03-10', prochaine:'2025-09-01', tech:'AIEA / CRIIRAD',           statut:'Planifiée' },
-  { equip:'Mammographe',          type:'Contrôle qualité mensuel',     date:'2025-06-01', prochaine:'2025-07-01', tech:'Hologic service',          statut:'Planifiée' },
+  // (données démo supprimées)
 ];
 
 // Nomenclature CNAM-CI imagerie — tarifs FCFA (pas de cotation CCAM France)

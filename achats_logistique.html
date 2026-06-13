@@ -609,33 +609,19 @@
 const TODAY = new Date().toISOString().split('T')[0];
 
 let bonCommandes = [
-  { id:'BC-2025-0081', date:'2025-06-02', fourn:'Laborex CI', objet:'Médicaments essentiels — lot juin', compte:'602', service:'Pharmacie PUI', montant:18400000, statut:'Soldé', urgence:'Normale', marche:'MC-2025-001' },
-  { id:'BC-2025-0082', date:'2025-06-05', fourn:'Beckman Coulter', objet:'Réactifs laboratoire — automate AU480', compte:'602', service:'Laboratoire', montant:6200000, statut:'Reçu partiel', urgence:'Normale', marche:'MC-2025-002' },
-  { id:'BC-2025-0083', date:'2025-06-10', fourn:'Bureau Plus CI', objet:'Fournitures de bureau T2 2025', compte:'606', service:'Administration', montant:840000, statut:'Validé', urgence:'Normale', marche:'' },
-  { id:'BC-2025-0084', date:'2025-06-12', fourn:'GE Healthcare', objet:'Maintenance préventive échographe', compte:'604', service:'Maternité', montant:2400000, statut:'Envoyé', urgence:'Normale', marche:'MC-2025-003' },
-  { id:'BC-2025-0085', date:'2025-06-15', fourn:'CAMEG', objet:'Médicaments génériques urgents', compte:'602', service:'Pharmacie PUI', montant:9100000, statut:'Validé', urgence:'Urgente', marche:'MC-2025-001' },
-  { id:'BC-2025-0086', date:'2025-06-18', fourn:'Sanofi CI', objet:'Vaccins et sérums', compte:'602', service:'Pharmacie PUI', montant:4800000, statut:'En attente visa', urgence:'Normale', marche:'' },
-  { id:'BC-2025-0087', date:'2025-06-20', fourn:'CIE / SODECI', objet:'Abonnement eau & électricité T3', compte:'606', service:'Administration', montant:3200000, statut:'Brouillon', urgence:'Normale', marche:'' },
+  // (données démo supprimées)
 ];
 
 let receptions = [
-  { id:'BR-2025-0061', date:'2025-06-04', bcLie:'BC-2025-0081', fourn:'Laborex CI', articles:'Médicaments essentiels (42 références)', montant:18400000, qteCmd:100, qteRec:100, qualite:'Conforme', statut:'Conforme', obs:'' },
-  { id:'BR-2025-0062', date:'2025-06-08', bcLie:'BC-2025-0082', fourn:'Beckman Coulter', articles:'Réactifs laboratoire (8 références)', montant:3900000, qteCmd:24, qteRec:18, qualite:'Conforme', statut:'Partiel', obs:'6 réactifs manquants — complément prévu 25/06' },
-  { id:'BR-2025-0063', date:'2025-06-11', bcLie:'BC-2025-0083', fourn:'Bureau Plus CI', articles:'Fournitures bureautique', montant:840000, qteCmd:1, qteRec:1, qualite:'Non conforme', statut:'Litige', obs:'Ramettes papier A4 — qualité inférieure au cahier des charges' },
-  { id:'BR-2025-0064', date:'2025-06-17', bcLie:'BC-2025-0084', fourn:'GE Healthcare', articles:'Maintenance échographe portable', montant:2400000, qteCmd:1, qteRec:1, qualite:'Conforme', statut:'Conforme', obs:'Rapport d\'intervention remis' },
+  // (données démo supprimées)
 ];
 
 const MARCHES = [
-  { id:'MC-2025-001', objet:'Fourniture médicaments essentiels', fourn:'Laborex CI', type:'Appel d\'offres', debut:'2025-01-01', fin:'2025-12-31', montant:180000000, exec:42, statut:'Actif' },
-  { id:'MC-2025-002', objet:'Réactifs et consommables laboratoire', fourn:'Beckman Coulter', type:'Appel d\'offres', debut:'2025-01-01', fin:'2025-12-31', montant:48000000, exec:31, statut:'Actif' },
-  { id:'MC-2025-003', objet:'Maintenance équipements biomédicaux', fourn:'GE Healthcare', type:'Entente directe', debut:'2025-03-01', fin:'2026-02-28', montant:24000000, exec:28, statut:'Actif' },
-  { id:'MC-2024-008', objet:'Fournitures de bureau annuelles', fourn:'Bureau Plus CI', type:'Consultation restreinte', debut:'2024-07-01', fin:'2025-06-30', montant:8400000, exec:94, statut:'À renouveler' },
-  { id:'MC-2025-004', objet:'Prestations de nettoyage et entretien', fourn:'Clean Service CI', type:'Appel d\'offres', debut:'2025-02-01', fin:'2026-01-31', montant:36000000, exec:37, statut:'Actif' },
+  // (données démo supprimées)
 ];
 
 const AO_LIST = [
-  { id:'AO-2025-001', objet:'Fourniture gaz médicaux (O2, N2O)', date:'2025-05-15', limite:'2025-07-01', offres:3, seuil:12000000, phase:'Dépouillement' },
-  { id:'AO-2025-002', objet:'Acquisition ambulance médicalisée', date:'2025-06-01', limite:'2025-07-15', offres:2, seuil:35000000, phase:'Réception offres' },
+  // (données démo supprimées)
 ];
 
 let fournisseurs = [
@@ -648,22 +634,11 @@ let fournisseurs = [
 ];
 
 let stocksMagasin = [
-  { ref:'BUR-001', desig:'Ramettes papier A4 (× 500 feuilles)', cat:'Bureautique', magasin:'Magasin central', stock:48, mini:20, maxi:150, pmp:4500 },
-  { ref:'BUR-002', desig:'Stylos bille bleu (boîtes × 50)', cat:'Bureautique', magasin:'Magasin central', stock:8, mini:10, maxi:50, pmp:3200 },
-  { ref:'ALI-001', desig:'Sacs de riz 50 kg (restauration)', cat:'Alimentaire', magasin:'Magasin restauration', stock:24, mini:10, maxi:60, pmp:22000 },
-  { ref:'ALI-002', desig:'Huile végétale 5 L (bidons)', cat:'Alimentaire', magasin:'Magasin restauration', stock:36, mini:20, maxi:80, pmp:4800 },
-  { ref:'ENT-001', desig:'Produits désinfectants sol (bidons 5L)', cat:'Entretien', magasin:'Magasin entretien', stock:18, mini:15, maxi:60, pmp:8500 },
-  { ref:'ENT-002', desig:'Gants ménagers (paires)', cat:'Entretien', magasin:'Magasin entretien', stock:4, mini:30, maxi:100, pmp:1200 },
-  { ref:'MAI-001', desig:'Ampoules LED 18W (unités)', cat:'Maintenance', magasin:'Magasin technique', stock:65, mini:20, maxi:100, pmp:3500 },
-  { ref:'LIN-001', desig:'Draps blancs 160×240 (pièces)', cat:'Linge', magasin:'Blanchisserie', stock:142, mini:80, maxi:300, pmp:6200 },
+  // (données démo supprimées)
 ];
 
 const TRANSPORTS = [
-  { id:'LIV-2025-041', fourn:'Laborex CI', objet:'Médicaments essentiels BC-0081', prevue:'2025-06-04', reelle:'2025-06-04', transp:'Transport propre', dest:'Pharmacie PUI', statut:'Livré' },
-  { id:'LIV-2025-042', fourn:'Beckman Coulter', objet:'Réactifs laboratoire BC-0082', prevue:'2025-06-07', reelle:'2025-06-08', transp:'DHL Express', dest:'Laboratoire', statut:'Livré partiel' },
-  { id:'LIV-2025-043', fourn:'GE Healthcare', objet:'Technicien maintenance BC-0084', prevue:'2025-06-16', reelle:'2025-06-17', transp:'Déplacement technicien', dest:'Maternité', statut:'Livré' },
-  { id:'LIV-2025-044', fourn:'CAMEG', objet:'Médicaments urgents BC-0085', prevue:TODAY, reelle:'', transp:'Transport propre CAMEG', dest:'Pharmacie PUI', statut:'Attendu' },
-  { id:'LIV-2025-045', fourn:'Sanofi CI', objet:'Vaccins BC-0086', prevue:'2025-06-28', reelle:'', transp:'Chaîne du froid', dest:'Pharmacie PUI', statut:'Planifié' },
+  // (données démo supprimées)
 ];
 
 // ── Journal d'audit Achats ─────────────────────────────────────────────────────
@@ -758,10 +733,8 @@ function voirBC(id){const b=bonCommandes.find(x=>x.id===id);if(b) toast(`${b.id}
 // ── Réceptions ────────────────────────────────────────────────────────────────
 function renderReceptionFlow(){
   const steps=[
-    {icon:'📋',label:'Réception BC',color:'#1a4b6e'},{icon:'📦',label:'Déchargement',color:'#c8702a'},
-    {icon:'🔢',label:'Contrôle quantitatif',color:'#1e7a4e'},{icon:'🔍',label:'Contrôle qualitatif',color:'#6b21a8'},
-    {icon:'✅',label:'Bon de réception',color:'#0f766e'},{icon:'📊',label:'Mise en stock',color:'#1a4b6e'},
-  ];
+  // (données démo supprimées)
+];
   document.getElementById('reception-flow').innerHTML=steps.map(s=>`
     <div class="ts-step">
       <div class="ts-icon" style="background:${s.color}18;border-color:${s.color}40;color:${s.color}">${s.icon}</div>

@@ -359,48 +359,17 @@ const COMPTES_BQ = [
 ];
 
 let mouvements = [
-  { date:'2025-06-02', ref:'VIR-20250602', compte:'BGFIBANK', tiers:'CNAM',            libelle:'Remboursement prestations mai',         categorie:'Remboursement AM',       type:'Encaissement', montant:42500000 },
-  { date:'2025-06-05', ref:'VIR-20250605', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation juin',   categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
-  { date:'2025-06-07', ref:'CHQ-20250607', compte:'ECOBANK',  tiers:'Laborex CI',       libelle:'Règlement facture médicaments FA-0412',  categorie:'Fournisseurs médicaments',type:'Décaissement', montant:18400000 },
-  { date:'2025-06-10', ref:'VIR-20250610', compte:'BGFIBANK', tiers:'Mutuelle CI',      libelle:'Remboursement mutuelles juin',           categorie:'Remboursement mutuelle', type:'Encaissement', montant:9800000  },
-  { date:'2025-06-12', ref:'VIR-20250612', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires juin 2025',            categorie:'Salaires',               type:'Décaissement', montant:62800000 },
-  { date:'2025-06-12', ref:'VIR-20250612', compte:'BNI',      tiers:'CNPS',            libelle:'Cotisations sociales juin',              categorie:'Salaires',               type:'Décaissement', montant:18900000 },
-  { date:'2025-06-18', ref:'VIR-20250618', compte:'ECOBANK',  tiers:'Recettes soins',  libelle:'Encaissements consultations externes',   categorie:'Recettes soins',         type:'Encaissement', montant:14200000 },
-  { date:'2025-06-20', ref:'VIR-20250620', compte:'BGFIBANK', tiers:'CIE/SODECI',      libelle:'Factures eau et électricité T2',         categorie:'Charges fixes',          type:'Décaissement', montant:4100000  },
-  { date:'2025-06-22', ref:'VIR-20250622', compte:'BGFIBANK', tiers:'SGBCI',           libelle:'Remboursement mensuel emprunt',          categorie:'Remboursement emprunt',  type:'Décaissement', montant:8500000  },
-  { date:'2025-06-25', ref:'VIR-20250625', compte:'ECOBANK',  tiers:'Pharmacie ext.',  libelle:'Rétrocession médicaments onco juin',     categorie:'Rétrocession',           type:'Encaissement', montant:5600000  },
-  { date:'2025-05-03', ref:'VIR-20250503', compte:'BGFIBANK', tiers:'CNAM',            libelle:'Remboursement prestations avril',        categorie:'Remboursement AM',       type:'Encaissement', montant:39800000 },
-  { date:'2025-05-05', ref:'VIR-20250505', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation mai',    categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
-  { date:'2025-05-10', ref:'CHQ-20250510', compte:'ECOBANK',  tiers:'Laborex CI',      libelle:'Règlement médicaments essentiels',       categorie:'Fournisseurs médicaments',type:'Décaissement', montant:16200000 },
-  { date:'2025-05-12', ref:'VIR-20250512', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires mai 2025',             categorie:'Salaires',               type:'Décaissement', montant:62800000 },
-  { date:'2025-04-04', ref:'VIR-20250404', compte:'BGFIBANK', tiers:'CNAM',            libelle:'Remboursement prestations mars',         categorie:'Remboursement AM',       type:'Encaissement', montant:38100000 },
-  { date:'2025-04-05', ref:'VIR-20250405', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation avril',  categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
-  { date:'2025-04-12', ref:'VIR-20250412', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires avril 2025',           categorie:'Salaires',               type:'Décaissement', montant:62800000 },
-  { date:'2025-03-05', ref:'VIR-20250305', compte:'BGFIBANK', tiers:'Ministère Santé', libelle:'Dotation mensuelle exploitation mars',   categorie:'Subvention État',        type:'Encaissement', montant:65000000 },
-  { date:'2025-03-12', ref:'VIR-20250312', compte:'BGFIBANK', tiers:'Personnel',       libelle:'Virement salaires mars 2025',            categorie:'Salaires',               type:'Décaissement', montant:62800000 },
+  // (données démo supprimées)
 ];
 
 let previsions = [
-  { rubrique:'Dotation exploitation État',      type:'enc', vals:[65000000,65000000,65000000,65000000,65000000,65000000] },
-  { rubrique:'Remboursements CNAM/mutuelles',   type:'enc', vals:[52000000,50000000,53000000,51000000,54000000,56000000] },
-  { rubrique:'Recettes soins & consultations',  type:'enc', vals:[18000000,17000000,19000000,16000000,20000000,22000000] },
-  { rubrique:'Rétrocession pharmacie',          type:'enc', vals:[5500000,5200000,5800000,5000000,6000000,6200000] },
-  { rubrique:'Salaires & charges sociales',     type:'dec', vals:[81700000,81700000,81700000,81700000,81700000,81700000] },
-  { rubrique:'Fournisseurs médicaments',        type:'dec', vals:[20000000,18000000,21000000,19000000,22000000,20000000] },
-  { rubrique:'Fournisseurs équipements',        type:'dec', vals:[8000000,6000000,10000000,7000000,9000000,8000000] },
-  { rubrique:'Charges fixes (eau, élec.)',      type:'dec', vals:[4200000,4200000,4200000,4200000,4200000,4200000] },
-  { rubrique:'Remboursement emprunt SGBCI',     type:'dec', vals:[8500000,8500000,8500000,8500000,8500000,8500000] },
+  // (données démo supprimées)
 ];
 
 const MOIS_PREV = ['Juil.','Août','Sept.','Oct.','Nov.','Déc.'];
 const MOIS_HIST = ['Jan.','Fév.','Mars','Avr.','Mai','Juin'];
 const MOIS_FLUX = [
-  { label:'Jan.', enc:103100000, dec:81800000 },
-  { label:'Fév.', enc:98400000,  dec:79200000 },
-  { label:'Mars', enc:103200000, dec:82400000 },
-  { label:'Avr.', enc:103100000, dec:81200000 },
-  { label:'Mai',  enc:104800000, dec:83100000 },
-  { label:'Juin', enc:137100000, dec:119000000},
+  // (données démo supprimées)
 ];
 const SOLDE_HIST = [148200000,167400000,188200000,210100000,231800000,260000000];
 
