@@ -762,6 +762,16 @@ function puiFiltrerPatient(ref){
 }
 function puiClearFiltre(){ puiRxFiltre=null; renderCircuit(); }
 
+// Hook scan universel (bouton topbar) → filtre la PUI sur le patient scanné
+window.onPatientScanned = function(p){
+  if(!p || (!p.id && !p.ipp)) return;
+  puiRxFiltre = { id:p.id||p.ipp, ipp:p.ipp||'', nom:p.nom||'' };
+  // Bascule sur l'onglet « Circuit du médicament »
+  const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b=>/circuit/i.test(b.textContent));
+  if(btn){ try{ switchTab('circuit', btn); }catch(e){ renderCircuit(); } }
+  else renderCircuit();
+};
+
 function renderCircuit(){
   const steps=[
     {icon:'📝',label:'Prescription',sub:'Médecin traitant',color:'#1a4b6e',count:prescriptions_circuit.length},

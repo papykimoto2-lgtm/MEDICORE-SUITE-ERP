@@ -402,6 +402,17 @@ function buildTopbar(moduleId, moduleLabel, moduleDesc, comptesSYSCOHADA) {
     btnAl.title = `${alertes} alerte(s) active(s)`;
     actionsDiv.insertBefore(btnAl, actionsDiv.firstChild);
   }
+
+  // Bouton universel « Scanner patient » (toutes spécialités)
+  if (actionsDiv && !actionsDiv.querySelector('.btn-scan-patient')) {
+    const btnScan = document.createElement('button');
+    btnScan.className = 'btn btn-secondary btn-scan-patient';
+    btnScan.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;font-family:"DM Sans",sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#fff;transition:all .15s';
+    btnScan.innerHTML = '📷 Scanner patient';
+    btnScan.title = 'Scanner le bracelet / la fiche d\'entrée';
+    btnScan.onclick = () => MEDICORE_PATIENT.scan();
+    actionsDiv.insertBefore(btnScan, actionsDiv.firstChild);
+  }
 }
 
 // ── Liens croisés améliorés ────────────────────────────────────────────────────
@@ -565,6 +576,27 @@ const MEDICORE_PATIENT = {
     this.renderChip();
   },
   clear(){ try { localStorage.removeItem(this.KEY); } catch(e){} this.renderChip(); },
+
+  // Scan universel du bracelet / fiche d'entrée → définit le patient actif
+  scan(){
+    if(typeof MEDICORE_SCAN==='undefined'){ this._toast('Scanner non chargé.','error'); return; }
+    MEDICORE_SCAN.open(res=>{
+      if(!res || (!res.id && !res.ipp)){ this._toast('QR illisible.','warn'); return; }
+      let p = { id:res.id||res.ipp, nom:res.nom||'', ipp:res.ipp||'' };
+      // Enrichit depuis le référentiel patients de la page si disponible
+      try{
+        if(Array.isArray(window.patients)){
+          const f = window.patients.find(x=> x.id===p.id || (res.ipp && x.ipp===res.ipp));
+          if(f) p = Object.assign({}, f);
+        }
+      }catch(e){}
+      this.set(p);
+      this._toast('Patient : '+(p.nom||p.ipp||p.id), 'success');
+      // Hook spécifique au module (filtrage, ouverture dossier, demande…)
+      if(typeof window.onPatientScanned==='function'){ try{ window.onPatientScanned(p, res); }catch(e){} }
+    });
+  },
+  _toast(m,t){ if(typeof toast==='function') toast(m,t); },
 
   // Contenu encodé dans le QR (scannable par smartphone)
   payload(p){

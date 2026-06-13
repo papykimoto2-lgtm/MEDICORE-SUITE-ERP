@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-scanner.js"></script>
 <script src="medicore-prescriptions.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -743,6 +744,14 @@ function renderPatientsList(){
     </div>`;
   }).join('')||`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucun patient</div>`;
 }
+
+// Hook scan universel → ouvre le dossier du patient scanné
+window.onPatientScanned = function(p){
+  try{
+    const m = patients.find(x=> x.id===p.id || (p.ipp && x.ipp===p.ipp));
+    if(m) openDossier(m.id);
+  }catch(e){}
+};
 
 // ── Dossier patient ───────────────────────────────────────────────────────────
 function openDossier(id){
