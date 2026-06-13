@@ -279,6 +279,7 @@ const SECTIONS = [
   { id:'seuils',        ic:'🔔', label:'Alertes & seuils', groupe:'Système' },
   { id:'integrations',  ic:'🔌', label:'Intégrations', groupe:'Système' },
   { id:'securite',      ic:'🔒', label:'Sécurité & sauvegardes', groupe:'Système' },
+  { id:'cloud',         ic:'☁️',  label:'Cloud & Synchro',            groupe:'Système' },
   { id:'donnees',       ic:'🗑', label:'Données & réinitialisation', groupe:'Système' },
 ];
 
@@ -468,6 +469,11 @@ function renderBody(){
       <div class="row-toggle"><div><div class="rt-label">Sauvegardes automatiques</div><div class="rt-sub">Chiffrées — stockage local + cloud</div></div><label class="switch"><input type="checkbox" id="sv-auto" ${sv.auto?'checked':''}><span class="slider"></span></label></div>
       <div class="save-bar"><button class="btn btn-secondary" onclick="toast('Sauvegarde manuelle lancée…','success')">▶ Sauvegarder maintenant</button>
       <button class="btn btn-primary" onclick="saveSauvegarde()">💾 Enregistrer</button></div></div></div>`;
+  }
+  else if(currentSection==='cloud'){
+    b.innerHTML = renderCloud();
+    // Lance le ping Supabase après injection du DOM
+    setTimeout(pingSupa, 200);
   }
   else if(currentSection==='donnees'){
     // ── Barre d'utilisation du stockage ──────────────────────────────────────────
@@ -692,6 +698,351 @@ function toutCocher(v){
 }
 
 // ── Import / Export ───────────────────────────────────────────────────────────
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CLOUD & SYNCHRO — Connexion Supabase + synchronisation localStorage → PG
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Config Supabase (récupérée depuis supabase.js si chargé, sinon localStorage) ──
+function getSBCreds(){
+  const stored = (() => { try{ return JSON.parse(localStorage.getItem('medicore_sb_creds')||'{}'); }catch(e){ return {}; } })();
+  return {
+    url:  stored.url  || (typeof SUPABASE_URL  !== 'undefined' ? SUPABASE_URL  : ''),
+    key:  stored.key  || (typeof SUPABASE_KEY  !== 'undefined' ? SUPABASE_KEY  : ''),
+  };
+}
+function saveSBCreds(url, key){
+  localStorage.setItem('medicore_sb_creds', JSON.stringify({ url, key }));
+}
+
+// ── Mapping localStorage key → table Supabase ─────────────────────────────────
+const SYNC_MAP = [
+  { lsKey:'medicore_patients',              table:'patients',             label:'Patients (DPI)'          },
+  { lsKey:'medicore_prescriptions',         table:'prescriptions',        label:'Prescriptions'            },
+  { lsKey:'medicore_demandes_labo',         table:'demandes_labo',        label:'Demandes labo'            },
+  { lsKey:'medicore_resultats_labo',        table:'resultats_labo',       label:'Résultats labo'           },
+  { lsKey:'medicore_demandes_img',          table:'demandes_imagerie',    label:'Imagerie'                 },
+  { lsKey:'medicore_interventions',         table:'interventions',        label:'Bloc opératoire'          },
+  { lsKey:'medicore_stock',                 table:'produits',             label:'Stock pharmacie'          },
+  { lsKey:'medicore_mouvements_stock',      table:'mouvements_stock',     label:'Mouvements stock'         },
+  { lsKey:'medicore_factures',              table:'factures',             label:'Facturation'              },
+  { lsKey:'medicore_ecritures',             table:'ecritures',            label:'Écritures comptables'     },
+  { lsKey:'medicore_mouvements_tresorerie', table:'mouvements_tresorerie',label:'Trésorerie'               },
+  { lsKey:'medicore_bons_commande',         table:'commandes_achat',      label:'Achats & commandes'       },
+  { lsKey:'medicore_personnel',             table:'personnel',            label:'RH — Personnel'           },
+  { lsKey:'medicore_paie',                  table:'bulletins_paie',       label:'Bulletins de paie'        },
+  { lsKey:'medicore_immo',                  table:'immobilisations',      label:'Immobilisations'          },
+];
+
+// ── État synchro global ───────────────────────────────────────────────────────
+let syncState = {
+  connexion: 'unknown',   // 'ok' | 'error' | 'unknown'
+  latence: null,
+  derniere: localStorage.getItem('medicore_sync_last') || null,
+  enCours: false,
+  log: [],
+};
+
+// ── Ping Supabase ─────────────────────────────────────────────────────────────
+async function pingSupa(){
+  const { url, key } = getSBCreds();
+  const badge = document.getElementById('sb-ping-badge');
+  const latEl = document.getElementById('sb-latence');
+  if(!badge) return;
+  if(!url || !key){
+    badge.className='sb-badge sb-badge-warn'; badge.textContent='Non configuré';
+    return;
+  }
+  badge.className='sb-badge sb-badge-pending'; badge.textContent='Test…';
+  const t0 = Date.now();
+  try{
+    const r = await fetch(url+'/rest/v1/parametrage?select=cle&limit=1', {
+      headers:{ 'apikey':key, 'Authorization':'Bearer '+key }
+    });
+    const ms = Date.now()-t0;
+    if(r.ok || r.status===200 || r.status===406){
+      syncState.connexion='ok'; syncState.latence=ms;
+      badge.className='sb-badge sb-badge-ok'; badge.textContent='Connecté';
+      if(latEl) latEl.textContent=ms+' ms';
+    } else {
+      throw new Error('HTTP '+r.status);
+    }
+  } catch(e){
+    syncState.connexion='error';
+    badge.className='sb-badge sb-badge-err'; badge.textContent='Erreur';
+    if(latEl) latEl.textContent='—';
+  }
+}
+
+// ── Sauvegarde credentials ────────────────────────────────────────────────────
+function saveCloudCreds(){
+  const url = (document.getElementById('sb-url')||{}).value||'';
+  const key = (document.getElementById('sb-key')||{}).value||'';
+  if(!url || !key){ toast('URL et clé requis.','error'); return; }
+  saveSBCreds(url.trim(), key.trim());
+  toast('Credentials Supabase enregistrés.','success');
+  pingSupa();
+}
+
+// ── Envoi (Push) localStorage → Supabase ─────────────────────────────────────
+async function syncPush(){
+  if(syncState.enCours){ toast('Sync déjà en cours…','warn'); return; }
+  const { url, key } = getSBCreds();
+  if(!url || !key){ toast('Configurez d\'abord la connexion Supabase.','error'); return; }
+  syncState.enCours = true;
+  syncState.log = [];
+  renderSyncLog();
+  updateSyncBtn(true);
+
+  let total=0, erreurs=0;
+  for(const m of SYNC_MAP){
+    let raw;
+    try{ raw = JSON.parse(localStorage.getItem(m.lsKey)||'[]'); }
+    catch(e){ raw=[]; }
+    if(!Array.isArray(raw) || raw.length===0){
+      addLog('skip','⏭', m.label, '0 entrée(s) — ignoré');
+      continue;
+    }
+    addLog('pending','⏳', m.label, raw.length+' entrée(s) en cours…');
+    renderSyncLog();
+    try{
+      const r = await fetch(url+'/rest/v1/'+m.table, {
+        method:'POST',
+        headers:{
+          'apikey':key, 'Authorization':'Bearer '+key,
+          'Content-Type':'application/json',
+          'Prefer':'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(raw)
+      });
+      if(r.ok || r.status===201 || r.status===200){
+        updateLog(m.lsKey,'ok','✅', m.label, raw.length+' enregistrements envoyés');
+        total += raw.length;
+      } else {
+        const txt = await r.text();
+        throw new Error('HTTP '+r.status+' — '+txt.slice(0,120));
+      }
+    } catch(e){
+      updateLog(m.lsKey,'error','❌', m.label, e.message);
+      erreurs++;
+    }
+  }
+
+  const now = new Date().toLocaleString('fr-CI');
+  syncState.derniere = now;
+  syncState.enCours = false;
+  localStorage.setItem('medicore_sync_last', now);
+  updateSyncBtn(false);
+  renderSyncLog();
+  const el = document.getElementById('sync-last');
+  if(el) el.textContent = now;
+  toast(erreurs===0
+    ? '✅ Synchronisation terminée — '+total+' enregistrements envoyés.'
+    : '⚠️ '+erreurs+' erreur(s) — '+total+' envoyés. Vérifiez le journal.',
+    erreurs===0?'success':'warn');
+}
+
+// ── Réception (Pull) Supabase → localStorage ─────────────────────────────────
+async function syncPull(){
+  if(syncState.enCours){ toast('Sync déjà en cours…','warn'); return; }
+  const { url, key } = getSBCreds();
+  if(!url || !key){ toast('Configurez d\'abord la connexion Supabase.','error'); return; }
+  if(!confirm('Écraser les données locales avec celles de Supabase ?\n\nLes données locales plus récentes seront remplacées.\nContinuer ?')) return;
+  syncState.enCours = true;
+  syncState.log = [];
+  renderSyncLog();
+  updateSyncBtn(true);
+
+  let total=0, erreurs=0;
+  for(const m of SYNC_MAP){
+    addLog('pending','⏳', m.label, 'Récupération en cours…');
+    renderSyncLog();
+    try{
+      const r = await fetch(url+'/rest/v1/'+m.table+'?select=*&limit=5000', {
+        headers:{ 'apikey':key, 'Authorization':'Bearer '+key }
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const data = await r.json();
+      localStorage.setItem(m.lsKey, JSON.stringify(data));
+      updateLog(m.lsKey,'ok','✅', m.label, data.length+' enregistrements reçus');
+      total += data.length;
+    } catch(e){
+      updateLog(m.lsKey,'error','❌', m.label, e.message);
+      erreurs++;
+    }
+  }
+
+  const now = new Date().toLocaleString('fr-CI');
+  syncState.derniere = now;
+  syncState.enCours = false;
+  localStorage.setItem('medicore_sync_last', now);
+  updateSyncBtn(false);
+  renderSyncLog();
+  const el = document.getElementById('sync-last');
+  if(el) el.textContent = now;
+  toast(erreurs===0
+    ? '✅ Données reçues — '+total+' enregistrements chargés localement.'
+    : '⚠️ '+erreurs+' erreur(s) — '+total+' reçus.',
+    erreurs===0?'success':'warn');
+}
+
+// ── Helpers journal ───────────────────────────────────────────────────────────
+function addLog(status, ic, label, msg){
+  syncState.log.push({ id:label, status, ic, label, msg });
+}
+function updateLog(id, status, ic, label, msg){
+  const e = syncState.log.find(x=>x.label===label);
+  if(e){ e.status=status; e.ic=ic; e.msg=msg; }
+  else  addLog(status, ic, label, msg);
+}
+function renderSyncLog(){
+  const el = document.getElementById('sync-log');
+  if(!el || !syncState.log.length) return;
+  el.innerHTML = syncState.log.map(e=>`
+    <div class="sync-log-row sync-log-${e.status}">
+      <span class="sync-log-ic">${e.ic}</span>
+      <span class="sync-log-label">${e.label}</span>
+      <span class="sync-log-msg">${e.msg}</span>
+    </div>`).join('');
+}
+function updateSyncBtn(busy){
+  ['btn-push','btn-pull'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ el.disabled=busy; el.style.opacity=busy?'.5':'1'; }
+  });
+}
+
+// ── Rendu HTML de la section ──────────────────────────────────────────────────
+function renderCloud(){
+  const creds = getSBCreds();
+  const urlVal  = creds.url;
+  const keyMask = creds.key ? creds.key.slice(0,18)+'…' : '';
+  const last    = syncState.derniere || '—';
+  let totalLocalRecords = 0;
+  SYNC_MAP.forEach(m=>{ try{ const v=JSON.parse(localStorage.getItem(m.lsKey)||'[]'); if(Array.isArray(v)) totalLocalRecords+=v.length; }catch(e){} });
+
+  return head('Cloud & Synchro','Connexion Supabase — synchronisation multi-appareils') + `
+  <style>
+    .sb-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+    .sb-badge::before{content:'';width:7px;height:7px;border-radius:50%;display:inline-block}
+    .sb-badge-ok{background:#dcfce7;color:#15803d}.sb-badge-ok::before{background:#16a34a}
+    .sb-badge-err{background:#fee2e2;color:#b91c1c}.sb-badge-err::before{background:#dc2626}
+    .sb-badge-warn{background:#fef9c3;color:#854d0e}.sb-badge-warn::before{background:#ca8a04}
+    .sb-badge-pending{background:#eff6ff;color:#1d4ed8}.sb-badge-pending::before{background:#3b82f6;animation:pulse-dot 1s infinite}
+    @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+    .sync-log{max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt,#f8f7f2)}
+    .sync-log-row{display:grid;grid-template-columns:28px 200px 1fr;align-items:center;gap:6px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12.5px}
+    .sync-log-row:last-child{border-bottom:none}
+    .sync-log-pending{opacity:.7}
+    .sync-log-ok{background:#f0fdf4}
+    .sync-log-error{background:#fff1f2}
+    .sync-log-skip{opacity:.45}
+    .sync-log-ic{font-size:14px;text-align:center}
+    .sync-log-label{font-weight:600;color:var(--text)}
+    .sync-log-msg{color:var(--text-muted);font-family:monospace;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .latence-chip{font-size:11.5px;color:var(--text-muted);margin-left:10px}
+    .cred-key-display{font-family:monospace;font-size:12px;color:var(--text-muted);background:var(--surface-alt);padding:4px 10px;border-radius:5px;border:1px solid var(--border)}
+    .sync-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:0}
+    .sync-stat{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+    .sync-stat-val{font-size:22px;font-weight:700;color:var(--accent)}
+    .sync-stat-lbl{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+  </style>
+
+  <!-- Connexion -->
+  <div class="card">
+    <div class="card-head">
+      <div><h3>Connexion Supabase</h3><div class="sub">Projet : bjsgivzfarknjfdxhqth · eu-west-3 Paris</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="sb-ping-badge" class="sb-badge sb-badge-pending">Test…</span>
+        <span class="latence-chip">⏱ <span id="sb-latence">—</span></span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>URL Supabase</label>
+          <input id="sb-url" type="url" placeholder="https://xxxx.supabase.co" value="${urlVal}">
+        </div>
+        <div class="form-group">
+          <label>Clé publique (anon / publishable)</label>
+          <input id="sb-key" type="text" placeholder="sb_publishable_…" value="${creds.key}">
+        </div>
+      </div>
+      <div class="save-bar">
+        <button class="btn btn-secondary" onclick="pingSupa()">🔌 Tester la connexion</button>
+        <button class="btn btn-primary"   onclick="saveCloudCreds()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistiques locales -->
+  <div class="card">
+    <div class="card-head"><div><h3>État du stockage local</h3><div class="sub">Données en attente de synchronisation</div></div></div>
+    <div class="card-body">
+      <div class="sync-stat-grid">
+        <div class="sync-stat">
+          <div class="sync-stat-val" id="sc-tables">${SYNC_MAP.length}</div>
+          <div class="sync-stat-lbl">Tables configurées</div>
+        </div>
+        <div class="sync-stat">
+          <div class="sync-stat-val" id="sc-records">${totalLocalRecords}</div>
+          <div class="sync-stat-lbl">Enregistrements locaux</div>
+        </div>
+        <div class="sync-stat">
+          <div class="sync-stat-val" id="sc-last" style="font-size:13px;padding-top:4px">${last==='—'?'—':last.split(' ')[1]||last}</div>
+          <div class="sync-stat-lbl">Dernière synchronisation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions de synchronisation -->
+  <div class="card">
+    <div class="card-head">
+      <div><h3>Synchronisation</h3><div class="sub">Dernière sync : <strong id="sync-last">${last}</strong></div></div>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="border:1px solid var(--border);border-radius:8px;padding:16px">
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">↑ Envoi vers Supabase</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">Pousse toutes les données locales (localStorage) vers PostgreSQL. Utilise <code>upsert</code> — aucune donnée distante n'est écrasée si elle est plus récente.</div>
+          <button id="btn-push" class="btn btn-primary" style="width:100%" onclick="syncPush()">⬆ Envoyer vers le cloud</button>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:8px;padding:16px">
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">↓ Réception depuis Supabase</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">Rapatrie toutes les données Supabase en local. Utile pour initialiser un nouvel appareil ou récupérer des données saisies ailleurs.</div>
+          <button id="btn-pull" class="btn btn-secondary" style="width:100%" onclick="syncPull()">⬇ Recevoir depuis le cloud</button>
+        </div>
+      </div>
+
+      <!-- Journal de synchronisation -->
+      <div style="font-size:12.5px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Journal</div>
+      <div class="sync-log" id="sync-log">
+        <div style="padding:18px;text-align:center;color:var(--text-muted);font-size:13px">Aucune synchronisation effectuée dans cette session.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modules synchronisés -->
+  <div class="card">
+    <div class="card-head"><div><h3>Modules synchronisés</h3><div class="sub">${SYNC_MAP.length} tables mappées</div></div></div>
+    <div class="card-body" style="padding:0">
+      <table><thead><tr><th>Module</th><th>Clé localStorage</th><th>Table Supabase</th><th style="text-align:right">Entrées locales</th></tr></thead>
+      <tbody>${SYNC_MAP.map(m=>{
+        let n=0;
+        try{ const v=JSON.parse(localStorage.getItem(m.lsKey)||'[]'); if(Array.isArray(v)) n=v.length; }catch(e){}
+        return `<tr>
+          <td><strong>${m.label}</strong></td>
+          <td><span class="mono" style="font-size:11.5px">${m.lsKey}</span></td>
+          <td><span class="mono" style="font-size:11.5px;color:var(--accent)">${m.table}</span></td>
+          <td style="text-align:right;font-family:monospace">${n>0?n:'<span style="color:var(--text-muted)">—</span>'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
 function exportConfig(){
   // Export configuration seulement
   const data=JSON.stringify({cfg:CFG,users:USERS,services:SERVICES,tarifs:TARIFS,fournisseurs:FOURNISSEURS,permissions:PERMISSIONS},null,2);

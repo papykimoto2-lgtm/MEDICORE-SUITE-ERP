@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 const SUPABASE_URL  = 'https://bjsgivzfarknjfdxhqth.supabase.co';
-const SUPABASE_KEY  = 'sb_publishable_5o2aTSbtPVAmjdMpYmmkNA_HrActrOj';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqc2dpdnpmYXJrbmpmZHhocXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDUzMDUsImV4cCI6MjA5Njg4MTMwNX0.e1Oa9y0BT3DXe6BZUpNLLbsm8uxEePbWjyWGiKcPhBc';
 
 // ── Client fetch léger (pas de dépendance npm) ─────────────────────────────────
 const DB = {
