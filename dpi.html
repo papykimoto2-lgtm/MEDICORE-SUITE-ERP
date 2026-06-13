@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-prescriptions.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
 <link rel="stylesheet" href="mobile.css">
@@ -1340,13 +1341,21 @@ function validerPrescription(force){
   };
   prescriptions[id].push(newPresc);
 
+  // ── Registre partagé → visible par la Pharmacie PUI ─────────────────────────
+  if(typeof MEDICORE_RX!=='undefined'){
+    const pat = (typeof patients!=='undefined' && patients.find) ? patients.find(x=>x.id===id) : null;
+    MEDICORE_RX.ajouter({
+      id:newPresc.id, patientId:id,
+      patient_nom: pat?pat.nom:('Dossier '+id), patient_ipp: pat?(pat.ipp||''):'',
+      service: pat?(pat.service||''):'',
+      med, posologie:newPresc.posologie, voie:newPresc.voie, duree:newPresc.duree, notes:newPresc.notes,
+      statut: MEDICORE_RX.S.ATTENTE, date:horodate, medecin:prescripteur, forcee:!!force
+    });
+  }
+
   // ── Journal d'audit ─────────────────────────────────────────────────────────
   auditLog('PRESCRIPTION_CREER', id, `${med} — ${newPresc.posologie}${force?' [FORCÉE — alerte contournée]':''}`, prescripteur);
   if(force) auditLog('ALERTE_CONTOURNEE', id, `Prescription forcée malgré alerte sécurité : ${med}`, prescripteur);
-  // ── Publier dans le BUS pour la PUI ─────────────────────────────────────────
-  if(typeof MEDICORE_BUS!=='undefined' && !force){
-    MEDICORE_BUS.publish('PRESCRIPTION_ATTENTE_PUI',{patientId:id,prescId:newPresc.id,med,posologie:newPresc.posologie,medecin:prescripteur});
-  }
 
   closePrescription();
   if(currentRpTab==='prescriptions') renderPrescriptions(id);

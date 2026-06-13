@@ -203,6 +203,8 @@
 </style>
   <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-prescriptions.js"></script>
+<script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
 <link rel="stylesheet" href="mobile.css">
@@ -715,6 +717,51 @@ function renderStock(){
 }
 
 // ── Circuit médicament ────────────────────────────────────────────────────────
+// ── Filtre patient courant (QR / saisie) ──────────────────────────────────────
+let puiRxFiltre = null;
+
+// Reconstruit prescriptions_circuit à partir du registre partagé MEDICORE_RX
+function chargerCircuitDepuisRX(){
+  if(typeof MEDICORE_RX==='undefined') return;
+  const map = { [MEDICORE_RX.S.ATTENTE]:'pending', [MEDICORE_RX.S.REFUSEE]:'refused' };
+  prescriptions_circuit = MEDICORE_RX.all().map(r=>({
+    id:r.id, patientId:r.patientId, patient_ipp:r.patient_ipp||'',
+    patient: (r.patient_nom||'Patient') + (r.patient_ipp?' · '+r.patient_ipp:''),
+    medecin: r.medecin||'—', service: r.service||'—', heure: r.date||'',
+    meds: (r.med||'') + (r.posologie?' — '+r.posologie:'') + (r.voie?' ('+r.voie+')':''),
+    statut: map[r.statut] || 'validated',
+    valideePar:r.valideePar, refusPar:r.refusPar
+  }));
+}
+
+function puiFiltrerSaisie(){
+  const el=document.getElementById('pui-scan'); if(!el) return;
+  const v=el.value.trim(); if(!v) return;
+  puiFiltrerPatient(v);
+}
+// Scanner caméra → applique le filtre patient
+function puiScannerQR(){
+  if(typeof MEDICORE_SCAN==='undefined'){ toast('Module scanner absent.','error'); return; }
+  MEDICORE_SCAN.open(res=>{
+    if(!res || (!res.id && !res.ipp)){ toast('QR illisible.','warn'); return; }
+    if(typeof MEDICORE_PATIENT!=='undefined' && (res.id||res.ipp)){
+      MEDICORE_PATIENT.set({ id:res.id||res.ipp, nom:res.nom||'', ipp:res.ipp||'' });
+    }
+    puiFiltrerPatient(res);
+    toast('Patient scanné : '+(res.nom||res.ipp||res.id),'success');
+  });
+}
+// Accepte un IPP, un N° dossier (patientId) ou un objet patient
+function puiFiltrerPatient(ref){
+  if(typeof ref==='object'){ puiRxFiltre={ id:ref.id||ref.dossier||'', ipp:ref.ipp||'', nom:ref.nom||'' }; }
+  else {
+    const rx = MEDICORE_RX.all().find(r=>r.patientId===ref || r.patient_ipp===ref);
+    puiRxFiltre = rx ? { id:rx.patientId, ipp:rx.patient_ipp, nom:rx.patient_nom } : { id:ref, ipp:ref, nom:'' };
+  }
+  renderCircuit();
+}
+function puiClearFiltre(){ puiRxFiltre=null; renderCircuit(); }
+
 function renderCircuit(){
   const steps=[
     {icon:'📝',label:'Prescription',sub:'Médecin traitant',color:'#1a4b6e',count:prescriptions_circuit.length},
@@ -732,9 +779,29 @@ function renderCircuit(){
       ${typeof s.count==='number'?`<span style="display:inline-block;margin-top:4px;background:${s.color};color:#fff;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px">${s.count}</span>`:''}
     </div>`).join('');
 
-  const pending=prescriptions_circuit.filter(p=>p.statut==='pending');
+  chargerCircuitDepuisRX();
+  let pending=prescriptions_circuit.filter(p=>p.statut==='pending');
   const validated=prescriptions_circuit.filter(p=>p.statut==='validated'||p.statut==='refused');
-  document.getElementById('prescriptions-list').innerHTML=pending.map(p=>`
+
+  // ── Filtre patient (QR scanné / saisie IPP) ─────────────────────────────────
+  const pl=document.getElementById('prescriptions-list');
+  let banniere='';
+  if(puiRxFiltre){
+    const av=pending.length;
+    pending=pending.filter(p=>p.patientId===puiRxFiltre.id || (puiRxFiltre.ipp && p.patient_ipp===puiRxFiltre.ipp));
+    banniere=`<div style="display:flex;justify-content:space-between;align-items:center;background:#e8f0f7;border:1px solid #1a4b6e33;border-radius:8px;padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:13px;color:#1a4b6e">🪪 <strong>${puiRxFiltre.nom||puiRxFiltre.ipp||puiRxFiltre.id}</strong> — ${pending.length}/${av} ordonnance(s) en attente</div>
+      <button class="btn btn-sm" style="border:1px solid #1a4b6e33;background:#fff;color:#1a4b6e" onclick="puiClearFiltre()">Voir tous</button>
+    </div>`;
+  } else {
+    banniere=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <input id="pui-scan" placeholder="Scanner / saisir IPP ou N° dossier…" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px"
+        onkeydown="if(event.key==='Enter')puiFiltrerSaisie()">
+      <button class="btn btn-sm" style="background:#1a4b6e;color:#fff" onclick="puiScannerQR()">📷 Scanner</button>
+      <button class="btn btn-sm" style="border:1px solid var(--border);background:var(--surface)" onclick="puiFiltrerSaisie()">🔍 Filtrer</button>
+    </div>`;
+  }
+  pl.innerHTML=banniere+(pending.map(p=>`
     <div class="disp-card pending">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div><div style="font-weight:600;font-size:13px">${p.patient}</div><div style="font-size:12px;color:var(--text-muted)">${p.medecin} — ${p.service} — ${p.heure}</div></div>
@@ -745,7 +812,7 @@ function renderCircuit(){
         <button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #a8d8be" onclick="validerPrescription('${p.id}')">✓ Valider</button>
         <button class="btn btn-sm btn-danger" onclick="refuserPrescription('${p.id}')">✕ Refuser</button>
       </div>
-    </div>`).join('')||`<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">✅ Aucune prescription en attente</div>`;
+    </div>`).join('')||`<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">✅ Aucune prescription en attente</div>`);
 
   document.getElementById('validees-list').innerHTML=validated.map(p=>`
     <div class="disp-card ${p.statut==='validated'?'validated':'refused'}">
@@ -757,23 +824,31 @@ function renderCircuit(){
 }
 
 function validerPrescription(id){
+  if(typeof MEDICORE_RX!=='undefined' && MEDICORE_RX.get(id)){
+    MEDICORE_RX.valider(id, getPharmacien());
+    const r=MEDICORE_RX.get(id);
+    puiAudit('PRESCRIPTION_VALIDEE', id, `${r.patient_nom} — ${r.med} — ${r.medecin}`);
+    renderCircuit(); toast('Prescription '+id+' validée.','success'); return;
+  }
   const p=prescriptions_circuit.find(x=>x.id===id);
   if(p){
-    p.statut='validated';
-    p.valideePar=getPharmacien();
-    p.valideTs=new Date().toISOString();
+    p.statut='validated'; p.valideePar=getPharmacien(); p.valideTs=new Date().toISOString();
     puiAudit('PRESCRIPTION_VALIDEE', id, `${p.patient} — ${p.meds} — ${p.medecin}`);
-    // Marquer lu dans le BUS
     if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.markRead('PRESCRIPTION_ATTENTE_PUI');
     renderCircuit();toast('Prescription '+id+' validée.','success');
   }
 }
 function refuserPrescription(id){
+  if(typeof MEDICORE_RX!=='undefined' && MEDICORE_RX.get(id)){
+    const motif=prompt('Motif du refus :')||'';
+    MEDICORE_RX.refuser(id, getPharmacien(), motif);
+    const r=MEDICORE_RX.get(id);
+    puiAudit('PRESCRIPTION_REFUSEE', id, `${r.patient_nom} — ${r.med}${motif?' — '+motif:''}`);
+    renderCircuit(); toast('Prescription '+id+' refusée.','error'); return;
+  }
   const p=prescriptions_circuit.find(x=>x.id===id);
   if(p){
-    p.statut='refused';
-    p.refusPar=getPharmacien();
-    p.refusTs=new Date().toISOString();
+    p.statut='refused'; p.refusPar=getPharmacien(); p.refusTs=new Date().toISOString();
     puiAudit('PRESCRIPTION_REFUSEE', id, `${p.patient} — ${p.meds}`);
     if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.markRead('PRESCRIPTION_ATTENTE_PUI');
     renderCircuit();toast('Prescription '+id+' refusée.','error');
@@ -1038,6 +1113,17 @@ document.addEventListener('DOMContentLoaded', function() {
     initNav('pharmacie_pui', 'Pharmacie (PUI)', '602 · 371 · 411 · Traçabilité',
       [{label:'Étape 1 — Parcours patient',file:'#'},{label:'Pharmacie (PUI)',file:''}]);
   }
+
+  // ── Patient scanné (QR → ?patient=ID, ou patient actif persistant) ──────────
+  try{
+    const q = new URLSearchParams(location.search).get('patient');
+    const actif = (typeof MEDICORE_PATIENT!=='undefined') ? MEDICORE_PATIENT.get() : null;
+    if(q || actif){
+      puiRxFiltre = q
+        ? { id:q, ipp:(actif&&actif.ipp)||'', nom:(actif&&actif.nom)||'' }
+        : { id:actif.id||actif.dossier||'', ipp:actif.ipp||'', nom:actif.nom||'' };
+    }
+  }catch(e){}
 });
 </script>
 </body>
