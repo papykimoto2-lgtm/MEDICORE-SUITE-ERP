@@ -98,13 +98,13 @@ const MEDICORE_NAV = {
 
   // ── KPIs globaux partagés ─────────────────────────────────────────
   kpisGlobaux: {
-    resultatExercice: 32300000,
-    tresorerie: 160000000,
-    tol: 72,
-    dms: 4.1,
-    sejoursActifs: 1250,
-    consulMois: 3840,
-    alertesActives: 3,
+    resultatExercice: 0,
+    tresorerie: 0,
+    tol: 0,
+    dms: 0,
+    sejoursActifs: 0,
+    consulMois: 0,
+    alertesActives: 0,
   },
 
   // ── Liens croisés entre modules ───────────────────────────────────
