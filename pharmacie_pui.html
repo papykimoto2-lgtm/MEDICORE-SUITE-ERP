@@ -211,6 +211,7 @@
 <script src="medicore-parcours-ui.js"></script>
 <script src="medicore-prestations.js"></script>
 <script src="medicore-caisse.js"></script>
+<script src="medicore-print.js"></script>
 <script src="medicore-prescriptions.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
@@ -842,15 +843,65 @@ function servirOrdonnance(patientId, groupe){
   // Persistance stock
   if(typeof MEDICORE_STORE!=='undefined'){ MEDICORE_STORE.save('stock', produits, true); MEDICORE_STORE.save('mouvements_stock', mouvements_stock, true); }
   // Encaissement caisse pharmacie — SYSCOHADA 531 / 701
+  let txn=null;
   if(typeof MEDICORE_CAISSE!=='undefined'){
-    MEDICORE_CAISSE.encaisser({ service:'pharmacie_pui', patientId, patient_nom:lignes[0].patient_nom||patientId,
+    txn=MEDICORE_CAISSE.encaisser({ service:'pharmacie_pui', patientId, patient_nom:lignes[0].patient_nom||patientId,
       lignes:lignesCaisse, mode:'Espèces', caissier:getPharmacien() });
   }
-  // Audit + clôture
+  // Retour au praticien prescripteur (notification + traçabilité)
+  const medecin=lignes[0].medecin||'';
+  if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.publish('ORDONNANCE_SERVIE', { patientId, patient:lignes[0].patient_nom, medecin, meds:servies });
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Ordonnance servie','VALIDATION',`${servies.length} médicament(s) — ${lignes[0].patient_nom||patientId}${medecin?' — Dr '+medecin:''}`, patientId);
+  // Audit interne
   puiAudit('DISPENSATION', groupe, `${servies.length} médicament(s) servis — ${total.toLocaleString('fr-FR')} FCFA — ${lignes[0].patient_nom||patientId}`);
   const m=document.getElementById('modal-caisse'); if(m) m.remove();
   renderCircuit(); if(typeof updateKPIs==='function') updateKPIs(); if(typeof renderStock==='function') renderStock();
-  toast(`Ordonnance servie — ${total.toLocaleString('fr-FR')} FCFA encaissés.`+(ruptures.length?` (${ruptures.length} en rupture)`:''),'success');
+  if(document.getElementById('tab-caisse') && document.getElementById('tab-caisse').classList.contains('active')) renderCaissePharma();
+  // Récapitulatif : servis / non servis + reçu
+  recapDispensation({ patient:lignes[0].patient_nom||patientId, patientId, medecin, total, servies,
+    ruptures, lignesCaisse, mode:(txn&&txn.mode)||'Espèces', ref:(txn&&txn.id)||groupe });
+}
+
+// Récapitulatif post-dispensation + impression du reçu
+function recapDispensation(r){
+  let ov=document.getElementById('modal-recap'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-recap';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:480px;max-width:96vw">
+    <div class="modal-header"><div><div class="modal-title">Ordonnance servie</div>
+      <div class="modal-subtitle">${r.patient} · ${r.total.toLocaleString('fr-FR')} FCFA encaissés</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-recap').remove()">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">✅ Médicaments servis</div>
+      ${r.servies.map(m=>`<div style="font-size:13px;padding:3px 0">• ${m}</div>`).join('')||'<div style="font-size:13px;color:var(--text-muted)">Aucun</div>'}
+      ${r.ruptures.length?`<div style="font-size:12px;color:var(--red);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 4px">⚠ Non servis (rupture)</div>
+        ${r.ruptures.map(m=>`<div style="font-size:13px;padding:3px 0;color:var(--red)">• ${m}</div>`).join('')}`:''}
+      <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <strong>Total encaissé</strong><strong style="color:var(--accent)">${r.total.toLocaleString('fr-FR')} FCFA</strong></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-recap').remove()">Fermer</button>
+      <button class="btn btn-primary" onclick='imprimerRecu(${JSON.stringify(r).replace(/'/g,"&#39;")})'>🖨 Imprimer le reçu</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+
+// Reçu de caisse imprimable
+function imprimerRecu(r){
+  if(typeof MEDICORE_PRINT==='undefined'){ toast('Module impression absent.','warn'); return; }
+  const lignes=r.lignesCaisse.map(l=>`<tr><td>${l.libelle}</td><td class="right">${(+l.montant).toLocaleString('fr-FR')}</td></tr>`).join('');
+  const nonServis=r.ruptures&&r.ruptures.length?`<h3>Non délivrés (rupture)</h3>${r.ruptures.map(m=>`<div>• ${m}</div>`).join('')}`:'';
+  const corps=`
+    <div class="grid2"><div class="kv">Reçu n° : <b>${(r.ref||'').slice(-8)}</b></div><div class="kv">Date : <b>${new Date().toLocaleString('fr-FR')}</b></div>
+      <div class="kv">Patient : <b>${r.patient}</b></div><div class="kv">Mode : <b>${r.mode}</b></div>
+      ${r.medecin?`<div class="kv">Prescripteur : <b>Dr ${r.medecin}</b></div>`:''}</div>
+    <h3>Médicaments délivrés</h3>
+    <table><thead><tr><th>Désignation</th><th class="right">Montant (FCFA)</th></tr></thead><tbody>${lignes}</tbody></table>
+    <table><tbody><tr><td class="tot">TOTAL PAYÉ</td><td class="right tot">${r.total.toLocaleString('fr-FR')} FCFA</td></tr></tbody></table>
+    ${nonServis}
+    <div style="margin-top:14px;font-size:11px;color:#666">Encaissement SYSCOHADA : 531 Caisse / 701 Ventes. Merci de votre visite.</div>`;
+  MEDICORE_PRINT.open({ titre:'Reçu de caisse — Pharmacie', sousTitre:r.patient, corpsHTML:corps });
 }
 
 // Écrit un encaissement dans la trésorerie (lisible par le module Trésorerie)
@@ -1201,6 +1252,7 @@ function renderCaissePharma(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div style="font-size:15px;font-weight:600">Caisse pharmacie — recette du jour</div>
       <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" style="background:#1a4b6e;color:#fff" onclick="scannerPourCaisse()">📷 Scanner patient</button>
         <button class="btn btn-sm" style="background:#15803d;color:#fff" onclick="dispenserDepuisCaisse()">💊 Servir une ordonnance</button>
         <button class="btn btn-sm btn-secondary" onclick="MEDICORE_CAISSE.cloturer('pharmacie_pui')">🔒 Clôture Z</button>
       </div>
@@ -1210,7 +1262,17 @@ function renderCaissePharma(){
 function dispenserDepuisCaisse(){
   const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;
   if(ap&&ap.id){ ouvrirCaisseDispensation(ap.id); }
-  else toast('Scannez d\'abord le patient (📷 en haut) ou allez dans « Circuit du médicament ».','warn');
+  else toast('Scannez d\'abord le patient (📷) pour afficher ses ordonnances.','warn');
+}
+function scannerPourCaisse(){
+  if(typeof MEDICORE_SCAN==='undefined'){ toast('Module scanner absent.','error'); return; }
+  MEDICORE_SCAN.open(res=>{
+    if(!res || (!res.id && !res.ipp)){ toast('QR illisible.','warn'); return; }
+    const pid=res.id||res.ipp;
+    if(typeof MEDICORE_PATIENT!=='undefined') MEDICORE_PATIENT.set({ id:pid, nom:res.nom||'', ipp:res.ipp||'' });
+    toast('Patient : '+(res.nom||pid),'success');
+    ouvrirCaisseDispensation(pid);   // affiche directement ses ordonnances à servir
+  });
 }
 
 function refreshAll(){updateKPIs();renderStock();
