@@ -17,6 +17,7 @@ const MEDICORE_SYNC = {
 
   // ── Stores synchronisés (clé localStorage sans préfixe → libellé) ───────────
   STORES: [
+
     { store:'demandes',              label:'Demandes inter-modules' },
     { store:'prestations',           label:'Prestations facturables' },
     { store:'caisse',                label:'Caisse / encaissements'  },
@@ -25,6 +26,7 @@ const MEDICORE_SYNC = {
     { store:'audit',                 label:'Journal d\'audit'        },
     { store:'connexions',            label:'Historique connexions'  },
     { store:'patients',              label:'Patients (DPI)'        },
+    { store:'patients_archives',     label:'Patients archivés'     },
     { store:'constantes',            label:'Constantes vitales', kind:'doc' },
     { store:'prescriptions',         label:'Prescriptions'         },
     { store:'resultats',             label:'Résultats examens'     },
@@ -35,6 +37,8 @@ const MEDICORE_SYNC = {
     { store:'stock',                 label:'Stock pharmacie'       },
     { store:'mouvements_stock',      label:'Mouvements stock'      },
     { store:'consommables',          label:'Consommables (dépôts)' },
+    { store:'depots_stock',          label:'Dépôts de stock'       },
+    { store:'reappro',               label:'Réapprovisionnement'   },
     { store:'mouvements_consommables', label:'Mouvements consommables'},
     { store:'factures',              label:'Facturation'           },
     { store:'ecritures',             label:'Écritures comptables'  },

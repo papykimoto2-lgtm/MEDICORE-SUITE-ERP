@@ -43,17 +43,6 @@ select (payload->>'cloturee_le')::date as jour, payload->>'caissier' as caissier
 from public.medicore_sync_docs where store='caisse_sessions' and not deleted
 group by 1,2,3 order by 1 desc;
 
--- Consommables par dépôt (labo, imagerie, bloc, …)
-drop view if exists public.v_consommables cascade;
-create view public.v_consommables as
-select doc_id, payload->>'depot' as depot, payload->>'designation' as designation,
-       payload->>'categorie' as categorie, payload->>'unite' as unite,
-       (payload->>'stock')::numeric as stock, (payload->>'seuil')::numeric as seuil,
-       (payload->>'pmp')::numeric as pmp, payload->>'lot' as lot,
-       payload->>'peremption' as peremption,
-       (payload->>'stock')::numeric*(payload->>'pmp')::numeric as valeur, updated_at
-from public.medicore_sync_docs where store='consommables' and not deleted;
-
 drop view if exists public.v_mouvements_consommables cascade;
 create view public.v_mouvements_consommables as
 select doc_id, payload->>'depot' as depot, payload->>'depot_dest' as depot_dest,
@@ -62,3 +51,64 @@ select doc_id, payload->>'depot' as depot, payload->>'depot_dest' as depot_dest,
        payload->>'patient' as patient, payload->>'par' as par,
        payload->>'date' as date_mvt, updated_at
 from public.medicore_sync_docs where store='mouvements_consommables' and not deleted;
+
+-- Dépôts de stock paramétrables (Magasin central, services…)
+drop view if exists public.v_depots_stock cascade;
+create view public.v_depots_stock as
+select doc_id, payload->>'id' as depot_id, payload->>'libelle' as libelle,
+       payload->>'responsable' as responsable,
+       coalesce((payload->>'actif')::boolean,true) as actif, updated_at
+from public.medicore_sync_docs where store='depots_stock' and not deleted;
+
+-- Consommables : ajout mini/sécurité/maxi + valorisation
+drop view if exists public.v_consommables cascade;
+create view public.v_consommables as
+select doc_id, payload->>'depot' as depot, payload->>'designation' as designation,
+       payload->>'categorie' as categorie, payload->>'unite' as unite,
+       (payload->>'stock')::numeric as stock,
+       (payload->>'stock_min')::numeric as stock_min,
+       (payload->>'stock_secu')::numeric as stock_secu,
+       (payload->>'stock_max')::numeric as stock_max,
+       (payload->>'pmp')::numeric as pmp, payload->>'lot' as lot,
+       payload->>'peremption' as peremption,
+       (payload->>'stock')::numeric*(payload->>'pmp')::numeric as valeur, updated_at
+from public.medicore_sync_docs where store='consommables' and not deleted;
+
+-- Bons de réapprovisionnement (à commander)
+drop view if exists public.v_reappro cascade;
+create view public.v_reappro as
+select doc_id, payload->>'depot' as depot, payload->>'designation' as designation,
+       (payload->>'qte')::numeric as quantite, payload->>'unite' as unite,
+       payload->>'statut' as statut, payload->>'motif' as motif,
+       payload->>'par' as demande_par, payload->>'date' as date_demande, updated_at
+from public.medicore_sync_docs where store='reappro' and not deleted;
+
+-- Articles sous le stock mini ou en rupture, par dépôt (vue de pilotage)
+drop view if exists public.v_stock_alertes cascade;
+create view public.v_stock_alertes as
+select doc_id, payload->>'depot' as depot, payload->>'designation' as designation,
+       (payload->>'stock')::numeric as stock,
+       (payload->>'stock_min')::numeric as stock_min,
+       (payload->>'stock_secu')::numeric as stock_secu,
+       case when (payload->>'stock')::numeric<=0 then 'rupture'
+            when (payload->>'stock_secu')::numeric>0 and (payload->>'stock')::numeric<=(payload->>'stock_secu')::numeric then 'sous_securite'
+            when (payload->>'stock_min')::numeric>0 and (payload->>'stock')::numeric<=(payload->>'stock_min')::numeric then 'sous_mini'
+            when (payload->>'peremption') is not null and (payload->>'peremption')::date < current_date then 'perime'
+            when (payload->>'peremption') is not null and (payload->>'peremption')::date <= current_date+30 then 'peremption_proche'
+            else null end as alerte
+from public.medicore_sync_docs
+where store='consommables' and not deleted
+  and (
+    (payload->>'stock')::numeric<=0
+    or ((payload->>'stock_secu')::numeric>0 and (payload->>'stock')::numeric<=(payload->>'stock_secu')::numeric)
+    or ((payload->>'stock_min')::numeric>0 and (payload->>'stock')::numeric<=(payload->>'stock_min')::numeric)
+    or ((payload->>'peremption') is not null and (payload->>'peremption')::date <= current_date+30)
+  );
+
+-- Dossiers patients archivés (sortis depuis longtemps, hors liste active)
+drop view if exists public.v_patients_archives cascade;
+create view public.v_patients_archives as
+select doc_id, payload->>'id' as dossier, payload->>'ipp' as ipp, payload->>'nom' as nom,
+       payload->>'service' as service, payload->>'sortie' as date_sortie,
+       payload->>'archive_le' as date_archivage, payload->>'archive_par' as archive_par, updated_at
+from public.medicore_sync_docs where store='patients_archives' and not deleted;

@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="nav.js"></script>
 <script src="qr.js"></script>
+<script src="medicore-stock.js"></script>
 <script src="medicore-audit.js"></script>
 <script src="medicore-rbac.js"></script>
 <script src="medicore-auth.js"></script>
@@ -178,7 +179,7 @@ const DEFAULT_CFG = {
     sms:{actif:true, gateway:'LeTexto / Orange SMS Pro'},
     smtp:{actif:true, serveur:'smtp.medicore.ci', port:'587'}
   },
-  seuils: { stockMini:20, peremptionJours:60, valeurCritiqueLabo:true, delaiResultat:30, tauxOccupationAlerte:90 }
+  seuils: { stockMini:20, peremptionJours:60, valeurCritiqueLabo:true, delaiResultat:30, tauxOccupationAlerte:90, delaiArchivageJours:90 }
 };
 
 let USERS = [
@@ -357,6 +358,10 @@ function renderBody(){
       <button class="btn btn-secondary btn-sm" onclick="viderHistoConnexion()">Purger</button></div>
       <div class="card-body" style="padding:0">${renderHistoConnexion()}</div></div>
 
+    <div class="card"><div class="card-head"><div><h3>Dépôts de stock</h3><div class="sub">Magasin central, services consommateurs (laboratoire, imagerie, bloc…)</div></div>
+      <button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button></div>
+      <div class="card-body" style="padding:0">${renderDepotsStock()}</div></div>
+
     <div class="card"><div class="card-head"><div><h3>Journal d'audit</h3><div class="sub">Connexions · consultations · modifications · suppressions</div></div></div>
       <div class="card-body" style="padding:0">${typeof MEDICORE_AUDIT!=='undefined'?MEDICORE_AUDIT.renderTable(200):'<div style="padding:20px;color:var(--text-muted)">Module audit non chargé.</div>'}</div></div>
 
@@ -435,6 +440,7 @@ function renderBody(){
         ${field('Péremption — préavis (jours)','s-peremption',s.peremptionJours,'number')}
         ${field('Délai max. résultat labo (min)','s-delai',s.delaiResultat,'number')}
         ${field('Taux occupation lits — alerte (%)','s-occupation',s.tauxOccupationAlerte,'number')}
+        ${field('Archivage auto. — délai après sortie (jours)','s-archivage',s.delaiArchivageJours,'number')}
       </div>
       <div class="row-toggle"><div><div class="rt-label">Notification valeurs critiques labo</div><div class="rt-sub">Alerte immédiate prescripteur</div></div>
         <label class="switch"><input type="checkbox" id="s-critique" ${s.valeurCritiqueLabo?'checked':''}><span class="slider"></span></label></div>
@@ -598,7 +604,7 @@ function saveNum(){
   persist(); toast('Numérotation enregistrée.','success');
 }
 function saveSeuils(){
-  Object.assign(CFG.seuils,{stockMini:+val('s-stock'),peremptionJours:+val('s-peremption'),delaiResultat:+val('s-delai'),tauxOccupationAlerte:+val('s-occupation'),valeurCritiqueLabo:chk('s-critique')});
+  Object.assign(CFG.seuils,{stockMini:+val('s-stock'),peremptionJours:+val('s-peremption'),delaiResultat:+val('s-delai'),tauxOccupationAlerte:+val('s-occupation'),delaiArchivageJours:+val('s-archivage'),valeurCritiqueLabo:chk('s-critique')});
   persist(); toast('Seuils enregistrés.','success');
 }
 function saveIntegrations(){
@@ -700,6 +706,62 @@ function viderHistoConnexion(){
     localStorage.setItem('medicore_connexions', JSON.stringify({_v:1,_ts:Date.now(),d:[]}));
     renderBody(); toast('Historique purgé.','warn');
   }
+}
+
+// ══ DÉPÔTS DE STOCK (consommables) ═══════════════════════════════════════════════
+function renderDepotsStock(){
+  if(typeof MEDICORE_STOCK==='undefined') return '<div style="padding:20px;color:var(--text-muted)">Module stock non chargé.</div>';
+  const list=MEDICORE_STOCK.depots();
+  return `<table><thead><tr><th>Dépôt</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th>Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
+    list.map(d=>{
+      const valeur=MEDICORE_STOCK.valeurStock(d.id);
+      return `<tr>
+        <td><strong>${d.libelle}</strong>${d.builtin?' <span class="badge" style="background:var(--surface-alt);font-size:10px">système</span>':''}</td>
+        <td><span class="mono" style="font-size:11.5px">${d.id}</span></td>
+        <td>${d.responsable||'—'}</td>
+        <td>${d.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
+        <td style="text-align:right">${valeur.toLocaleString('fr-FR')} FCFA</td>
+        <td style="text-align:right;white-space:nowrap">
+          ${d.builtin?'':`<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎</button>
+          <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
+          <button class="btn btn-secondary btn-xs" onclick="supprimerDepotUI('${d.id}')">🗑</button>`}
+        </td></tr>`;
+    }).join('')}</tbody></table>
+    <div style="padding:10px 16px;font-size:11.5px;color:var(--text-muted)">Les dépôts « système » (Magasin central, Pharmacie, Laboratoire, Imagerie, Bloc opératoire, Maternité, Urgences) sont prédéfinis et ne peuvent pas être supprimés.</div>`;
+}
+function uiAjouterDepot(){
+  formModal('Nouveau dépôt de stock',[
+    {key:'libelle',label:'Nom du dépôt',required:true,placeholder:'ex : Maternité — Bloc B'},
+    {key:'responsable',label:'Responsable',placeholder:'ex : Sage-femme major'},
+  ], (v)=>{
+    if(!v.libelle||!v.libelle.trim()){ toast('Nom requis.','error'); return; }
+    const r=MEDICORE_STOCK.ajouterDepot({libelle:v.libelle.trim(),responsable:(v.responsable||'').trim()});
+    if(r.erreur){ toast('Dépôt déjà existant.','error'); return; }
+    if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Création dépôt de stock','CREATION',v.libelle.trim(), r.id);
+    renderBody(); toast('Dépôt créé : '+v.libelle,'success');
+  });
+}
+function uiModifierDepot(id){
+  const d=MEDICORE_STOCK.depots().find(x=>x.id===id); if(!d) return;
+  formModal('Modifier le dépôt',[
+    {key:'libelle',label:'Nom du dépôt',required:true,value:d.libelle},
+    {key:'responsable',label:'Responsable',value:d.responsable||''},
+  ], (v)=>{
+    MEDICORE_STOCK.modifierDepot(id,{libelle:v.libelle.trim(),responsable:(v.responsable||'').trim()});
+    renderBody(); toast('Dépôt modifié.','success');
+  });
+}
+function toggleDepot(id){
+  const d=MEDICORE_STOCK.depots().find(x=>x.id===id); if(!d) return;
+  MEDICORE_STOCK.modifierDepot(id,{actif:!d.actif}); renderBody();
+}
+function supprimerDepotUI(id){
+  const d=MEDICORE_STOCK.depots().find(x=>x.id===id); if(!d) return;
+  if(!confirm('Supprimer le dépôt « '+d.libelle+' » ?')) return;
+  const r=MEDICORE_STOCK.supprimerDepot(id);
+  if(r.erreur==='dépôt non vide'){ toast('Dépôt non vide : videz le stock avant suppression.','error'); return; }
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Suppression dépôt de stock','SUPPRESSION',d.libelle, id);
+  renderBody(); toast('Dépôt supprimé.','warn');
 }
 function togglePerm(r,m,v){ if(!PERMISSIONS[r])PERMISSIONS[r]={}; PERMISSIONS[r][m]=v?1:0; }
 function addService(){ formModal('Nouveau service',[

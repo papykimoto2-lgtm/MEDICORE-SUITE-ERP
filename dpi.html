@@ -15,6 +15,7 @@
 <script src="medicore-parcours-ui.js"></script>
 <script src="medicore-prestations.js"></script>
 <script src="medicore-resultats.js"></script>
+<script src="medicore-archive.js"></script>
 <script src="medicore-cds.js"></script>
 <script src="medicore-print.js"></script>
 <script src="medicore-scanner.js"></script>
@@ -320,6 +321,7 @@
       <button class="tab-btn" onclick="filterPatients('Consultation',this)">👨‍⚕️ Consultations</button>
       <button class="tab-btn" onclick="filterPatients('Ambulatoire',this)">🚶 Ambulatoires</button>
       <button class="tab-btn" onclick="filterPatients('Sorti',this)">🚪 Sortis</button>
+      <button class="tab-btn" onclick="filterPatients('archives',this)">🗄 Archives</button>
       <button class="tab-btn" onclick="switchView('lits')">🛏 Plan lits</button>
     </div>
 
@@ -739,13 +741,41 @@ function filterPatients(type,btn){
 
 function renderPatientsList(){
   const q=document.getElementById('patient-search').value.toLowerCase();
+
+  // ── Onglet Archives : liste séparée, lecture seule ───────────────────────────
+  if(currentFilter==='archives'){
+    const arch=(typeof MEDICORE_ARCHIVE!=='undefined')?MEDICORE_ARCHIVE.recherche(q):[];
+    document.getElementById('patients-count').textContent=`${arch.length} dossier(s) archivé(s)`;
+    document.getElementById('patients-list').innerHTML=(arch.map(p=>{
+      const initials=(p.nom||'?').split(' ').map(n=>n[0]).join('').substring(0,2);
+      return `<div class="patient-item" onclick="openDossierArchive('${p.id}')">
+        <div class="patient-avatar" style="background:#999">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div class="patient-name">${p.nom}</div>
+          <div class="patient-meta">${p.id}${p.ipp?' · '+p.ipp:''} · ${p.service||''}</div>
+          <div class="patient-meta" style="margin-top:2px">Sorti le ${p.sortie?new Date(p.sortie).toLocaleDateString('fr-FR'):'—'} · archivé le ${p.archive_le?new Date(p.archive_le).toLocaleDateString('fr-FR'):'—'}</div>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();restaurerDossier('${p.id}')">↩ Restaurer</button>
+      </div>`;
+    }).join(''))||`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucun dossier archivé</div>`;
+    return;
+  }
+
   let data=patients.filter(p=>{
     if(currentFilter!=='tous'&&p.type!==currentFilter) return false;
     if(q&&!p.nom.toLowerCase().includes(q)&&!p.id.toLowerCase().includes(q)&&!p.service.toLowerCase().includes(q)) return false;
     return true;
   });
   document.getElementById('patients-count').textContent=`${data.length} dossier(s)`;
-  document.getElementById('patients-list').innerHTML=data.map(p=>{
+  // Bandeau d'archivage en masse (visible sur l'onglet "Sortis")
+  let bandeau='';
+  if(currentFilter==='Sorti' && typeof MEDICORE_ARCHIVE!=='undefined'){
+    const elig=MEDICORE_ARCHIVE.eligibles(patients);
+    if(elig.length) bandeau=`<div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px">
+      <span>🗄 ${elig.length} dossier(s) sorti(s) depuis plus de ${MEDICORE_ARCHIVE.delai()} jours peuvent être archivés.</span>
+      <button class="btn btn-secondary btn-xs" onclick="archiverEligiblesUI()">Archiver maintenant</button></div>`;
+  }
+  document.getElementById('patients-list').innerHTML=bandeau+(data.map(p=>{
     const initials=p.nom.split(' ').map(n=>n[0]).join('').substring(0,2);
     const couleur=COULEURS_SERVICE[p.service]||'#888';
     const isActive=currentPatient===p.id;
@@ -760,8 +790,54 @@ function renderPatientsList(){
           ${p.allergies?`<span class="badge" style="background:var(--red-bg);color:var(--red);font-size:10px">⚠ ${p.allergies}</span>`:''}
         </div>
       </div>
+      ${p.statut==='Sorti'?`<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();archiverDossier('${p.id}')">🗄 Archiver</button>`:''}
     </div>`;
-  }).join('')||`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucun patient</div>`;
+  }).join(''))||`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucun patient</div>`;
+}
+
+// ── Archivage ────────────────────────────────────────────────────────────────
+function archiverDossier(id){
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Archiver le dossier de ${p.nom} (${id}) ?\n\nLe dossier sera retiré de la liste active mais reste consultable dans « 🗄 Archives » et peut être restauré.`)) return;
+  MEDICORE_ARCHIVE.archiver(id, patients);
+  window.patients=patients;
+  if(currentPatient===id){ currentPatient=null; document.getElementById('dossier-content').innerHTML=`<div style="text-align:center;padding:60px 20px;color:var(--text-muted)"><div style="font-size:40px;margin-bottom:10px">🗄</div>Dossier archivé. Sélectionnez un autre patient.</div>`; }
+  renderPatientsList(); updateKPIs();
+  toast('Dossier archivé : '+p.nom,'success');
+}
+function archiverEligiblesUI(){
+  const elig=(MEDICORE_ARCHIVE.eligibles(patients)||[]).slice();
+  if(!elig.length) return;
+  if(!confirm(`Archiver ${elig.length} dossier(s) sorti(s) depuis plus de ${MEDICORE_ARCHIVE.delai()} jours ?`)) return;
+  const n=MEDICORE_ARCHIVE.archiverEligibles(patients);
+  window.patients=patients;
+  renderPatientsList(); updateKPIs();
+  toast(n+' dossier(s) archivé(s).','success');
+}
+function restaurerDossier(id){
+  const p=MEDICORE_ARCHIVE.get(id); if(!p) return;
+  if(!confirm(`Restaurer le dossier de ${p.nom} (${id}) dans la liste active ?`)) return;
+  MEDICORE_ARCHIVE.restaurer(id, patients);
+  window.patients=patients;
+  renderPatientsList();
+  toast('Dossier restauré : '+p.nom,'success');
+}
+// Ouverture en lecture seule d'un dossier archivé (depuis l'onglet Archives)
+function openDossierArchive(id){
+  const p=MEDICORE_ARCHIVE.get(id); if(!p) return;
+  // Réutilise le rendu du dossier en l'injectant temporairement dans `patients`
+  const tmp=patients.slice(); patients.push(p);
+  currentPatient=id; openDossier(id);
+  patients.length=0; tmp.forEach(x=>patients.push(x));
+  // Bandeau "archivé" + masque les actions de modification
+  const c=document.getElementById('dossier-content');
+  c.insertAdjacentHTML('afterbegin', `<div style="background:#fdf3e7;border:1px solid #f0d4a8;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center">
+    <span>🗄 Dossier archivé le ${p.archive_le?new Date(p.archive_le).toLocaleDateString('fr-FR'):'—'} — consultation en lecture seule.</span>
+    <button class="btn btn-secondary btn-xs" onclick="restaurerDossier('${id}')">↩ Restaurer</button></div>`);
+  c.querySelectorAll('button, select, input, textarea').forEach(el=>{
+    if(el.closest('div[style*="fdf3e7"]')) return; // garde le bouton Restaurer
+    el.disabled=true; el.style.opacity='0.6'; el.style.cursor='not-allowed';
+  });
 }
 
 // Hook scan universel → ouvre le dossier du patient scanné
