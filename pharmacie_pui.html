@@ -269,9 +269,11 @@
         <button class="tab-btn" onclick="switchTab('depots',this)">Dépôts & Réappro.</button>
         <button class="tab-btn" onclick="switchTab('retroces',this)">Rétrocession</button>
         <button class="tab-btn" onclick="switchTab('traçabilite',this)">Traçabilité lots</button>
+        <button class="tab-btn" onclick="switchTab('caisse',this)">🧾 Caisse</button>
       </div>
 
       <!-- ── STOCK ── -->
+      <div id="tab-caisse" class="tab-panel"></div>
       <div id="tab-stock" class="tab-panel active">
         <div class="card">
           <div class="card-header">
@@ -1189,6 +1191,26 @@ function switchTab(name,btn){
   if(name==='depots') renderDepots();
   if(name==='retroces') renderRetrocession();
   if(name==='traçabilite') initTraceProduits();
+  if(name==='caisse') renderCaissePharma();
+}
+
+function renderCaissePharma(){
+  const div=document.getElementById('tab-caisse');
+  if(typeof MEDICORE_CAISSE==='undefined'){ div.innerHTML='<div style="padding:24px;color:var(--text-muted)">Module caisse non chargé.</div>'; return; }
+  div.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:600">Caisse pharmacie — recette du jour</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" style="background:#15803d;color:#fff" onclick="dispenserDepuisCaisse()">💊 Servir une ordonnance</button>
+        <button class="btn btn-sm btn-secondary" onclick="MEDICORE_CAISSE.cloturer('pharmacie_pui')">🔒 Clôture Z</button>
+      </div>
+    </div>
+    ${MEDICORE_CAISSE.renderRegistre('pharmacie_pui')}`;
+}
+function dispenserDepuisCaisse(){
+  const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;
+  if(ap&&ap.id){ ouvrirCaisseDispensation(ap.id); }
+  else toast('Scannez d\'abord le patient (📷 en haut) ou allez dans « Circuit du médicament ».','warn');
 }
 
 function refreshAll(){updateKPIs();renderStock();
