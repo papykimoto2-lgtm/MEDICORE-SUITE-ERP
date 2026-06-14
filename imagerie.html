@@ -420,6 +420,15 @@
 
       <!-- ── FACTURATION ── -->
       <div id="tab-facturation" class="tab-panel">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+            <div><div class="card-title">Caisse imagerie</div><div class="card-subtitle">Scanner le patient (barre du haut) puis encaisser ses examens</div></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="ouvrirCaisseImagerie()">💰 Encaisser (patient actif)</button>
+              <button class="btn btn-secondary btn-sm" onclick="MEDICORE_CAISSE.ouvrirRegistre('imagerie')">🧾 Registre du jour</button>
+            </div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
           <div class="kpi-card blue"><div class="kpi-label">Actes CNAM-CI facturés</div><div class="kpi-value" style="font-size:20px" id="fact-nb">—</div><span class="kpi-badge neutral">Ce mois</span></div>
           <div class="kpi-card green"><div class="kpi-label">CA imagerie (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-ca">—</div><span class="kpi-badge up">FCFA</span></div>
@@ -1057,6 +1066,39 @@ function envoiCR(patientId, nom){
   if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Compte-rendu rendu','VALIDATION',`${nom} — ${libelle}`, patientId);
   document.getElementById('m-cr').remove();
   toast('Compte-rendu validé et renvoyé au praticien.','success');
+}
+
+// ══ CAISSE IMAGERIE — encaissement des examens du patient actif ════════════════
+function ouvrirCaisseImagerie(){
+  const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;
+  if(!ap || !ap.id){ toast('Scannez d\'abord le patient (📷 en haut).','warn'); return; }
+  if(typeof MEDICORE_PRESTA==='undefined'){ toast('Module prestations absent.','error'); return; }
+  const lignes=MEDICORE_PRESTA.aFacturer(ap.id).filter(p=>p.module==='imagerie');
+  if(!lignes.length){ toast('Aucun examen à encaisser pour ce patient.','info'); return; }
+  const total=lignes.reduce((s,l)=>s+(+l.montant||0),0);
+  let ov=document.getElementById('modal-caisse-img'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-caisse-img'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:520px">
+    <div class="modal-header"><div><div class="modal-title">Caisse imagerie</div>
+      <div class="modal-subtitle">${ap.nom||ap.id} · ${lignes.length} examen(s)</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-caisse-img').remove()">✕</button></div>
+    <div class="modal-body">
+      ${lignes.map(l=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${l.libelle} <span style="font-size:11px;color:var(--text-muted)">${l.code||''}</span></span><strong>${(+l.montant).toLocaleString('fr-FR')} F</strong></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;margin-top:12px"><strong>Total</strong><strong style="color:var(--accent);font-size:18px">${total.toLocaleString('fr-FR')} FCFA</strong></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-caisse-img').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="encaisserImagerie('${ap.id}')">💰 Encaisser</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+function encaisserImagerie(patientId){
+  const txn=MEDICORE_CAISSE.encaisserPrestationsPatient('imagerie', patientId, { mode:'Espèces', caissier:getRadiologue() });
+  const m=document.getElementById('modal-caisse-img'); if(m) m.remove();
+  if(txn){ imgAudit('ENCAISSEMENT', txn.id, `${txn.patient_nom} — ${txn.total.toLocaleString('fr-FR')} FCFA`); toast(`Encaissé : ${txn.total.toLocaleString('fr-FR')} FCFA.`,'success'); }
+  else toast('Rien à encaisser.','info');
 }
 
 function openDemande(){

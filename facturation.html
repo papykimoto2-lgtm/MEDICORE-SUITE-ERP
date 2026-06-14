@@ -537,6 +537,7 @@
 <script src="medicore-prestations.js"></script>
 <script src="medicore-resultats.js"></script>
 <script src="medicore-caisse.js"></script>
+<script src="medicore-print.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
@@ -592,6 +593,7 @@
         <button class="tab-btn active" onclick="switchTab('liste', this)">Liste des factures</button>
         <button class="tab-btn" onclick="switchTab('tierspayant', this)">Tiers-payant</button>
         <button class="tab-btn" onclick="switchTab('relances', this)">Relances</button>
+        <button class="tab-btn" onclick="switchTab('caisse', this)">🧾 Caisse Centrale</button>
       </div>
 
       <!-- Tab: Liste -->
@@ -735,6 +737,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Tab: Caisse Centrale -->
+      <div id="tab-caisse" class="tab-panel"></div>
 
     </div>
   </div>
@@ -1023,6 +1028,7 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'relances') renderRelances();
+  if (name === 'caisse') renderCaisseCentrale();
 }
 
 // ── Journal d'audit Facturation ──────────────────────────────────────────────
@@ -1034,6 +1040,113 @@ function factAudit(action, id, detail){
 function getFacturiste(){
   const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
   return s.nom||'DAF';
+}
+
+// ══ CAISSE CENTRALE — session, registre, clôture (Z) ═══════════════════════════
+function _caissiersFact(){
+  try{
+    const par=(typeof MEDICORE_STORE!=='undefined')?MEDICORE_STORE.load('parametrage',null):null;
+    const users=(par&&par.users)||[];
+    const list=users.filter(u=>u.actif!==false && /caiss|fact|accueil|daf/i.test(u.role||'')).map(u=>u.nom);
+    return list.length?list:users.map(u=>u.nom);
+  }catch(e){ return []; }
+}
+function renderCaisseCentrale(){
+  const div=document.getElementById('tab-caisse');
+  if(typeof MEDICORE_CAISSE==='undefined'){ div.innerHTML='<div style="padding:24px;color:var(--text-muted)">Module caisse non chargé.</div>'; return; }
+  const sess=MEDICORE_CAISSE.sessionCourante('facturation');
+  if(!sess){
+    const cais=_caissiersFact();
+    div.innerHTML=`
+      <div class="card" style="max-width:460px;margin:30px auto;border:1px solid var(--border);border-radius:10px;padding:22px;background:var(--surface)">
+        <div style="font-size:17px;font-weight:600;margin-bottom:4px">Ouvrir la caisse centrale</div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px">Encaissements des notes de sortie et règlements directs</div>
+        <div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-muted)">Caissier</label>
+          <select id="ses-caissier-fact" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px">
+            ${cais.length?cais.map(n=>`<option ${n===getFacturiste()?'selected':''}>${n}</option>`).join(''):`<option>${getFacturiste()}</option>`}
+          </select></div>
+        <div style="margin-bottom:16px"><label style="font-size:12px;color:var(--text-muted)">Fond de caisse initial (FCFA)</label>
+          <input id="ses-fond-fact" type="number" value="0" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="ouvrirSessionCaisseFact()">🔓 Ouvrir la caisse</button>
+      </div>`;
+    return;
+  }
+  const recette=MEDICORE_CAISSE.totalSession('facturation');
+  const attendu=sess.fond+recette;
+  div.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--success-bg);border:1px solid #cfe6db;border-radius:8px;padding:12px 16px;margin-bottom:14px">
+      <div><div style="font-size:12px;color:var(--text-muted)">Caisse centrale ouverte par</div>
+        <div style="font-size:15px;font-weight:600">${sess.caissier}</div>
+        <div style="font-size:11.5px;color:var(--text-muted)">depuis ${new Date(sess.ouverte_le).toLocaleString('fr-FR')} · fond ${sess.fond.toLocaleString('fr-FR')} FCFA</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm btn-danger" onclick="cloturerSessionCaisseFact()">🔒 Clôturer</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--text-muted)">FOND DE CAISSE</div><div style="font-size:20px;font-weight:700">${sess.fond.toLocaleString('fr-FR')}</div></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--text-muted)">RECETTE SESSION</div><div style="font-size:20px;font-weight:700;color:var(--accent)">${recette.toLocaleString('fr-FR')}</div></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--text-muted)">ATTENDU EN CAISSE</div><div style="font-size:20px;font-weight:700">${attendu.toLocaleString('fr-FR')}</div></div>
+    </div>
+    ${MEDICORE_CAISSE.renderRegistre('facturation')}`;
+}
+function ouvrirSessionCaisseFact(){
+  const caissier=document.getElementById('ses-caissier-fact').value;
+  const fond=+document.getElementById('ses-fond-fact').value||0;
+  MEDICORE_CAISSE.ouvrirSession('facturation', { caissier, fond });
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Ouverture de caisse','ENCAISSEMENT',`${caissier} — fond ${fond.toLocaleString('fr-FR')} FCFA`);
+  toast('Caisse centrale ouverte ('+caissier+').','success'); renderCaisseCentrale();
+}
+function cloturerSessionCaisseFact(){
+  const sess=MEDICORE_CAISSE.sessionCourante('facturation'); if(!sess){ renderCaisseCentrale(); return; }
+  const recette=MEDICORE_CAISSE.totalSession('facturation'); const attendu=sess.fond+recette;
+  let ov=document.getElementById('modal-clot-fact'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-clot-fact'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:440px"><div class="modal-header"><div class="modal-title">Clôture de caisse (Z) — Caisse Centrale</div>
+    <button class="modal-close" onclick="document.getElementById('modal-clot-fact').remove()">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>Fond de caisse</span><strong>${sess.fond.toLocaleString('fr-FR')} FCFA</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>Recette de la session</span><strong>${recette.toLocaleString('fr-FR')} FCFA</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--border);margin-top:4px"><strong>État attendu en caisse</strong><strong>${attendu.toLocaleString('fr-FR')} FCFA</strong></div>
+      <div style="margin-top:14px"><label style="font-size:12px;color:var(--text-muted)">Espèces comptées (état final)</label>
+        <input id="clot-compte-fact" type="number" value="${attendu}" oninput="majEcartFact(${attendu})" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="margin-top:10px"><label style="font-size:12px;color:var(--text-muted)">Versement (à remettre)</label>
+        <input id="clot-versement-fact" type="number" value="${recette}" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="margin-top:12px;padding:10px;border-radius:6px;background:var(--surface-alt);display:flex;justify-content:space-between">
+        <strong>Écart</strong><strong id="clot-ecart-fact">0 FCFA</strong></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('modal-clot-fact').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerClotureFact()">🔒 Confirmer la clôture</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function majEcartFact(attendu){
+  const c=+document.getElementById('clot-compte-fact').value||0; const e=c-attendu;
+  const el=document.getElementById('clot-ecart-fact');
+  el.textContent=(e>0?'+':'')+e.toLocaleString('fr-FR')+' FCFA';
+  el.style.color=e===0?'var(--success)':(e<0?'var(--danger)':'var(--warning)');
+}
+function validerClotureFact(){
+  const compte=+document.getElementById('clot-compte-fact').value||0;
+  const versement=+document.getElementById('clot-versement-fact').value||0;
+  const clos=MEDICORE_CAISSE.cloturerSession('facturation', { compteEspeces:compte, versement });
+  document.getElementById('modal-clot-fact').remove();
+  if(clos && typeof MEDICORE_PRINT!=='undefined'){
+    MEDICORE_PRINT.open({ titre:'Clôture de caisse (Z) — Caisse Centrale', sousTitre:clos.caissier+' · '+new Date(clos.cloturee_le).toLocaleString('fr-FR'),
+      corpsHTML:`<table><tbody>
+        <tr><td>Caissier</td><td class="right"><b>${clos.caissier}</b></td></tr>
+        <tr><td>Ouverture</td><td class="right">${new Date(clos.ouverte_le).toLocaleString('fr-FR')}</td></tr>
+        <tr><td>Clôture</td><td class="right">${new Date(clos.cloturee_le).toLocaleString('fr-FR')}</td></tr>
+        <tr><td>Fond de caisse initial</td><td class="right">${clos.fond.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td>Recette (${clos.nb_operations} op.)</td><td class="right">${clos.recette.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td class="tot">État attendu</td><td class="right tot">${clos.attendu.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td>Espèces comptées (état final)</td><td class="right">${clos.compte_especes.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td>Versement</td><td class="right">${clos.versement.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td class="tot">ÉCART</td><td class="right tot" style="color:${clos.ecart===0?'#15803d':'#b91c1c'}">${(clos.ecart>0?'+':'')+clos.ecart.toLocaleString('fr-FR')} FCFA</td></tr>
+      </tbody></table>` });
+  }
+  toast('Caisse centrale clôturée. Écart : '+(clos?clos.ecart.toLocaleString('fr-FR'):'0')+' FCFA.', clos&&clos.ecart===0?'success':'warn');
+  renderCaisseCentrale();
 }
 
 // ── Modal Nouvelle Facture ────────────────────────────────────────────────────
@@ -1287,6 +1400,15 @@ function finaliserSortie(patientId){
   factures.push(f);
   if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('factures', factures, true);
   MEDICORE_PRESTA.marquerFacturees(ids, id);
+  // Enregistrement dans la Caisse Centrale (registre du jour + écriture trésorerie 531/706)
+  // Pas de prestationId dans les lignes : éviter un second marquage côté MEDICORE_PRESTA
+  if(typeof MEDICORE_CAISSE!=='undefined'){
+    MEDICORE_CAISSE.encaisser({
+      service:'facturation', patientId, patient_nom:nom,
+      lignes: actes.map(a=>({ libelle:`${a.lib} (${a.nom})`, montant:a.pu, ref:id })),
+      mode:'Espèces', caissier:getFacturiste()
+    });
+  }
   if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.markRead('SORTIE_A_FACTURER');
   if(typeof factAudit==='function') factAudit('NOTE_SORTIE', id, `${nom} — ${actes.length} actes — ${total.toLocaleString('fr-FR')} FCFA`);
   document.getElementById('modal-sortie').remove();
