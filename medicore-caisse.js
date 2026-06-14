@@ -18,6 +18,48 @@ const MEDICORE_CAISSE = {
     facturation:   { label:'Caisse Centrale',    compteVente:'706' },
   },
 
+  // ── SESSION DE CAISSE (ouverture / fond / clôture / écart) ──────────────────
+  _sessKey(service){ return 'medicore_caisse_sess_'+service; },
+  sessionCourante(service){
+    try{ const s=JSON.parse(localStorage.getItem(this._sessKey(service))||'null'); return (s&&s.statut==='ouverte')?s:null; }catch(e){ return null; }
+  },
+  ouvrirSession(service, { caissier, fond }){
+    if(this.sessionCourante(service)) return this.sessionCourante(service);
+    const s={ id:'SES'+Date.now().toString(36), service, caissier:caissier||'—',
+      fond:+fond||0, ouverte_le:new Date().toISOString(), statut:'ouverte' };
+    try{ localStorage.setItem(this._sessKey(service), JSON.stringify(s)); }catch(e){}
+    return s;
+  },
+  // Transactions de la session en cours
+  txnSession(service){
+    const s=this.sessionCourante(service); if(!s) return [];
+    return this._read().filter(t=>t.service===service && t.session_id===s.id);
+  },
+  totalSession(service){ return this.txnSession(service).reduce((x,t)=>x+(+t.total||0),0); },
+  // Clôture : état final, versement, écart
+  cloturerSession(service, { compteEspeces, versement }){
+    const s=this.sessionCourante(service); if(!s) return null;
+    const recette=this.totalSession(service);
+    const attendu=s.fond+recette;                         // ce qui doit être en caisse
+    const compte=(compteEspeces==null?attendu:+compteEspeces);
+    const clos=Object.assign({}, s, {
+      statut:'cloturee', cloturee_le:new Date().toISOString(),
+      recette, attendu, compte_especes:compte,
+      versement:(versement==null?recette:+versement),
+      ecart: compte-attendu, nb_operations:this.txnSession(service).length
+    });
+    // Historique synchronisé
+    try{
+      let hist=[]; if(typeof MEDICORE_STORE!=='undefined') hist=MEDICORE_STORE.load('caisse_sessions',[]);
+      hist.unshift(clos);
+      if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('caisse_sessions', hist, true);
+    }catch(e){}
+    try{ localStorage.removeItem(this._sessKey(service)); }catch(e){}
+    if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Clôture de caisse','ENCAISSEMENT',
+      `${(this.SERVICES[service]||{}).label||service} — recette ${recette.toLocaleString('fr-FR')} · écart ${clos.ecart.toLocaleString('fr-FR')}`, s.id);
+    return clos;
+  },
+
   _read(){
     if(typeof MEDICORE_STORE!=='undefined') return MEDICORE_STORE.load(this.STORE, []);
     try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.STORE)||'[]'); return Array.isArray(p)?p:(p.d||[]); }catch(e){ return []; }
@@ -36,11 +78,13 @@ const MEDICORE_CAISSE = {
     if(!lignes.length) return null;
     const cfg=this.SERVICES[service]||{label:service,compteVente:'706'};
     const total=lignes.reduce((s,l)=>s+(+l.montant||0),0);
+    const sess=this.sessionCourante(service);
     const txn={
       id:this._uid(), date:new Date().toISOString(), service,
-      service_label:cfg.label, patientId:patientId||'', patient_nom:patient_nom||'',
+      service_label:cfg.label, session_id:sess?sess.id:null,
+      patientId:patientId||'', patient_nom:patient_nom||'',
       lignes, total, mode:mode||'Espèces',
-      caissier:caissier||this._user().nom||'—',
+      caissier:caissier||(sess&&sess.caissier)||this._user().nom||'—',
       compte_debit:'531', compte_credit:compteVente||cfg.compteVente, statut:'Encaissé'
     };
     const rows=this._read(); rows.unshift(txn); this._write(rows);

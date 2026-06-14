@@ -20,6 +20,7 @@ const MEDICORE_SYNC = {
     { store:'demandes',              label:'Demandes inter-modules' },
     { store:'prestations',           label:'Prestations facturables' },
     { store:'caisse',                label:'Caisse / encaissements'  },
+    { store:'caisse_sessions',       label:'Sessions de caisse'    },
     { store:'urgences',              label:'Urgences / triage'     },
     { store:'audit',                 label:'Journal d\'audit'        },
     { store:'connexions',            label:'Historique connexions'  },

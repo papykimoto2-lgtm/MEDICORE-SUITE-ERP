@@ -511,7 +511,17 @@
       </datalist>
       <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0">
         <label style="font-weight:600;font-size:13px">Médicaments prescrits <span class="req">*</span></label>
-        <button class="btn btn-secondary btn-sm" type="button" onclick="ajouterLignePresc()">＋ Ajouter un médicament</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="presc-kit" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+            <option value="">Kit prédéfini…</option>
+            <option value="accouchement">🍼 Kit accouchement</option>
+            <option value="cesarienne">🏥 Kit césarienne</option>
+            <option value="urgence">🚑 Kit urgence vitale</option>
+            <option value="paludisme">🦟 Kit paludisme grave</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="appliquerKit()">Appliquer</button>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="ajouterLignePresc()">＋ Médicament</button>
+        </div>
       </div>
       <div id="presc-lignes"></div>
       <div class="form-group full" style="margin-top:8px"><label>Instructions / Notes cliniques</label>
@@ -1223,6 +1233,44 @@ function envoyerExamen(id){
   if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Demande d\'examen','CREATION',`${cible} : ${objet}`, id);
   document.getElementById('m-examen').remove();
   toast('Demande envoyée au '+cible+' (réf '+d.id.slice(-6)+').','success');
+}
+
+// ── KITS prédéfinis (accouchement, urgence…) ────────────────────────────────────
+const KITS={
+  accouchement:{ label:'Kit accouchement', lignes:[
+    {med:'Ocytocine 10 UI', posologie:'10 UI IM', voie:'Intramusculaire (IM)', duree:'dose unique'},
+    {med:'Sérum glucosé 5% 500ml', posologie:'perfusion', voie:'Intraveineuse (IV)', duree:'selon besoin'},
+    {med:'Paracétamol 1g', posologie:'1 g × 3/j', voie:'Orale (PO)', duree:'3 jours'},
+    {med:'Amoxicilline 500mg', posologie:'1 g × 3/j', voie:'Orale (PO)', duree:'5 jours'},
+    {med:'Fer + acide folique', posologie:'1 cp/j', voie:'Orale (PO)', duree:'30 jours'},
+  ]},
+  cesarienne:{ label:'Kit césarienne', lignes:[
+    {med:'Céfazoline 2g', posologie:'2 g IV', voie:'Intraveineuse (IV)', duree:'antibioprophylaxie'},
+    {med:'Ocytocine 10 UI', posologie:'10 UI IV lent', voie:'Intraveineuse (IV)', duree:'dose unique'},
+    {med:'Ringer Lactate 500ml', posologie:'perfusion', voie:'Intraveineuse (IV)', duree:'peropératoire'},
+    {med:'Tramadol 100mg', posologie:'100 mg × 3/j', voie:'Intraveineuse (IV)', duree:'48 h'},
+    {med:'Énoxaparine 4000 UI', posologie:'1/j SC', voie:'Sous-cutanée (SC)', duree:'7 jours'},
+  ]},
+  urgence:{ label:'Kit urgence vitale', lignes:[
+    {med:'Sérum salé 0,9% 500ml', posologie:'remplissage', voie:'Intraveineuse (IV)', duree:'selon besoin'},
+    {med:'Adrénaline 1mg', posologie:'selon protocole', voie:'Intraveineuse (IV)', duree:'urgence'},
+    {med:'Oxygène', posologie:'selon SpO₂', voie:'Topique', duree:'continu'},
+    {med:'Paracétamol 1g', posologie:'1 g IV', voie:'Intraveineuse (IV)', duree:'au besoin'},
+  ]},
+  paludisme:{ label:'Kit paludisme grave', lignes:[
+    {med:'Artésunate injectable 60mg', posologie:'2,4 mg/kg', voie:'Intraveineuse (IV)', duree:'H0-H12-H24 puis /j'},
+    {med:'Sérum glucosé 10% 500ml', posologie:'perfusion', voie:'Intraveineuse (IV)', duree:'selon glycémie'},
+    {med:'Paracétamol 1g', posologie:'1 g × 3/j', voie:'Orale (PO)', duree:'3 jours'},
+  ]},
+};
+function appliquerKit(){
+  const k=document.getElementById('presc-kit').value; if(!k||!KITS[k]) return;
+  document.getElementById('presc-lignes').innerHTML='';   // remplace par le kit
+  KITS[k].lignes.forEach(l=>ajouterLignePresc(l));
+  const notes=document.getElementById('presc-notes');
+  if(notes && !notes.value) notes.value='Protocole : '+KITS[k].label;
+  window.__kitChoisi=KITS[k].label;
+  toast(KITS[k].label+' appliqué ('+KITS[k].lignes.length+' lignes).','success');
 }
 
 function _prescriptionsPatient(id){

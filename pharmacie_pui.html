@@ -790,9 +790,13 @@ function ouvrirCaisseDispensation(patientId){
     const total=lignes.reduce((s,l)=>s+prixDispensation(l),0);
     const items=lignes.map(l=>{
       const px=prixDispensation(l); const st=stockPour(l);
-      return `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0">
-        <span>${l.med}${l.posologie?' — '+l.posologie:''} ${st.ok?'':'<span style=\"color:#b91c1c\">(rupture)</span>'}</span>
-        <span>${px.toLocaleString('fr-FR')} F</span></div>`;
+      let etat, action='';
+      if(st.sub && st.ok){ etat=`<span style="color:#15803d">→ remplacé par ${st.prod.dci}</span>`; action=`<button class="btn btn-xs btn-secondary" onclick="choisirSubstitut('${patientId}','${l.id}','${(l.med||'').replace(/'/g,"\\'")}')">✏</button>`; }
+      else if(st.ok){ etat=''; }
+      else { etat=`<span style="color:#b91c1c">(rupture)</span>`; action=`<button class="btn btn-xs" style="background:#c8702a;color:#fff" onclick="choisirSubstitut('${patientId}','${l.id}','${(l.med||'').replace(/'/g,"\\'")}')">🔄 Substituer</button>`; }
+      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0;gap:8px">
+        <span style="flex:1">${l.med}${l.posologie?' — '+l.posologie:''} ${etat}</span>
+        <span>${px.toLocaleString('fr-FR')} F</span>${action}</div>`;
     }).join('');
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -813,7 +817,92 @@ function ouvrirCaisseDispensation(patientId){
   document.body.appendChild(ov);
 }
 
+let subsDispensation={};   // { rxLineId : dci_du_substitut }
+function choisirSubstitut(patientId, lineId, med){
+  const dispo=produits.filter(p=>p.stock>0).sort((a,b)=>(a.dci||'').localeCompare(b.dci||''));
+  let ov=document.getElementById('modal-sub'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-sub';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:480px;max-height:80vh;overflow-y:auto"><div class="modal-header">
+    <div><div class="modal-title">Générique de substitution</div><div class="modal-subtitle">Pour : ${med}</div></div>
+    <button class="modal-close" onclick="document.getElementById('modal-sub').remove()">✕</button></div>
+    <div class="modal-body">
+      <input id="sub-rech" placeholder="Rechercher…" oninput="filtrerSub()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:10px">
+      <div id="sub-liste">${dispo.map(p=>`<div class="sub-item" data-dci="${(p.dci||'').toLowerCase()}" onclick="appliquerSubstitut('${patientId}','${lineId}','${(p.dci||'').replace(/'/g,"\\'")}')"
+        style="display:flex;justify-content:space-between;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px;cursor:pointer">
+        <span>${p.dci}</span><span style="font-size:12px;color:var(--text-muted)">stock ${p.stock}${p.pmp?' · '+p.pmp.toLocaleString('fr-FR')+' F':''}</span></div>`).join('')||'<div style="color:var(--text-muted)">Aucun produit en stock.</div>'}</div>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+function filtrerSub(){ const q=document.getElementById('sub-rech').value.toLowerCase();
+  document.querySelectorAll('#sub-liste .sub-item').forEach(el=>{ el.style.display=el.dataset.dci.includes(q)?'flex':'none'; }); }
+function appliquerSubstitut(patientId, lineId, dci){
+  subsDispensation[lineId]=dci;
+  document.getElementById('modal-sub').remove();
+  ouvrirCaisseDispensation(patientId);   // rafraîchit l'affichage
+  toast('Substitut sélectionné : '+dci,'success');
+}
+
+// ── Servir une ordonnance EXTERNE (hors système) ────────────────────────────────
+function servirExterne(){
+  let ov=document.getElementById('modal-ext'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-ext';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:540px;max-width:96vw"><div class="modal-header">
+    <div><div class="modal-title">Ordonnance externe</div><div class="modal-subtitle">Prescription hors système — vente directe</div></div>
+    <button class="modal-close" onclick="document.getElementById('modal-ext').remove()">✕</button></div>
+    <div class="modal-body">
+      <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--text-muted)">Patient / client</label>
+        <input id="ext-nom" placeholder="Nom (ou « comptant »)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></div>
+      <div id="ext-lignes"></div>
+      <button class="btn btn-secondary btn-sm" onclick="ajLigneExterne()">＋ Ajouter un médicament</button>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:8px;border-top:1px solid var(--border)">
+        <strong>Total</strong><strong id="ext-total" style="color:var(--accent)">0 FCFA</strong></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('modal-ext').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="servirExterneValider()">💰 Servir & encaisser</button></div></div>`;
+  document.body.appendChild(ov);
+  ajLigneExterne();
+}
+function ajLigneExterne(){
+  const w=document.getElementById('ext-lignes'); const row=document.createElement('div');
+  row.className='ext-row'; row.style.cssText='display:grid;grid-template-columns:1.6fr .9fr .6fr 26px;gap:6px;margin-bottom:6px';
+  const opts=produits.filter(p=>p.stock>0).map(p=>`<option value="${p.dci}" data-px="${p.pmp||0}">${p.dci} (${p.stock})</option>`).join('');
+  row.innerHTML=`<select class="ext-med" onchange="extPxAuto(this);majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px"><option value="">— produit —</option>${opts}</select>
+    <input class="ext-px" type="number" placeholder="Prix" oninput="majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+    <input class="ext-qte" type="number" value="1" min="1" oninput="majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+    <button onclick="this.parentElement.remove();majExtTotal()" style="border:1px solid var(--border);background:var(--surface);border-radius:5px;cursor:pointer">✕</button>`;
+  w.appendChild(row);
+}
+function extPxAuto(sel){ const px=sel.options[sel.selectedIndex].dataset.px; const inp=sel.parentElement.querySelector('.ext-px'); if(px&&!inp.value) inp.value=px; }
+function majExtTotal(){ let t=0; document.querySelectorAll('#ext-lignes .ext-row').forEach(r=>{ t+=(+r.querySelector('.ext-px').value||0)*(+r.querySelector('.ext-qte').value||1); });
+  document.getElementById('ext-total').textContent=t.toLocaleString('fr-FR')+' FCFA'; }
+function servirExterneValider(){
+  const nom=document.getElementById('ext-nom').value.trim()||'Comptant';
+  const lignesCaisse=[]; let total=0; const servies=[], ruptures=[];
+  document.querySelectorAll('#ext-lignes .ext-row').forEach(r=>{
+    const dci=r.querySelector('.ext-med').value; if(!dci) return;
+    const qte=+r.querySelector('.ext-qte').value||1; const px=(+r.querySelector('.ext-px').value||0)*qte;
+    const prod=produits.find(p=>p.dci===dci);
+    if(prod && prod.stock>=qte){ prod.stock-=qte;
+      mouvements_stock.unshift({ date:new Date().toISOString(), produit:dci, lot:prod.lot||'—', mvt:'Sortie', qte, motif:'Dispensation externe', patient:nom, ref:'EXT' });
+      lignesCaisse.push({ libelle:dci+(qte>1?' ×'+qte:''), montant:px }); total+=px; servies.push(dci);
+    } else ruptures.push(dci);
+  });
+  if(!servies.length){ toast('Aucun produit disponible.','error'); return; }
+  if(typeof MEDICORE_STORE!=='undefined'){ MEDICORE_STORE.save('stock', produits, true); MEDICORE_STORE.save('mouvements_stock', mouvements_stock, true); }
+  const txn=(typeof MEDICORE_CAISSE!=='undefined')?MEDICORE_CAISSE.encaisser({ service:'pharmacie_pui', patientId:'', patient_nom:nom, lignes:lignesCaisse, mode:'Espèces', caissier:getPharmacien() }):null;
+  document.getElementById('modal-ext').remove();
+  renderStock&&renderStock(); updateKPIs&&updateKPIs(); renderCaissePharma();
+  recapDispensation({ patient:nom, patientId:'', medecin:'(externe)', total, servies, ruptures, lignesCaisse, mode:'Espèces', ref:(txn&&txn.id)||'EXT' });
+}
 function stockPour(l){
+  if(l && l.id && subsDispensation[l.id]){
+    const p=produits.find(pr=>pr.dci===subsDispensation[l.id]);
+    return { ok:!!(p&&p.stock>0), prod:p, sub:true };
+  }
   const toks=(l.med||'').toLowerCase().split(/[\s/0-9µ%.,()-]+/).filter(w=>w.length>3);
   const p=produits.find(pr=>{ const d=(pr.dci||'').toLowerCase(); return toks.some(t=>d.includes(t)); });
   return { ok:!!(p&&p.stock>0), prod:p };
@@ -834,9 +923,11 @@ function servirOrdonnance(patientId, groupe){
       mouvements_stock.unshift({ date:new Date().toISOString(), produit:s.prod.dci, lot:s.prod.lot||'—',
         mvt:'Sortie', qte:1, motif:'Dispensation', patient:l.patient_nom||patientId, ref:l.id });
       const px=prixDispensation(l); total+=px;
-      lignesCaisse.push({ libelle:l.med, montant:px, ref:l.id });
+      const lib=s.sub?`${s.prod.dci} (générique de ${l.med})`:l.med;
+      lignesCaisse.push({ libelle:lib, montant:px, ref:l.id });
       MEDICORE_RX.delivrer(l.id, getPharmacien());        // ordonnance servie
-      servies.push(l.med);
+      servies.push(lib);
+      delete subsDispensation[l.id];
     } else ruptures.push(l.med);
   });
   if(!servies.length){ toast('Tous les produits sont en rupture.','error'); return; }
@@ -1245,19 +1336,113 @@ function switchTab(name,btn){
   if(name==='caisse') renderCaissePharma();
 }
 
+function _auxiliaires(){
+  try{
+    const par=(typeof MEDICORE_STORE!=='undefined')?MEDICORE_STORE.load('parametrage',null):null;
+    const users=(par&&par.users)||[];
+    const list=users.filter(u=>u.actif!==false && /pharmac|caiss|auxili|prepar/i.test(u.role||'')).map(u=>u.nom);
+    return list.length?list:users.map(u=>u.nom);
+  }catch(e){ return []; }
+}
 function renderCaissePharma(){
   const div=document.getElementById('tab-caisse');
   if(typeof MEDICORE_CAISSE==='undefined'){ div.innerHTML='<div style="padding:24px;color:var(--text-muted)">Module caisse non chargé.</div>'; return; }
+  const sess=MEDICORE_CAISSE.sessionCourante('pharmacie_pui');
+  if(!sess){
+    const aux=_auxiliaires();
+    div.innerHTML=`
+      <div class="card" style="max-width:460px;margin:30px auto;border:1px solid var(--border);border-radius:10px;padding:22px;background:var(--surface)">
+        <div style="font-size:17px;font-weight:600;margin-bottom:4px">Ouvrir la caisse</div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px">Connexion par un auxiliaire de la pharmacie</div>
+        <div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-muted)">Caissier / auxiliaire</label>
+          <select id="ses-caissier" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px">
+            ${aux.length?aux.map(n=>`<option>${n}</option>`).join(''):'<option>Auxiliaire pharmacie</option>'}
+          </select></div>
+        <div style="margin-bottom:16px"><label style="font-size:12px;color:var(--text-muted)">Fond de caisse initial (FCFA)</label>
+          <input id="ses-fond" type="number" value="0" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="ouvrirSessionCaisse()">🔓 Ouvrir la caisse</button>
+      </div>`;
+    return;
+  }
+  const recette=MEDICORE_CAISSE.totalSession('pharmacie_pui');
+  const attendu=sess.fond+recette;
   div.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div style="font-size:15px;font-weight:600">Caisse pharmacie — recette du jour</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--green-bg);border:1px solid #cfe6db;border-radius:8px;padding:12px 16px;margin-bottom:14px">
+      <div><div style="font-size:12px;color:var(--text-muted)">Caisse ouverte par</div>
+        <div style="font-size:15px;font-weight:600">${sess.caissier}</div>
+        <div style="font-size:11.5px;color:var(--text-muted)">depuis ${new Date(sess.ouverte_le).toLocaleString('fr-FR')} · fond ${sess.fond.toLocaleString('fr-FR')} FCFA</div></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-sm" style="background:#1a4b6e;color:#fff" onclick="scannerPourCaisse()">📷 Scanner patient</button>
-        <button class="btn btn-sm" style="background:#15803d;color:#fff" onclick="dispenserDepuisCaisse()">💊 Servir une ordonnance</button>
-        <button class="btn btn-sm btn-secondary" onclick="MEDICORE_CAISSE.cloturer('pharmacie_pui')">🔒 Clôture Z</button>
+        <button class="btn btn-sm" style="background:#15803d;color:#fff" onclick="dispenserDepuisCaisse()">💊 Servir</button>
+        <button class="btn btn-sm btn-secondary" onclick="servirExterne()">📝 Ordonnance externe</button>
+        <button class="btn btn-sm btn-danger" onclick="cloturerSessionCaisse()">🔒 Clôturer</button>
       </div>
     </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--text-muted)">FOND DE CAISSE</div><div style="font-size:20px;font-weight:700">${sess.fond.toLocaleString('fr-FR')}</div></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--text-muted)">RECETTE SESSION</div><div style="font-size:20px;font-weight:700;color:var(--accent)">${recette.toLocaleString('fr-FR')}</div></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--text-muted)">ATTENDU EN CAISSE</div><div style="font-size:20px;font-weight:700">${attendu.toLocaleString('fr-FR')}</div></div>
+    </div>
     ${MEDICORE_CAISSE.renderRegistre('pharmacie_pui')}`;
+}
+function ouvrirSessionCaisse(){
+  const caissier=document.getElementById('ses-caissier').value;
+  const fond=+document.getElementById('ses-fond').value||0;
+  MEDICORE_CAISSE.ouvrirSession('pharmacie_pui', { caissier, fond });
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Ouverture de caisse','ENCAISSEMENT',`${caissier} — fond ${fond.toLocaleString('fr-FR')} FCFA`);
+  toast('Caisse ouverte ('+caissier+').','success'); renderCaissePharma();
+}
+function cloturerSessionCaisse(){
+  const sess=MEDICORE_CAISSE.sessionCourante('pharmacie_pui'); if(!sess){ renderCaissePharma(); return; }
+  const recette=MEDICORE_CAISSE.totalSession('pharmacie_pui'); const attendu=sess.fond+recette;
+  let ov=document.getElementById('modal-clot'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-clot';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:440px"><div class="modal-header"><div class="modal-title">Clôture de caisse (Z)</div>
+    <button class="modal-close" onclick="document.getElementById('modal-clot').remove()">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>Fond de caisse</span><strong>${sess.fond.toLocaleString('fr-FR')} FCFA</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0"><span>Recette de la session</span><strong>${recette.toLocaleString('fr-FR')} FCFA</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--border);margin-top:4px"><strong>État attendu en caisse</strong><strong>${attendu.toLocaleString('fr-FR')} FCFA</strong></div>
+      <div style="margin-top:14px"><label style="font-size:12px;color:var(--text-muted)">Espèces comptées (état final)</label>
+        <input id="clot-compte" type="number" value="${attendu}" oninput="majEcart(${attendu})" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="margin-top:10px"><label style="font-size:12px;color:var(--text-muted)">Versement (à remettre)</label>
+        <input id="clot-versement" type="number" value="${recette}" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="margin-top:12px;padding:10px;border-radius:6px;background:var(--surface-alt);display:flex;justify-content:space-between">
+        <strong>Écart</strong><strong id="clot-ecart">0 FCFA</strong></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('modal-clot').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerCloture()">🔒 Confirmer la clôture</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function majEcart(attendu){
+  const c=+document.getElementById('clot-compte').value||0; const e=c-attendu;
+  const el=document.getElementById('clot-ecart');
+  el.textContent=(e>0?'+':'')+e.toLocaleString('fr-FR')+' FCFA';
+  el.style.color=e===0?'var(--green)':(e<0?'var(--red)':'var(--orange)');
+}
+function validerCloture(){
+  const compte=+document.getElementById('clot-compte').value||0;
+  const versement=+document.getElementById('clot-versement').value||0;
+  const clos=MEDICORE_CAISSE.cloturerSession('pharmacie_pui', { compteEspeces:compte, versement });
+  document.getElementById('modal-clot').remove();
+  if(clos && typeof MEDICORE_PRINT!=='undefined'){
+    MEDICORE_PRINT.open({ titre:'Clôture de caisse (Z) — Pharmacie', sousTitre:clos.caissier+' · '+new Date(clos.cloturee_le).toLocaleString('fr-FR'),
+      corpsHTML:`<table><tbody>
+        <tr><td>Caissier</td><td class="right"><b>${clos.caissier}</b></td></tr>
+        <tr><td>Ouverture</td><td class="right">${new Date(clos.ouverte_le).toLocaleString('fr-FR')}</td></tr>
+        <tr><td>Clôture</td><td class="right">${new Date(clos.cloturee_le).toLocaleString('fr-FR')}</td></tr>
+        <tr><td>Fond de caisse initial</td><td class="right">${clos.fond.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td>Recette (${clos.nb_operations} op.)</td><td class="right">${clos.recette.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td class="tot">État attendu</td><td class="right tot">${clos.attendu.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td>Espèces comptées (état final)</td><td class="right">${clos.compte_especes.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td>Versement</td><td class="right">${clos.versement.toLocaleString('fr-FR')} FCFA</td></tr>
+        <tr><td class="tot">ÉCART</td><td class="right tot" style="color:${clos.ecart===0?'#15803d':'#b91c1c'}">${(clos.ecart>0?'+':'')+clos.ecart.toLocaleString('fr-FR')} FCFA</td></tr>
+      </tbody></table>` });
+  }
+  toast('Caisse clôturée. Écart : '+(clos?clos.ecart.toLocaleString('fr-FR'):'0')+' FCFA.', clos&&clos.ecart===0?'success':'warn');
+  renderCaissePharma();
 }
 function dispenserDepuisCaisse(){
   const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;
