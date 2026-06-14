@@ -247,6 +247,7 @@
 <script src="medicore-prestations.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-caisse.js"></script>
+<script src="medicore-stock.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
 <link rel="stylesheet" href="mobile.css">
@@ -297,6 +298,7 @@
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('planning',this)">Programme opératoire</button>
         <button class="tab-btn" onclick="switchTab('interventions',this)">Liste des interventions</button>
+        <button class="tab-btn" onclick="switchTab('consommables',this)">📦 Consommables</button>
         <button class="tab-btn" onclick="switchTab('ressources',this)">Ressources & Salles</button>
         <button class="tab-btn" onclick="switchTab('dmi',this)">DMI & Consommables</button>
         <button class="tab-btn" onclick="switchTab('facturation',this)">Facturation CNAM-CI</button>
@@ -304,6 +306,7 @@
       </div>
 
       <!-- ── PLANNING ── -->
+      <div id="tab-consommables" class="tab-panel"><div id="stock-cons-bloc_operatoire"></div></div>
       <div id="tab-planning" class="tab-panel active">
         <div class="card">
           <div class="card-header">
@@ -1071,6 +1074,7 @@ function switchTab(name,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='consommables'){ MEDICORE_STOCK.mount('stock-cons-bloc_operatoire','bloc_operatoire'); }
   if(name==='interventions') renderInterventions();
   if(name==='ressources') renderRessources();
   if(name==='dmi') renderDMI();

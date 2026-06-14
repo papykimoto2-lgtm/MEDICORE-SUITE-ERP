@@ -42,3 +42,23 @@ select (payload->>'cloturee_le')::date as jour, payload->>'caissier' as caissier
        sum((payload->>'ecart')::numeric)   as ecart_total
 from public.medicore_sync_docs where store='caisse_sessions' and not deleted
 group by 1,2,3 order by 1 desc;
+
+-- Consommables par dépôt (labo, imagerie, bloc, …)
+drop view if exists public.v_consommables cascade;
+create view public.v_consommables as
+select doc_id, payload->>'depot' as depot, payload->>'designation' as designation,
+       payload->>'categorie' as categorie, payload->>'unite' as unite,
+       (payload->>'stock')::numeric as stock, (payload->>'seuil')::numeric as seuil,
+       (payload->>'pmp')::numeric as pmp, payload->>'lot' as lot,
+       payload->>'peremption' as peremption,
+       (payload->>'stock')::numeric*(payload->>'pmp')::numeric as valeur, updated_at
+from public.medicore_sync_docs where store='consommables' and not deleted;
+
+drop view if exists public.v_mouvements_consommables cascade;
+create view public.v_mouvements_consommables as
+select doc_id, payload->>'depot' as depot, payload->>'depot_dest' as depot_dest,
+       payload->>'designation' as article, payload->>'sens' as sens,
+       (payload->>'qte')::numeric as quantite, payload->>'motif' as motif,
+       payload->>'patient' as patient, payload->>'par' as par,
+       payload->>'date' as date_mvt, updated_at
+from public.medicore_sync_docs where store='mouvements_consommables' and not deleted;

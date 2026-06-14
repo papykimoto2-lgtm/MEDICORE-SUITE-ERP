@@ -527,7 +527,58 @@ function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
 function fmtF(v){return fmt(v)+' FCFA'}
 function fmtM(v){return (v/1000000).toFixed(1)+' M FCFA'}
 function getPeriode(){return document.getElementById('periode-dash').value}
-function getData(){return DATA[getPeriode()]||DATA['T2-2025']}
+function _dashLoad(s){ try{ return (typeof MEDICORE_STORE!=='undefined')?(MEDICORE_STORE.load(s,[])||[]):[]; }catch(e){ return []; } }
+function _dashPeriode(dateStr){
+  // Filtre simple par période sélectionnée (T1/T2/Année) — sinon tout
+  const per=getPeriode(); if(!dateStr) return true;
+  const d=new Date(dateStr); if(isNaN(d)) return true;
+  const y=d.getFullYear(), m=d.getMonth();
+  if(per==='T1-2025') return y===2025 && m<=2;
+  if(per==='T2-2025') return y===2025 && m>=3 && m<=5;
+  if(per==='AN-2025') return y===2025;
+  return true;
+}
+// Calcule l'ensemble des indicateurs à partir des données réelles des stores
+function getData(){
+  const patients=_dashLoad('patients'), prestations=_dashLoad('prestations'),
+        caisse=_dashLoad('caisse'), urgences=_dashLoad('urgences'),
+        prescriptions=_dashLoad('prescriptions'), treso=_dashLoad('mouvements_tresorerie');
+  const cP=caisse.filter(t=>_dashPeriode(t.date));
+  const tP=treso.filter(m=>_dashPeriode(m.date));
+  const prP=prestations.filter(p=>_dashPeriode(p.date));
+
+  const produits=cP.reduce((s,t)=>s+(+t.total||0),0);
+  const charges=tP.filter(m=>/sortie|décaiss|charge/i.test((m.sens||m.type||'')+'')).reduce((s,m)=>s+(+m.montant||0),0);
+
+  const LAB={laboratoire:'Laboratoire',imagerie:'Imagerie',pharmacie_pui:'Pharmacie',pharmacie:'Pharmacie',
+    bloc_operatoire:'Bloc opératoire',consultation:'Consultations',facturation:'Consultations',urgences:'Urgences'};
+  const COUL={Laboratoire:'#0891b2',Imagerie:'#7c3aed',Pharmacie:'#15803d',
+    'Bloc opératoire':'#b91c1c',Consultations:'#1a4b6e',Urgences:'#c2410c'};
+  const byPole={};
+  prP.forEach(p=>{ const lab=LAB[p.module]||'Autre';
+    (byPole[lab]=byPole[lab]||{pole:lab,produits:0,charges:0,pts:new Set()});
+    byPole[lab].produits+=(+p.montant||0); if(p.patientId) byPole[lab].pts.add(p.patientId); });
+  const poles=Object.values(byPole).map(p=>({ pole:p.pole, produits:p.produits, charges:0,
+    sejours:p.pts.size, dms:null, lits:null, couleur:COUL[p.pole]||'#1a4b6e' }));
+
+  // DMS réelle (patients avec entrée + sortie)
+  const durs=patients.filter(p=>p.entree&&p.sortie).map(p=>(new Date(p.sortie)-new Date(p.entree))/86400000).filter(x=>x>=0);
+  const dms=durs.length?+(durs.reduce((a,b)=>a+b,0)/durs.length).toFixed(1):null;
+
+  // Recette / charges des 6 derniers mois
+  const MN=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+  const now=new Date(), moisData=[];
+  for(let i=5;i>=0;i--){ const dt=new Date(now.getFullYear(),now.getMonth()-i,1), y=dt.getFullYear(), mo=dt.getMonth();
+    const inM=arr=>arr.filter(x=>{const d=new Date(x.date);return d.getFullYear()===y&&d.getMonth()===mo;});
+    moisData.push({ m:MN[mo],
+      prod:inM(caisse).reduce((s,t)=>s+(+t.total||0),0),
+      ch:inM(treso.filter(m=>/sortie/i.test((m.sens||'')+''))).reduce((s,m)=>s+(+m.montant||0),0) });
+  }
+  return { produits, charges, tresorerie:produits-charges,
+    sejours:patients.length, consul:prescriptions.length, urgences:urgences.length,
+    tol:null, dms, satisf:null, poles, moisData };
+}
+function _kpiOrDash(v,suf){ return (v==null||isNaN(v))?'—':(v+(suf||'')); }
 
 // ── Alertes direction ──────────────────────────────────────────────────────────
 function renderAlertes(){
@@ -553,14 +604,14 @@ function renderSynthese(){
   const res=d.produits-d.charges;
   document.getElementById('dir-resultat').textContent=fmtM(Math.abs(res));
   document.getElementById('dir-resultat-trend').innerHTML=`<span class="${res>=0?'trend-up':'trend-down'}">${res>=0?'▲ Excédent':'▼ Déficit'}</span>`;
-  document.getElementById('dir-tol').textContent=d.tol+'%';
-  document.getElementById('dir-tol-trend').innerHTML=`<span class="${d.tol>=70?'trend-up':'trend-down'}">${d.tol>=70?'▲ Objectif atteint':'▼ Sous objectif (75%)'}</span>`;
-  document.getElementById('dir-dms').textContent=d.dms+'j';
-  document.getElementById('dir-dms-trend').innerHTML=`<span class="${d.dms<=4.5?'trend-up':'trend-down'}">${d.dms<=4.5?'✓ Conforme':'▲ Sup. objectif (4j)'}</span>`;
+  document.getElementById('dir-tol').textContent=_kpiOrDash(d.tol,'%');
+  document.getElementById('dir-tol-trend').innerHTML=d.tol==null?'<span class="trend-flat">Non suivi</span>':`<span class="${d.tol>=70?'trend-up':'trend-down'}">${d.tol>=70?'▲ Objectif atteint':'▼ Sous objectif (75%)'}</span>`;
+  document.getElementById('dir-dms').textContent=_kpiOrDash(d.dms,'j');
+  document.getElementById('dir-dms-trend').innerHTML=d.dms==null?'<span class="trend-flat">—</span>':`<span class="${d.dms<=4.5?'trend-up':'trend-down'}">${d.dms<=4.5?'✓ Conforme':'▲ Sup. objectif (4j)'}</span>`;
   document.getElementById('dir-actes').textContent=fmt(d.sejours+d.consul);
-  document.getElementById('dir-actes-trend').innerHTML='<span class="trend-up">▲ +6% vs T1</span>';
-  document.getElementById('dir-satisf').textContent=d.satisf+'%';
-  document.getElementById('dir-satisf-trend').innerHTML=`<span class="${d.satisf>=80?'trend-up':'trend-flat'}">${d.satisf>=80?'✓ Bonne':'→ À améliorer'}</span>`;
+  document.getElementById('dir-actes-trend').innerHTML=`<span class="trend-flat">${fmt(d.sejours)} séjours · ${fmt(d.consul)} prescr.</span>`;
+  document.getElementById('dir-satisf').textContent=_kpiOrDash(d.satisf,'%');
+  document.getElementById('dir-satisf-trend').innerHTML=d.satisf==null?'<span class="trend-flat">Non mesuré</span>':`<span class="${d.satisf>=80?'trend-up':'trend-flat'}">${d.satisf>=80?'✓ Bonne':'→ À améliorer'}</span>`;
 
   // Scorecards
   const scorecards=[
@@ -621,7 +672,7 @@ function renderFinancier(){
 
   // Résultat mensuel line chart SVG
   const months=d.moisData;
-  const maxV=Math.max(...months.map(m=>Math.max(m.prod,m.ch)));
+  const maxV=Math.max(1,...months.map(m=>Math.max(m.prod,m.ch)));
   const W=500,H=120;
   const getY=(v)=>H-(v/maxV*(H-20))-10;
   const ptsP=months.map((m,i)=>({x:i/(months.length-1)*W,y:getY(m.prod)}));
@@ -747,9 +798,14 @@ function renderActivite(){
       ${moisE.map((m,i)=>`<text x="${i/(moisE.length-1)*W}" y="${H+20}" text-anchor="middle" font-size="11" fill="#6b6b6b" font-family="DM Sans">${m.m}</text>`).join('')}
     </svg>`;
 
-  // Heatmap
-  const vals=Array.from({length:30},(_,i)=>Math.floor(Math.random()*25+8));
-  const maxH=Math.max(...vals);
+  // Heatmap — activité réelle des 30 derniers jours (encaissements + prestations)
+  const caisseH=_dashLoad('caisse'), prestaH=_dashLoad('prestations');
+  const vals=[]; const now2=new Date();
+  for(let i=29;i>=0;i--){ const day=new Date(now2.getFullYear(),now2.getMonth(),now2.getDate()-i);
+    const sameDay=x=>{ const dx=new Date(x.date); return dx.getFullYear()===day.getFullYear()&&dx.getMonth()===day.getMonth()&&dx.getDate()===day.getDate(); };
+    vals.push(caisseH.filter(sameDay).length + prestaH.filter(sameDay).length);
+  }
+  const maxH=Math.max(1,...vals);
   document.getElementById('heatmap-activite').innerHTML=`
     <div class="heatmap">
       ${vals.map((v,i)=>{

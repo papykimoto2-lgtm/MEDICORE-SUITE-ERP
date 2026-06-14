@@ -268,7 +268,6 @@
         <button class="tab-btn" onclick="switchTab('circuit',this)">Circuit du médicament</button>
         <button class="tab-btn" onclick="switchTab('stupefiants',this)">Stupéfiants</button>
         <button class="tab-btn" onclick="switchTab('depots',this)">Dépôts & Réappro.</button>
-        <button class="tab-btn" onclick="switchTab('retroces',this)">Rétrocession</button>
         <button class="tab-btn" onclick="switchTab('traçabilite',this)">Traçabilité lots</button>
         <button class="tab-btn" onclick="switchTab('caisse',this)">🧾 Caisse</button>
       </div>
@@ -401,32 +400,6 @@
       </div>
 
       <!-- ── RÉTROCESSION ── -->
-      <div id="tab-retroces" class="tab-panel">
-        <div class="alert-box info" style="margin-bottom:20px">
-          <span class="alert-icon">ℹ️</span>
-          <span>La rétrocession est la vente de médicaments aux patients non hospitalisés (externes). Elle génère automatiquement une facturation (module Facturation) et une sortie de stock.</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
-          <div class="kpi-card green"><div class="kpi-label">CA rétrocession (mois)</div><div class="kpi-value" style="font-size:20px" id="retro-ca">—</div><span class="kpi-badge up">▲ Recettes</span></div>
-          <div class="kpi-card blue"><div class="kpi-label">Ordonnances traitées</div><div class="kpi-value" style="font-size:20px" id="retro-ordo">—</div><span class="kpi-badge neutral">📋 Ce mois</span></div>
-          <div class="kpi-card orange"><div class="kpi-label">Montant en attente</div><div class="kpi-value" style="font-size:20px" id="retro-att">—</div><span class="kpi-badge warn">⏳ AM/mutuelle</span></div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <div><div class="card-title">Ventes de médicaments externes</div></div>
-            <button class="btn btn-primary btn-sm" onclick="openRetro()">＋ Nouvelle vente</button>
-          </div>
-          <table>
-            <thead><tr>
-              <th>Date</th><th>N° ordonnance</th><th>Patient</th><th>Prescripteur</th>
-              <th>Médicaments délivrés</th><th class="text-right">Montant (FCFA)</th>
-              <th>Tiers-payant</th><th>Statut</th>
-            </tr></thead>
-            <tbody id="retro-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
       <!-- ── TRAÇABILITÉ LOTS ── -->
       <div id="tab-traçabilite" class="tab-panel">
         <div class="alert-box info" style="margin-bottom:20px">
@@ -851,7 +824,7 @@ function servirExterne(){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
   ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
   ov.innerHTML=`<div class="modal" style="width:540px;max-width:96vw"><div class="modal-header">
-    <div><div class="modal-title">Ordonnance externe</div><div class="modal-subtitle">Prescription hors système — vente directe</div></div>
+    <div><div class="modal-title">Vente externe / Rétrocession</div><div class="modal-subtitle">Patient externe (non hospitalisé) — vente directe + sortie de stock</div></div>
     <button class="modal-close" onclick="document.getElementById('modal-ext').remove()">✕</button></div>
     <div class="modal-body">
       <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--text-muted)">Patient / client</label>
@@ -1331,7 +1304,6 @@ function switchTab(name,btn){
   if(name==='circuit') renderCircuit();
   if(name==='stupefiants') renderStupefiants();
   if(name==='depots') renderDepots();
-  if(name==='retroces') renderRetrocession();
   if(name==='traçabilite') initTraceProduits();
   if(name==='caisse') renderCaissePharma();
 }
@@ -1374,7 +1346,7 @@ function renderCaissePharma(){
       <div style="display:flex;gap:8px">
         <button class="btn btn-sm" style="background:#1a4b6e;color:#fff" onclick="scannerPourCaisse()">📷 Scanner patient</button>
         <button class="btn btn-sm" style="background:#15803d;color:#fff" onclick="dispenserDepuisCaisse()">💊 Servir</button>
-        <button class="btn btn-sm btn-secondary" onclick="servirExterne()">📝 Ordonnance externe</button>
+        <button class="btn btn-sm btn-secondary" onclick="servirExterne()">📝 Vente externe / Rétrocession</button>
         <button class="btn btn-sm btn-danger" onclick="cloturerSessionCaisse()">🔒 Clôturer</button>
       </div>
     </div>

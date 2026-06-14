@@ -34,6 +34,8 @@ const MEDICORE_SYNC = {
     { store:'interventions',         label:'Bloc opératoire'       },
     { store:'stock',                 label:'Stock pharmacie'       },
     { store:'mouvements_stock',      label:'Mouvements stock'      },
+    { store:'consommables',          label:'Consommables (dépôts)' },
+    { store:'mouvements_consommables', label:'Mouvements consommables'},
     { store:'factures',              label:'Facturation'           },
     { store:'ecritures',             label:'Écritures comptables'  },
     { store:'mouvements_tresorerie', label:'Trésorerie'            },
