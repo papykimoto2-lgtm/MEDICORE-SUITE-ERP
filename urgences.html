@@ -124,6 +124,44 @@ const NIVEAUX={
 const NB_BOX_DECHOC=4;   // nombre de places en salle de déchocage
 
 let episodes=[];   // store 'urgences'
+let patientsUrg=[]; // store partagé 'patients' (commun avec le DPI)
+
+function ippFromDossier(id){ return 'IPP-'+String(id).replace(/\D/g,'').slice(-6).padStart(6,'0'); }
+function genererDossier(){
+  // Numéro automatique unique, format compatible DPI (Dxxxxxx)
+  let n=1; const nums=patientsUrg.map(p=>parseInt(String(p.id).replace(/\D/g,''))||0);
+  const base=Math.max(205800, ...(nums.length?nums:[0]));
+  let id='D'+(base+1);
+  while(patientsUrg.some(p=>p.id===id)){ n++; id='D'+(base+n); }
+  return id;
+}
+function chargerPatients(){
+  if(typeof MEDICORE_STORE!=='undefined') patientsUrg=MEDICORE_STORE.load('patients',[]);
+  else { try{ const p=JSON.parse(localStorage.getItem('medicore_patients')||'[]'); patientsUrg=Array.isArray(p)?p:(p.d||[]); }catch(e){ patientsUrg=[]; } }
+}
+function sauverPatients(){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('patients', patientsUrg, true);
+  else localStorage.setItem('medicore_patients', JSON.stringify({_v:1,_ts:Date.now(),d:patientsUrg})); }
+// Crée (ou retrouve) le dossier patient partagé pour un passage urgences
+function dossierPourUrgence(o){
+  chargerPatients();
+  // Patient existant scanné (IPP/dossier fourni)
+  if(o.ref){
+    const ex=patientsUrg.find(p=>p.id===o.ref || p.ipp===o.ref);
+    if(ex) return ex;
+  }
+  // Doublon certain (même nom + même ddn)
+  if(o.ddn){
+    const dup=patientsUrg.find(p=>(p.nom||'').toLowerCase()===(o.nom||'').toLowerCase() && p.ddn===o.ddn);
+    if(dup) return dup;
+  }
+  const id=genererDossier();
+  const p={ id, ipp:ippFromDossier(id), nom:o.nom, sexe:o.sexe||'', ddn:o.ddn||'',
+    service:'Urgences', medecin:'Urgences', type:'Urgence', statut:'Aux urgences',
+    motif:o.motif||'', allergies:o.allergies||'', antecedents:o.antecedents||'',
+    entree:now(), assurance:o.assurance||'' };
+  patientsUrg.unshift(p); sauverPatients();
+  return p;
+}
 
 function load(){
   if(typeof MEDICORE_STORE!=='undefined') episodes=MEDICORE_STORE.load('urgences',[]);
@@ -172,13 +210,14 @@ function renderFile(){
     return `<tr>
       <td><span class="niv-bar" style="background:${n.hex}"></span></td>
       <td><span class="niv" style="background:${n.hex}">${e.niveau}</span></td>
-      <td><strong>${e.nom}</strong>${e.ipp?`<div style="font-size:11px;color:var(--text-muted)">${e.ipp}</div>`:''}</td>
+      <td><strong>${e.nom}</strong>${e.dossier?`<div style="font-size:11px;color:var(--text-muted)">${e.dossier}${e.ipp?' · '+e.ipp:''}</div>`:(e.ipp?`<div style="font-size:11px;color:var(--text-muted)">${e.ipp}</div>`:'')}</td>
       <td>${e.motif||'—'}</td>
       <td>${e.signes?`<span style="font-size:11.5px">TA ${e.signes.ta||'—'} · FC ${e.signes.fc||'—'} · SpO₂ ${e.signes.spo2||'—'}%</span>`:'—'}</td>
       <td><span style="color:${retard?'var(--red)':'var(--text-muted)'};font-weight:${retard?'600':'400'}">${att} min${retard?' ⚠':''}</span><div style="font-size:10.5px;color:var(--text-muted)">cible ≤ ${n.delai} min</div></td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-danger btn-xs" onclick="versDechocage('${e.id}')">🛏 Déchocage</button>
         <button class="btn btn-secondary btn-xs" onclick="examenUrg('${e.id}')">🔬 Examen</button>
+        <button class="btn btn-secondary btn-xs" onclick="braceletUrg('${e.id}')">🪪 QR</button>
         <button class="btn btn-secondary btn-xs" onclick="prendreEnSoins('${e.id}')">▶ Soins</button>
         <button class="btn btn-secondary btn-xs" onclick="ouvrirReeval('${e.id}')">✎</button>
       </td></tr>`;
@@ -285,7 +324,16 @@ function ouvrirTriage(prefill){
     <div class="modal-body">
       <div class="grid2">
         <div class="fg"><label>Nom du patient *</label><input id="t-nom" value="${prefill.nom||''}"></div>
-        <div class="fg"><label>IPP / Dossier</label><input id="t-ipp" value="${prefill.ipp||''}"></div>
+        <div class="fg"><label>IPP / Dossier existant (si connu)</label><input id="t-ipp" value="${prefill.ipp||prefill.ref||''}" placeholder="laisser vide → dossier auto"></div>
+      </div>
+      <div class="grid3">
+        <div class="fg"><label>Sexe</label><select id="t-sexe"><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
+        <div class="fg"><label>Date de naissance</label><input id="t-ddn" type="date"></div>
+        <div class="fg"><label>Assurance</label><input id="t-assurance" placeholder="CNAM, Mutuelle…"></div>
+      </div>
+      <div class="grid2">
+        <div class="fg"><label>Allergies connues</label><input id="t-allergies" placeholder="ex : Pénicilline"></div>
+        <div class="fg"><label>Antécédents</label><input id="t-antecedents" placeholder="ex : HTA, diabète"></div>
       </div>
       <div class="fg"><label>Motif de recours *</label><input id="t-motif" placeholder="ex : douleur thoracique, traumatisme…"></div>
       <div class="grid3">
@@ -318,16 +366,66 @@ function validerTriage(){
   if(!nom){ toast('Nom requis.','error'); return; }
   if(!motif){ toast('Motif requis.','error'); return; }
   if(!niveauSel){ toast('Sélectionnez le niveau de triage.','error'); return; }
-  const ep={ id:uid(), patientId:document.getElementById('t-ipp').value.trim()||null,
-    nom, ipp:document.getElementById('t-ipp').value.trim(), motif, niveau:+niveauSel,
-    signes:signesForm(), statut:'attente', arrivee:now(), soignant:soignant(), reeval:[] };
-  // premier relevé = signes du triage
+  const g=id=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
+  // Dossier patient partagé (auto si nouveau) — n° + IPP comme au DPI
+  const dossier=dossierPourUrgence({ ref:g('t-ipp'), nom, sexe:g('t-sexe'), ddn:g('t-ddn'),
+    allergies:g('t-allergies'), antecedents:g('t-antecedents'), assurance:g('t-assurance'), motif });
+  const ep={ id:uid(), patientId:dossier.id, dossier:dossier.id, nom:dossier.nom, ipp:dossier.ipp,
+    motif, niveau:+niveauSel, signes:signesForm(), statut:'attente', arrivee:now(), soignant:soignant(), reeval:[] };
   ep.reeval.push(Object.assign({ts:now(),par:ep.soignant}, ep.signes));
   episodes.unshift(ep); save(); rerender();
+  // Patient actif (pour QR/bracelet, demandes, parcours)
+  if(typeof MEDICORE_PATIENT!=='undefined') MEDICORE_PATIENT.set({ id:dossier.id, nom:dossier.nom, ipp:dossier.ipp });
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Passage urgences','CREATION',`${dossier.nom} — dossier ${dossier.id} — niveau ${ep.niveau}`, dossier.id);
   document.getElementById('m-triage').remove();
   niveauSel=null;
-  if(ep.niveau<=2) toast('⚠ Niveau '+ep.niveau+' — prise en charge immédiate requise !','error');
-  else toast('Patient enregistré au triage (niveau '+ep.niveau+').','success');
+  confirmationTriage(ep, dossier);
+}
+// Confirmation : n° de dossier + QR/bracelet imprimable
+function confirmationTriage(ep, dossier){
+  const ov=document.createElement('div'); ov.className='modal-ov'; ov.id='m-confirm';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  const n=NIVEAUX[ep.niveau];
+  ov.innerHTML=`<div class="modal" style="width:420px"><div class="modal-header">
+    <div class="modal-title">Patient enregistré</div>
+    <button class="modal-close" onclick="document.getElementById('m-confirm').remove()">✕</button></div>
+    <div class="modal-body" style="text-align:center">
+      <div style="font-size:15px;font-weight:600">${dossier.nom}</div>
+      <div style="margin:8px 0"><span class="niv" style="background:${n.hex}">${ep.niveau}</span> <span style="font-size:13px">${n.label}</span></div>
+      <div style="display:inline-block;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0">
+        <div style="font-size:11px;color:var(--text-muted)">N° DOSSIER</div>
+        <div style="font-size:22px;font-weight:700;letter-spacing:1px">${dossier.id}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${dossier.ipp}</div>
+      </div>
+      <div id="confirm-qr" style="margin:10px auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('m-confirm').remove()">Fermer</button>
+      <button class="btn btn-primary" onclick="imprimerBraceletUrg()">🖨 Bracelet QR</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  // QR inline
+  try{
+    if(typeof qrcode!=='undefined'){
+      const text='?patient='+dossier.id+' [IPP '+dossier.ipp+' - '+dossier.nom+']';
+      const qr=qrcode(0,'M'); qr.addData(text); qr.make();
+      document.getElementById('confirm-qr').innerHTML=qr.createSvgTag(4,8);
+    }
+  }catch(e){}
+  if(ep.niveau<=2) toast('⚠ Niveau '+ep.niveau+' — prise en charge immédiate !','error');
+}
+function imprimerBraceletUrg(){
+  if(typeof MEDICORE_PATIENT!=='undefined' && MEDICORE_PATIENT.printBracelet) MEDICORE_PATIENT.printBracelet();
+  else toast('Bracelet indisponible.','warn');
+}
+// QR/bracelet d'un épisode (depuis la file)
+function braceletUrg(id){
+  const e=episodes.find(x=>x.id===id); if(!e) return;
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    MEDICORE_PATIENT.set({ id:e.dossier||e.patientId||e.id, nom:e.nom, ipp:e.ipp||'' });
+    if(MEDICORE_PATIENT.printBracelet) return MEDICORE_PATIENT.printBracelet();
+  }
+  toast('Bracelet indisponible.','warn');
 }
 
 // ── Réévaluation (relevé de surveillance) ───────────────────────────────────────
@@ -382,7 +480,7 @@ function switchTab(tab,el){
 
 document.addEventListener('DOMContentLoaded',function(){
   if(typeof initNav==='function') initNav('urgences','Urgences & Triage','Accueil & orientation',['Parcours patient','Urgences']);
-  load(); rerender();
+  load(); chargerPatients(); rerender();
   setInterval(renderKPIs, 30000);   // rafraîchit les compteurs d'attente
 });
 </script>
