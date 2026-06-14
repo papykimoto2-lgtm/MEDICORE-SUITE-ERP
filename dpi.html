@@ -9,10 +9,12 @@
 <script src="qr.js"></script>
 <script src="medicore-audit.js"></script>
 <script src="medicore-rbac.js"></script>
+<script src="medicore-auth.js"></script>
 <script src="medicore-session.js"></script>
 <script src="medicore-parcours.js"></script>
 <script src="medicore-parcours-ui.js"></script>
 <script src="medicore-prestations.js"></script>
+<script src="medicore-resultats.js"></script>
 <script src="medicore-cds.js"></script>
 <script src="medicore-print.js"></script>
 <script src="medicore-scanner.js"></script>
@@ -935,23 +937,30 @@ function renderPrescriptions(id){
 }
 
 function renderBio(id){
-  const res=bioResultats[id]||[];
+  // Fusion : résultats seed + résultats partagés rendus par le labo
+  let res=(bioResultats[id]||[]).slice();
+  if(typeof MEDICORE_RESULTATS!=='undefined') res=res.concat(MEDICORE_RESULTATS.bioParams(id));
+  const imagerie=(typeof MEDICORE_RESULTATS!=='undefined')?MEDICORE_RESULTATS.pourPatient(id,'imagerie'):[];
   const div=document.getElementById('rp-bio');
-  if(!res.length){div.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Aucun résultat biologique<br><a href="laboratoire.html" style="color:var(--accent);font-size:12.5px;margin-top:8px;display:inline-block">→ Demander analyses</a></div>`;return;}
+  const btnDemander=`<button class="btn btn-primary" style="width:100%;margin-top:10px;justify-content:center;font-size:12.5px" onclick="demanderExamen('${id}')">🔬 Demander un examen</button>`;
+  if(!res.length && !imagerie.length){
+    div.innerHTML=`<div style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px">Aucun résultat disponible</div>${btnDemander}`;
+    return;
+  }
   div.innerHTML=`
-    <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Résultats biologiques</div>
+    ${res.length?`<div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Résultats biologiques</div>
     ${res.map(r=>`
       <div class="bio-result">
-        <div>
-          <div style="font-size:13px;font-weight:500">${r.param}</div>
-          <div class="bio-ref">${r.ref} ${r.unite}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="${r.anormal?'bio-anormal':'bio-normal'}">${r.val} ${r.unite}</div>
-          ${r.anormal?'<div style="font-size:10.5px;color:var(--red)">⚠ Hors norme</div>':''}
-        </div>
-      </div>`).join('')}
-    <a href="laboratoire.html" class="btn btn-secondary" style="width:100%;margin-top:10px;justify-content:center;font-size:12.5px">🔬 Voir dossier labo complet</a>`;
+        <div><div style="font-size:13px;font-weight:500">${r.param}</div><div class="bio-ref">${r.ref||''} ${r.unite||''}</div></div>
+        <div style="text-align:right"><div class="${r.anormal?'bio-anormal':'bio-normal'}">${r.val} ${r.unite||''}</div>${r.anormal?'<div style="font-size:10.5px;color:var(--red)">⚠ Hors norme</div>':''}</div>
+      </div>`).join('')}`:''}
+    ${imagerie.length?`<div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px">Comptes rendus d'imagerie</div>
+    ${imagerie.map(r=>`<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between"><strong>${r.libelle||'Imagerie'}</strong><span style="font-size:11px;color:var(--text-muted)">${new Date(r.date).toLocaleDateString('fr-FR')}</span></div>
+      <div style="font-size:12.5px;margin-top:4px">${r.compteRendu||''}</div>
+      ${r.conclusion?`<div style="font-size:12.5px;margin-top:4px"><strong>Conclusion :</strong> ${r.conclusion}</div>`:''}
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">👤 ${r.par||''}</div></div>`).join('')}`:''}
+    ${btnDemander}`;
 }
 
 function renderConstantes(id){
@@ -1176,6 +1185,46 @@ function syntheseClinique(id){
 
 function syntheseClinique_end(){}
 // ── DOCUMENTS IMPRIMABLES (aperçu + PDF) ════════════════════════════════════════
+// ══ DEMANDE D'EXAMEN (biologie / imagerie / autre) → département concerné ════════
+function demanderExamen(id){
+  if(typeof MEDICORE_DEMANDES==='undefined'){ toast('Module demandes absent.','error'); return; }
+  const p=patients.find(x=>x.id===id); if(!p) return;
+  let ov=document.getElementById('m-examen'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='m-examen'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:500px"><div class="modal-header"><div class="modal-title">Demander un examen</div>
+    <button class="modal-close" onclick="document.getElementById('m-examen').remove()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Département <span class="req">*</span></label>
+        <select id="ex-cible"><option value="laboratoire">🔬 Laboratoire (biologie)</option><option value="imagerie">🩻 Imagerie</option></select></div>
+      <div class="form-group"><label>Examen(s) demandé(s) <span class="req">*</span></label>
+        <input type="text" id="ex-objet" placeholder="ex : NFS, CRP, ionogramme / Scanner thoracique…"></div>
+      <div class="form-group"><label>Renseignements cliniques</label>
+        <textarea id="ex-details" style="min-height:48px" placeholder="Contexte, suspicion diagnostique…"></textarea></div>
+      <div class="form-group"><label>Priorité</label>
+        <select id="ex-prio"><option>Normale</option><option>Urgente</option><option>Vitale</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('m-examen').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="envoyerExamen('${id}')">📨 Envoyer la demande</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function envoyerExamen(id){
+  const p=patients.find(x=>x.id===id);
+  const cible=document.getElementById('ex-cible').value;
+  const objet=document.getElementById('ex-objet').value.trim();
+  if(!objet){ toast('Précisez l\'examen demandé.','error'); return; }
+  const d=MEDICORE_DEMANDES.creer({
+    cible, objet, type:'service', priorite:document.getElementById('ex-prio').value,
+    details:document.getElementById('ex-details').value.trim(),
+    patient:{ id:p.id, nom:p.nom, ipp:p.ipp||'' }
+  });
+  auditLog('DEMANDE_EXAMEN', id, `${cible} — ${objet}`, getPrescripteur());
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Demande d\'examen','CREATION',`${cible} : ${objet}`, id);
+  document.getElementById('m-examen').remove();
+  toast('Demande envoyée au '+cible+' (réf '+d.id.slice(-6)+').','success');
+}
+
 function _prescriptionsPatient(id){
   let arr=(prescriptions[id]||[]).slice();
   if(typeof MEDICORE_RX!=='undefined'){

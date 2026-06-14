@@ -9,10 +9,12 @@
 <script src="qr.js"></script>
 <script src="medicore-audit.js"></script>
 <script src="medicore-rbac.js"></script>
+<script src="medicore-auth.js"></script>
 <script src="medicore-session.js"></script>
 <script src="medicore-parcours.js"></script>
 <script src="medicore-parcours-ui.js"></script>
 <script src="medicore-prestations.js"></script>
+<script src="medicore-resultats.js"></script>
 <script src="medicore-caisse.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
@@ -250,6 +252,7 @@
       <div class="topbar-actions">
         <button class="btn btn-secondary btn-sm" onclick="openPACS()">🖥 Visionneuse PACS</button>
         <button class="btn btn-secondary" onclick="exportCSV()">⬇ Exporter</button>
+        <button class="btn btn-secondary" onclick="rendreCR()">📤 Rendre CR</button>
         <button class="btn btn-primary" onclick="openDemande()">＋ Nouvelle demande</button>
       </div>
     </div>
@@ -1021,6 +1024,41 @@ function updateExamensList(){
   const sel=document.getElementById('d-examen');
   sel.innerHTML=examens.map(e=>`<option>${e}</option>`).join('');
 }
+// ══ RENDRE COMPTE-RENDU au praticien (→ dossier patient + notification) ═════════
+function rendreCR(){
+  const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;
+  if(!ap||!ap.id){ toast('Scannez d\'abord le patient (📷 en haut).','warn'); return; }
+  let ov=document.getElementById('m-cr'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='m-cr'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div class="modal" style="width:600px;max-width:96vw"><div class="modal-header">
+    <div><div class="modal-title">Compte-rendu d'imagerie — ${ap.nom||ap.id}</div></div>
+    <button class="modal-close" onclick="document.getElementById('m-cr').remove()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Examen</label><input id="cr-libelle" placeholder="ex : Scanner thoracique, Échographie abdominale"></div>
+      <div class="form-group"><label>Compte-rendu</label><textarea id="cr-texte" style="min-height:120px" placeholder="Technique, résultats, descriptions…"></textarea></div>
+      <div class="form-group"><label>Conclusion</label><textarea id="cr-conclusion" style="min-height:48px"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('m-cr').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="envoiCR('${ap.id}','${(ap.nom||'').replace(/'/g,"\\'")}')">📤 Valider & renvoyer</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function envoiCR(patientId, nom){
+  const libelle=document.getElementById('cr-libelle').value.trim()||'Imagerie';
+  const compteRendu=document.getElementById('cr-texte').value.trim();
+  const conclusion=document.getElementById('cr-conclusion').value.trim();
+  if(!compteRendu){ toast('Saisissez le compte-rendu.','error'); return; }
+  if(typeof MEDICORE_RESULTATS!=='undefined') MEDICORE_RESULTATS.ajouter({ patientId, patient_nom:nom, type:'imagerie', libelle, compteRendu, conclusion });
+  if(typeof MEDICORE_DEMANDES!=='undefined'){
+    const dem=MEDICORE_DEMANDES.all().filter(d=>d.module_cible==='imagerie' && d.patient && d.patient.id===patientId && d.statut!==MEDICORE_DEMANDES.S.RETOURNEE).pop();
+    if(dem){ MEDICORE_DEMANDES.traiter(dem.id, libelle); MEDICORE_DEMANDES.retourner(dem.id, `Compte-rendu disponible : ${libelle}`); }
+  }
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Compte-rendu rendu','VALIDATION',`${nom} — ${libelle}`, patientId);
+  document.getElementById('m-cr').remove();
+  toast('Compte-rendu validé et renvoyé au praticien.','success');
+}
+
 function openDemande(){
   const now=new Date();
   document.getElementById('d-date').value=now.toISOString().slice(0,16);

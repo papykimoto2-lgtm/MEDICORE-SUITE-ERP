@@ -45,6 +45,7 @@ const MEDICORE_SESSION = {
     try{
       const u=this.user();
       if(u && typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('DECONNEXION','CONNEXION','Fin de session'+(reason?' ('+reason+')':''), u.login);
+      if(typeof MEDICORE_AUTH!=='undefined' && MEDICORE_AUTH.isAuthenticated()) { try{ MEDICORE_AUTH.signOut(); }catch(e){} }
       sessionStorage.removeItem(this.KEY); sessionStorage.removeItem(this.TKEY); sessionStorage.removeItem(this.AKEY);
     }catch(e){}
     location.href='login.html'+(reason?('?exp='+reason):'');

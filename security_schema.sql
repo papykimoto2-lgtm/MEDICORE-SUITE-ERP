@@ -105,7 +105,8 @@ drop policy if exists audit_read on public.medicore_audit;
 create policy audit_read on public.medicore_audit for select using (public.is_admin());
 
 -- 6) Vue d'audit lisible --------------------------------------------------------
-create or replace view public.v_audit as
+drop view if exists public.v_audit cascade;
+create view public.v_audit as
   select ts, type, action, detail, cible, login, role, module
   from public.medicore_audit order by ts desc;
 

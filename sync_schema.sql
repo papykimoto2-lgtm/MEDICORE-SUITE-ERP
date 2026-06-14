@@ -51,7 +51,8 @@ create policy p_sync_all on public.medicore_sync_docs
 -- ══════════════════════════════════════════════════════════════════════════════
 
 -- Prestations facturables (labo, imagerie, bloc, pharmacie…)
-create or replace view public.v_prestations as
+drop view if exists public.v_prestations cascade;
+create view public.v_prestations as
 select doc_id, payload->>'patientId' as patient_id, payload->>'patient_nom' as patient,
        payload->>'module' as module, payload->>'libelle' as libelle, payload->>'code' as code,
        (payload->>'montant')::numeric as montant, payload->>'statut' as statut,
@@ -59,14 +60,16 @@ select doc_id, payload->>'patientId' as patient_id, payload->>'patient_nom' as p
 from public.medicore_sync_docs where store='prestations' and not deleted;
 
 -- Factures (dont notes de sortie consolidées)
-create or replace view public.v_factures as
+drop view if exists public.v_factures cascade;
+create view public.v_factures as
 select doc_id, payload->>'id' as facture, payload->>'nom' as patient, payload->>'nss' as ipp,
        payload->>'type' as type, payload->>'am' as prise_en_charge, payload->>'statut' as statut,
        (payload->>'montant')::numeric as montant, payload->>'date' as date_facture, updated_at
 from public.medicore_sync_docs where store='factures' and not deleted;
 
 -- Prescriptions / lignes pharmacie (registre RX)
-create or replace view public.v_prescriptions as
+drop view if exists public.v_prescriptions cascade;
+create view public.v_prescriptions as
 select doc_id, payload->>'patientId' as patient_id, payload->>'patient_nom' as patient,
        payload->>'med' as medicament, payload->>'posologie' as posologie, payload->>'voie' as voie,
        payload->>'duree' as duree, payload->>'statut' as statut, payload->>'medecin' as prescripteur,
@@ -74,14 +77,16 @@ select doc_id, payload->>'patientId' as patient_id, payload->>'patient_nom' as p
 from public.medicore_sync_docs where store='prescriptions' and not deleted;
 
 -- Demandes inter-services
-create or replace view public.v_demandes as
+drop view if exists public.v_demandes cascade;
+create view public.v_demandes as
 select doc_id, payload->>'module_demandeur' as demandeur, payload->>'module_cible' as cible,
        payload->>'objet' as objet, payload->>'priorite' as priorite, payload->>'statut' as statut,
        payload#>>'{patient,nom}' as patient, payload->>'registreId' as registre_id, updated_at
 from public.medicore_sync_docs where store='demandes' and not deleted;
 
 -- Mouvements de caisse / trésorerie (SYSCOHADA)
-create or replace view public.v_tresorerie as
+drop view if exists public.v_tresorerie cascade;
+create view public.v_tresorerie as
 select doc_id, payload->>'libelle' as libelle, (payload->>'montant')::numeric as montant,
        payload->>'sens' as sens, payload->>'mode' as mode, payload->>'journal' as journal,
        payload->>'compte_debit' as compte_debit, payload->>'compte_credit' as compte_credit,
@@ -89,21 +94,24 @@ select doc_id, payload->>'libelle' as libelle, (payload->>'montant')::numeric as
 from public.medicore_sync_docs where store='mouvements_tresorerie' and not deleted;
 
 -- Mouvements de stock pharmacie
-create or replace view public.v_mouvements_stock as
+drop view if exists public.v_mouvements_stock cascade;
+create view public.v_mouvements_stock as
 select doc_id, payload->>'produit' as produit, payload->>'mvt' as sens,
        (payload->>'qte')::numeric as quantite, payload->>'motif' as motif,
        payload->>'patient' as patient, payload->>'date' as date_mvt, updated_at
 from public.medicore_sync_docs where store='mouvements_stock' and not deleted;
 
 -- Historique de connexion (sécurité / audit)
-create or replace view public.v_connexions as
+drop view if exists public.v_connexions cascade;
+create view public.v_connexions as
 select doc_id, payload->>'login' as login, payload->>'nom' as nom, payload->>'role' as role,
        (payload->>'ok')::boolean as succes, payload->>'motif' as motif,
        payload->>'ts' as horodatage, updated_at
 from public.medicore_sync_docs where store='connexions' and not deleted;
 
 -- Caisse / encaissements (pharmacie, labo, imagerie…)
-create or replace view public.v_caisse as
+drop view if exists public.v_caisse cascade;
+create view public.v_caisse as
 select doc_id, payload->>'service' as service, payload->>'service_label' as caisse,
        payload->>'patient_nom' as patient, (payload->>'total')::numeric as total,
        payload->>'mode' as mode, payload->>'caissier' as caissier,
@@ -112,7 +120,8 @@ select doc_id, payload->>'service' as service, payload->>'service_label' as cais
 from public.medicore_sync_docs where store='caisse' and not deleted;
 
 -- Urgences / triage
-create or replace view public.v_urgences as
+drop view if exists public.v_urgences cascade;
+create view public.v_urgences as
 select doc_id, payload->>'nom' as patient, payload->>'ipp' as ipp, payload->>'motif' as motif,
        (payload->>'niveau')::int as niveau_triage, payload->>'statut' as statut,
        payload->>'arrivee' as arrivee, payload->>'orientation' as orientation,

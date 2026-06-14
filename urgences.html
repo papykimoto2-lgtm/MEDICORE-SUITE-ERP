@@ -102,11 +102,15 @@
 <script src="qr.js"></script>
 <script src="medicore-audit.js"></script>
 <script src="medicore-rbac.js"></script>
+<script src="medicore-auth.js"></script>
 <script src="medicore-session.js"></script>
 <script src="nav.js"></script>
 <script src="medicore-parcours.js"></script>
 <script src="medicore-parcours-ui.js"></script>
+<script src="medicore-demandes.js"></script>
+<script src="medicore-demandes-ui.js"></script>
 <script src="medicore-prestations.js"></script>
+<script src="medicore-resultats.js"></script>
 <script src="medicore-caisse.js"></script>
 <script>
 // ══ Niveaux de triage CIMU (5 niveaux) ══════════════════════════════════════════
@@ -174,6 +178,7 @@ function renderFile(){
       <td><span style="color:${retard?'var(--red)':'var(--text-muted)'};font-weight:${retard?'600':'400'}">${att} min${retard?' ⚠':''}</span><div style="font-size:10.5px;color:var(--text-muted)">cible ≤ ${n.delai} min</div></td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-danger btn-xs" onclick="versDechocage('${e.id}')">🛏 Déchocage</button>
+        <button class="btn btn-secondary btn-xs" onclick="examenUrg('${e.id}')">🔬 Examen</button>
         <button class="btn btn-secondary btn-xs" onclick="prendreEnSoins('${e.id}')">▶ Soins</button>
         <button class="btn btn-secondary btn-xs" onclick="ouvrirReeval('${e.id}')">✎</button>
       </td></tr>`;
@@ -236,6 +241,21 @@ function renderSurveillance(){
 
 // ══ ACTIONS ═══════════════════════════════════════════════════════════════════════
 function rerender(){ renderKPIs(); renderFile(); renderDechocage(); renderSurveillance(); }
+
+// Demande d'examen depuis les urgences (biologie / imagerie) → département concerné
+function examenUrg(id){
+  const e=episodes.find(x=>x.id===id); if(!e) return;
+  if(typeof MEDICORE_DEMANDES==='undefined'){ toast('Module demandes absent.','error'); return; }
+  const cible=prompt('Examen vers quel département ? « labo » ou « imagerie »','labo');
+  if(!cible) return;
+  const dept=/imag/i.test(cible)?'imagerie':'laboratoire';
+  const objet=prompt('Examen(s) demandé(s) :', dept==='imagerie'?'Radiographie thoracique':'NFS, CRP, ionogramme');
+  if(!objet) return;
+  const d=MEDICORE_DEMANDES.creer({ cible:dept, objet, type:'service',
+    priorite: e.niveau<=2?'Vitale':(e.niveau===3?'Urgente':'Normale'),
+    details:'Urgences — '+(e.motif||''), patient:{ id:e.patientId||e.id, nom:e.nom, ipp:e.ipp||'' } });
+  toast('Demande envoyée au '+dept+' (priorité '+(e.niveau<=2?'vitale':'normale')+').','success');
+}
 function maj(id,patch){ const e=episodes.find(x=>x.id===id); if(e){ Object.assign(e,patch); save(); rerender(); } return e; }
 function versDechocage(id){
   if(episodes.filter(e=>e.statut==='dechocage').length>=NB_BOX_DECHOC){ toast('Déchocage complet ('+NB_BOX_DECHOC+' box).','error'); return; }

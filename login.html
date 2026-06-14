@@ -350,6 +350,7 @@
 
 <script src="medicore-audit.js"></script>
 <script src="medicore-rbac.js"></script>
+<script src="medicore-auth.js"></script>
 <script src="medicore-session.js"></script>
 <script>
 // ── Comptes de démonstration ───────────────────────────────────────────────────
@@ -444,6 +445,34 @@ function clearMsg(){
 }
 
 // ── Connexion ─────────────────────────────────────────────────────────────────
+async function supabaseLogin(email, pwd){
+  const btn=document.getElementById('btn-login');
+  document.getElementById('btn-text').style.display='none';
+  document.getElementById('btn-spinner').style.display='block';
+  btn.disabled=true;
+  try{
+    const { user, profil } = await MEDICORE_AUTH.signIn(email, pwd);
+    if(profil && profil.actif===false) throw new Error('Compte désactivé.');
+    const role=(profil&&profil.role)||'archiviste';
+    currentUser={ login:email, nom:(profil&&profil.nom)||email, role, supabase:true };
+    loginAttempts=0;
+    logConnexion(email, currentUser.nom, role, true);
+    // 2FA imposée aux rôles sensibles
+    if(typeof MEDICORE_RBAC!=='undefined' && MEDICORE_RBAC.needs2FA(role)){
+      btn.disabled=false; document.getElementById('btn-text').style.display='block'; document.getElementById('btn-spinner').style.display='none';
+      show2FA();
+    } else doLogin();
+  }catch(e){
+    loginAttempts++;
+    logConnexion(email, '', '', false, 'Auth Supabase : '+e.message);
+    btn.disabled=false; document.getElementById('btn-text').style.display='block'; document.getElementById('btn-spinner').style.display='none';
+    document.getElementById('login-pwd').classList.add('error');
+    if(loginAttempts>=5){ isLocked=true; showMsg('error','🔒','Compte verrouillé après 5 tentatives.'); }
+    else showMsg('error','❌','Échec de connexion : '+e.message+` (${loginAttempts}/5)`);
+    shakeBox();
+  }
+}
+
 function submitLogin(){
   if(isLocked){showMsg('error','🔒','Compte verrouillé après 5 tentatives. Contactez le DSI.');return}
 
@@ -452,6 +481,11 @@ function submitLogin(){
 
   if(!user){document.getElementById('login-user').classList.add('error');showMsg('error','⚠️','Veuillez saisir votre identifiant.');return}
   if(!pwd){document.getElementById('login-pwd').classList.add('error');showMsg('error','⚠️','Veuillez saisir votre mot de passe.');return}
+
+  // ── Supabase Auth (JWT serveur) si configuré et identifiant = email ──────────
+  if(user.includes('@') && typeof MEDICORE_AUTH!=='undefined' && MEDICORE_AUTH.configured()){
+    return supabaseLogin(user, pwd);
+  }
 
   const compte=COMPTES[user];
   if(!compte||compte.pwd!==pwd){

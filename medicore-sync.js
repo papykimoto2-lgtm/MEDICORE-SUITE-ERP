@@ -26,6 +26,7 @@ const MEDICORE_SYNC = {
     { store:'patients',              label:'Patients (DPI)'        },
     { store:'constantes',            label:'Constantes vitales', kind:'doc' },
     { store:'prescriptions',         label:'Prescriptions'         },
+    { store:'resultats',             label:'Résultats examens'     },
     { store:'demandes_labo',         label:'Demandes labo'         },
     { store:'resultats_labo',        label:'Résultats labo'        },
     { store:'demandes_img',          label:'Imagerie'              },
@@ -80,8 +81,13 @@ const MEDICORE_SYNC = {
   async _fetch(path, opts={}){
     const { url, key } = this.creds();
     if(!url || !key) throw new Error('Supabase non configuré');
+    // Jeton utilisateur (Supabase Auth) si disponible → RLS par rôle ; sinon clé anon
+    let bearer = key;
+    if(typeof MEDICORE_AUTH!=='undefined' && MEDICORE_AUTH.isAuthenticated()){
+      try{ bearer = (await MEDICORE_AUTH.ensureFresh()) || key; }catch(e){ bearer = key; }
+    }
     const headers = {
-      'apikey': key, 'Authorization': 'Bearer '+key,
+      'apikey': key, 'Authorization': 'Bearer '+bearer,
       'Content-Type': 'application/json', ...(opts.headers||{})
     };
     const r = await this._withTimeout(
