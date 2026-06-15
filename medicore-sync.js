@@ -35,6 +35,8 @@ const MEDICORE_SYNC = {
     { store:'labo_cqi',              label:'Contrôle qualité interne (CQI)' },
     { store:'labo_nc',               label:'Non-conformités labo' },
     { store:'labo_eeq',              label:'Programmes EEQ labo' },
+    { store:'labo_automates_etat', kind:'doc', label:'État automates labo' },
+    { store:'labo_documents',        label:'GED labo (procédures)' },
     { store:'demandes_labo',         label:'Demandes labo'         },
     { store:'resultats_labo',        label:'Résultats labo'        },
     { store:'demandes_img',          label:'Imagerie'              },

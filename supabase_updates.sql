@@ -187,3 +187,20 @@ select doc_id, payload->>'programme' as programme, payload->>'cycle' as cycle,
        payload->>'statut' as statut, payload->>'resultat' as resultat,
        payload->>'date_soumission' as date_soumission, updated_at
 from public.medicore_sync_docs where store='labo_eeq' and not deleted;
+
+-- État des automates labo (statut/motif), surcharge la config par défaut
+-- (store 'kind:doc' — un seul document JSON {automate: {statut,motif,depuis,par}})
+drop view if exists public.v_labo_automates_etat cascade;
+create view public.v_labo_automates_etat as
+select d.doc_id, kv.key as automate, kv.value->>'statut' as statut,
+       kv.value->>'motif' as motif, kv.value->>'depuis' as depuis,
+       kv.value->>'par' as par, d.updated_at
+from public.medicore_sync_docs d, jsonb_each(d.payload) as kv(key,value)
+where d.store='labo_automates_etat' and d.doc_id='_full' and not d.deleted;
+
+-- Gestion documentaire (GED) labo
+drop view if exists public.v_labo_documents cascade;
+create view public.v_labo_documents as
+select doc_id, payload->>'doc' as document, payload->>'version' as version,
+       payload->>'date' as date_revision, payload->>'statut' as statut, updated_at
+from public.medicore_sync_docs where store='labo_documents' and not deleted;

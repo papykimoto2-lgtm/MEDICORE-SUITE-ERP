@@ -432,6 +432,34 @@
           </div>
         </div>
       </div>
+      <!-- ── Modal état automate ── -->
+      <div class="overlay" id="modal-auto">
+        <div class="modal" style="width:380px">
+          <div class="modal-header">
+            <div><div class="modal-title">État de l'automate</div></div>
+            <button class="modal-close" onclick="fermerEtatAutomate()">✕</button>
+          </div>
+          <div class="modal-body" id="m-auto-body"></div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fermerEtatAutomate()">Annuler</button>
+            <button class="btn btn-primary" onclick="validerEtatAutomate()">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+      <!-- ── Modal GED document ── -->
+      <div class="overlay" id="modal-doc">
+        <div class="modal" style="width:380px">
+          <div class="modal-header">
+            <div><div class="modal-title">Nouveau document</div></div>
+            <button class="modal-close" onclick="fermerDocument()">✕</button>
+          </div>
+          <div class="modal-body" id="m-doc-body"></div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fermerDocument()">Annuler</button>
+            <button class="btn btn-primary" onclick="ajouterDocument()">Enregistrer</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ── AUTOMATES ── -->
       <div id="tab-automates" class="tab-panel">
@@ -491,7 +519,10 @@
             <div style="padding:16px" id="qualite-indicateurs"></div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">Gestion documentaire</div><div class="card-subtitle">Procédures, modes opératoires, versions</div></div>
+            <div class="card-header">
+              <div><div class="card-title">Gestion documentaire</div><div class="card-subtitle">Procédures, modes opératoires, versions</div></div>
+              <button class="btn btn-secondary btn-sm" onclick="ouvrirDocument()">➕ Document</button>
+            </div>
             <table>
               <thead><tr><th>Document</th><th>Version</th><th>Date révision</th><th>Statut</th></tr></thead>
               <tbody id="docs-tbody"></tbody>
@@ -578,9 +609,7 @@ const AUTOMATES = [
   { nom:'iSTAT Alinity', type:'Gaz du sang', statut:'En marche', params:18, reactifs:6, maintenance:'2025-07-10', calibration:'Conforme', echantillons:8 },
 ];
 
-const WORKLIST = [
-  // (données démo supprimées)
-];
+// (WORKLIST démo retirée — la file de travail est calculée depuis `demandes`)
 
 // Nomenclature CNAM-CI (Caisse Nationale d'Assurance Maladie — Côte d'Ivoire)
 // Codes et valeurs adaptés au contexte CI / OHADA (FCFA, pas de B/CCAM)
@@ -604,6 +633,14 @@ const QC_PARAMS = {
   'TP|STA-R Max':                { unite:'%',      niveaux:{ N1:{cible:100,  sd:4},    N2:{cible:35,   sd:3}    } },
 };
 
+const TODAY=new Date().toISOString().slice(0,10);
+// État persisté des automates (statut/motif), surcharge AUTOMATES
+let AUTOMATE_ETAT = {};
+// Gestion documentaire (GED) — store 'labo_documents'
+let LABO_DOCUMENTS = [
+  // (alimenté via "➕ Document" — onglet Qualité)
+];
+
 let CQI_DATA = [
   // (alimenté via "➕ Saisir un contrôle" — store 'labo_cqi')
 ];
@@ -624,10 +661,6 @@ function eeqInit(){
   });
   if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('labo_eeq', EEQ_DATA, true);
 }
-
-const DOCUMENTS = [
-  // (données démo supprimées)
-];
 
 // (AUDIT_TRAIL démo retiré — le journal réel est LABO_AUDIT, persisté)
 
@@ -1179,37 +1212,81 @@ function renderLJ(){
 }
 
 // ── Automates ──────────────────────────────────────────────────────────────────
+// Dernier contrôle CQI saisi pour un automate (tous paramètres/niveaux confondus)
+function dernierCQI(automateNom){
+  const e=CQI_DATA.filter(c=>c.automate===automateNom);
+  return e.length?e[e.length-1]:null;
+}
+function persistAutomates(){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('labo_automates_etat', AUTOMATE_ETAT, true); }
+
+// ── Changer l'état d'un automate (En marche / En pause / Maintenance) ──────────
+function ouvrirEtatAutomate(nom){
+  const a=AUTOMATES.find(x=>x.nom===nom); if(!a) return;
+  const cur=(AUTOMATE_ETAT[nom]||{}).statut||a.statut;
+  document.getElementById('m-auto-body').innerHTML=`
+    <div class="form-group"><label>Automate</label><input value="${nom}" disabled></div>
+    <div class="form-group"><label>Statut</label>
+      <select id="auto-statut"><option ${cur==='En marche'?'selected':''}>En marche</option><option ${cur==='En pause'?'selected':''}>En pause</option><option ${cur==='Panne'?'selected':''}>Panne</option></select></div>
+    <div class="form-group"><label>Motif</label><input id="auto-motif" placeholder="ex : changement réactif, panne capteur…"></div>`;
+  document.getElementById('m-auto-body').dataset.nom=nom;
+  document.getElementById('modal-auto').classList.add('open');
+}
+function fermerEtatAutomate(){ document.getElementById('modal-auto').classList.remove('open'); }
+function validerEtatAutomate(){
+  const nom=document.getElementById('m-auto-body').dataset.nom;
+  const statut=document.getElementById('auto-statut').value;
+  const motif=document.getElementById('auto-motif').value.trim();
+  AUTOMATE_ETAT[nom]={ statut, motif, depuis:TODAY, par:getPrescripteurLabo() };
+  persistAutomates();
+  laboAudit('AUTOMATE_ETAT', nom, `${statut}${motif?' — '+motif:''}`);
+  fermerEtatAutomate(); renderAutomates();
+  toast('État mis à jour : '+nom+' → '+statut+'.','success');
+}
+
 function renderAutomates(){
   document.getElementById('automates-grid').innerHTML=AUTOMATES.map(a=>{
-    const sc=a.statut==='En marche'?'var(--green)':a.statut==='En pause'?'var(--orange)':'var(--red)';
+    const etat=AUTOMATE_ETAT[a.nom]||{};
+    const statut=etat.statut||a.statut;
+    const sc=statut==='En marche'?'var(--green)':statut==='En pause'?'var(--orange)':'var(--red)';
+    // Calibration : reflète le dernier contrôle CQI saisi pour cet automate
+    const cqi=dernierCQI(a.nom);
+    const calibration=cqi?(cqi.statut==='Rejet'?'À vérifier':'Conforme'):a.calibration;
+    // Échantillons du jour : demandes réelles de la spécialité, créées aujourd'hui
+    const echJour=demandes.filter(d=>d.type===a.type && d.date===TODAY).length;
     return `<div class="automate-card" style="border-left:4px solid ${sc}">
       <h4>${a.nom}</h4>
-      <div class="automate-status"><div class="status-dot" style="background:${sc}"></div>${a.statut}</div>
+      <div class="automate-status"><div class="status-dot" style="background:${sc}"></div>${statut}${etat.motif?` <span style="font-size:11px;color:var(--text-muted)">— ${etat.motif}</span>`:''}</div>
       <div class="automate-stat"><span>Spécialité</span><span style="font-weight:500">${a.type}</span></div>
       <div class="automate-stat"><span>Paramètres actifs</span><span>${a.params||'—'}</span></div>
       <div class="automate-stat"><span>Réactifs</span><span>${a.reactifs} kits</span></div>
-      <div class="automate-stat"><span>Calibration</span><span style="color:${a.calibration==='Conforme'?'var(--green)':'var(--orange)'}">${a.calibration}</span></div>
-      <div class="automate-stat"><span>Échantillons/j</span><span style="font-weight:600;color:var(--accent)">${a.echantillons}</span></div>
+      <div class="automate-stat"><span>Calibration</span><span style="color:${calibration==='Conforme'?'var(--green)':'var(--orange)'}">${calibration}${cqi?` <span style="font-size:10.5px;color:var(--text-muted)">(CQI ${cqi.date})</span>`:''}</span></div>
+      <div class="automate-stat"><span>Échantillons aujourd'hui</span><span style="font-weight:600;color:var(--accent)">${echJour}</span></div>
       <div class="automate-stat"><span>Proch. maintenance</span><span style="font-size:11.5px;color:var(--text-muted)">${new Date(a.maintenance).toLocaleDateString('fr-FR')}</span></div>
+      <button class="btn btn-secondary btn-xs" style="width:100%;margin-top:8px" onclick="ouvrirEtatAutomate('${a.nom.replace(/'/g,"\\'")}')">⚙ Changer l'état</button>
     </div>`;
   }).join('');
-  document.getElementById('worklist-tbody').innerHTML=WORKLIST.map(w=>{
-    const progColor=w.progression===100?'var(--green)':w.progression>50?'var(--accent)':'var(--orange)';
+
+  // Worklist réelle : examens prélevés / en cours d'analyse, assignés à l'automate de leur spécialité
+  const enCours=demandes.filter(d=>d.statut==='Prélevé'||d.statut==='En analyse');
+  document.getElementById('worklist-tbody').innerHTML=enCours.map(d=>{
+    const auto=AUTOMATES.find(a=>a.type===d.type);
+    const progression=d.statut==='Prélevé'?25:65;
+    const progColor=progression>50?'var(--accent)':'var(--orange)';
     return `<tr>
-      <td style="font-family:monospace;font-size:12px">${w.tube}</td>
-      <td style="font-weight:500">${w.patient}</td>
-      <td style="font-size:12.5px;color:var(--text-muted)">${w.examens}</td>
-      <td style="font-size:12.5px">${w.automate}</td>
-      <td class="text-muted">${w.heure}</td>
+      <td style="font-family:monospace;font-size:12px">${d.id}</td>
+      <td style="font-weight:500">${d.patient}</td>
+      <td style="font-size:12.5px;color:var(--text-muted)">${d.examens}</td>
+      <td style="font-size:12.5px">${auto?auto.nom:'—'}</td>
+      <td class="text-muted">${d.heure}</td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="width:${w.progression}%;height:100%;background:${progColor};border-radius:3px"></div></div>
-          <span style="font-size:11.5px;color:var(--text-muted);width:30px">${w.progression}%</span>
+          <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="width:${progression}%;height:100%;background:${progColor};border-radius:3px"></div></div>
+          <span style="font-size:11.5px;color:var(--text-muted);width:30px">${progression}%</span>
         </div>
       </td>
-      <td><span class="badge ${w.statut==='Terminé'?'badge-valide':w.statut==='En cours'?'badge-en-cours':'badge-attente'}">${w.statut}</span></td>
+      <td><span class="badge ${d.statut==='Prélevé'?'badge-attente':'badge-en-cours'}">${d.statut}</span></td>
     </tr>`;
-  }).join('');
+  }).join('')||`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted)">Aucun échantillon en cours d'analyse</td></tr>`;
 }
 
 // ── Facturation NABM ──────────────────────────────────────────────────────────
@@ -1265,26 +1342,91 @@ function renderFacturation(){
 }
 
 // ── Qualité & Accréditation ────────────────────────────────────────────────────
+// ── Indicateurs qualité ISO 15189 — calculés depuis les données réelles ─────────
+function indicateursQualite(){
+  const out=[];
+  // 1) Conformité CQI du mois (Levey-Jennings)
+  const cqiMois=CQI_DATA.filter(c=>c.date && c.date.startsWith(TODAY.slice(0,7)));
+  if(cqiMois.length){
+    const pct=Math.round(cqiMois.filter(c=>c.statut!=='Rejet').length/cqiMois.length*100);
+    out.push({label:'Conformité contrôles internes (CQI)', val:pct+'%', target:'≥ 95%', ok:pct>=95});
+  } else out.push({label:'Conformité contrôles internes (CQI)', val:'—', target:'≥ 95%', ok:null});
+  // 2) Non-conformités clôturées
+  if(NON_CONFORMITES.length){
+    const pct=Math.round(NON_CONFORMITES.filter(n=>n.statut==='Clôturée').length/NON_CONFORMITES.length*100);
+    out.push({label:'Non-conformités clôturées', val:pct+'% ('+NON_CONFORMITES.filter(n=>n.statut==='Clôturée').length+'/'+NON_CONFORMITES.length+')', target:'100%', ok:pct===100});
+  } else out.push({label:'Non-conformités clôturées', val:'0 NC', target:'100%', ok:true});
+  // 3) Notification des valeurs critiques
+  if(CRITIQUES.length){
+    const pct=Math.round(CRITIQUES.filter(c=>c.notif&&c.notif!=='Non notifié').length/CRITIQUES.length*100);
+    out.push({label:'Valeurs critiques notifiées', val:pct+'% ('+CRITIQUES.filter(c=>c.notif&&c.notif!=='Non notifié').length+'/'+CRITIQUES.length+')', target:'100%', ok:pct===100});
+  } else out.push({label:'Valeurs critiques notifiées', val:'—', target:'100%', ok:null});
+  // 4) Participation EEQ du cycle
+  const eeqCycle=EEQ_DATA.filter(e=>e.cycle===eeqCycleCourant());
+  if(eeqCycle.length){
+    const soumis=eeqCycle.filter(e=>e.statut==='Soumis').length;
+    out.push({label:'Participation EEQ ('+eeqCycleCourant()+')', val:soumis+'/'+eeqCycle.length, target:eeqCycle.length+'/'+eeqCycle.length, ok:soumis===eeqCycle.length});
+  } else out.push({label:'Participation EEQ', val:'—', target:'100%', ok:null});
+  // 5) Délai moyen de rendu (dossiers validés)
+  const valides=demandes.filter(d=>d.statut==='Validé'&&d.heure&&d.valideTs);
+  if(valides.length){
+    const mins=valides.reduce((s,d)=>{
+      const [h,m]=d.heure.split(':').map(Number);
+      const debut=new Date(d.valideTs); debut.setHours(h,m,0,0);
+      return s+Math.max(0,(new Date(d.valideTs)-debut)/60000);
+    },0)/valides.length;
+    const m=Math.round(mins);
+    out.push({label:'Délai moyen de rendu des résultats', val:m>=60?Math.floor(m/60)+'h'+String(m%60).padStart(2,'0'):m+' min', target:'< 2h', ok:m<120});
+  } else out.push({label:'Délai moyen de rendu des résultats', val:'—', target:'< 2h', ok:null});
+  return out;
+}
+
+// ── Gestion documentaire (GED) ───────────────────────────────────────────────
+function persistDocs(){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('labo_documents', LABO_DOCUMENTS, true); }
+function ouvrirDocument(){
+  document.getElementById('m-doc-body').innerHTML=`
+    <div class="form-group"><label>Document</label><input id="doc-nom" placeholder="ex : Procédure de prélèvement veineux"></div>
+    <div class="form-group"><label>Version</label><input id="doc-version" placeholder="ex : V2.1" value="V1.0"></div>
+    <div class="form-group"><label>Date de révision</label><input id="doc-date" type="date" value="${TODAY}"></div>
+    <div class="form-group"><label>Statut</label><select id="doc-statut"><option>En vigueur</option><option>Brouillon</option><option>Obsolète</option></select></div>`;
+  document.getElementById('modal-doc').classList.add('open');
+}
+function fermerDocument(){ document.getElementById('modal-doc').classList.remove('open'); }
+function ajouterDocument(){
+  const nom=document.getElementById('doc-nom').value.trim();
+  if(!nom){ toast('Nom du document requis.','error'); return; }
+  LABO_DOCUMENTS.unshift({ id:'DOC'+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    doc:nom, version:document.getElementById('doc-version').value.trim()||'V1.0',
+    date:document.getElementById('doc-date').value||TODAY, statut:document.getElementById('doc-statut').value });
+  laboAudit('GED_DOCUMENT', 'GED', `${nom} — ${document.getElementById('doc-version').value} ajouté`);
+  persistDocs(); fermerDocument(); renderQualite();
+  toast('Document enregistré.','success');
+}
+function toggleDocStatut(id){
+  const d=LABO_DOCUMENTS.find(x=>x.id===id); if(!d) return;
+  d.statut=d.statut==='En vigueur'?'Obsolète':'En vigueur';
+  laboAudit('GED_DOCUMENT', 'GED', `${d.doc} → ${d.statut}`);
+  persistDocs(); renderQualite();
+}
+
 function renderQualite(){
-  const indicateurs=[
-  // (données démo supprimées)
-];
+  const indicateurs=indicateursQualite();
   document.getElementById('qualite-indicateurs').innerHTML=indicateurs.map(ind=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="font-size:13px">${ind.label}</div>
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:12px;color:var(--text-muted)">Cible : ${ind.target}</span>
-        <span style="font-weight:700;font-size:13.5px;color:${ind.ok?'var(--green)':'var(--red)'}">${ind.val}</span>
-        <span style="font-size:14px">${ind.ok?'✅':'⚠️'}</span>
+        <span style="font-weight:700;font-size:13.5px;color:${ind.ok==null?'var(--text-muted)':ind.ok?'var(--green)':'var(--red)'}">${ind.val}</span>
+        <span style="font-size:14px">${ind.ok==null?'—':ind.ok?'✅':'⚠️'}</span>
       </div>
     </div>`).join('');
-  document.getElementById('docs-tbody').innerHTML=DOCUMENTS.map(d=>`
+  document.getElementById('docs-tbody').innerHTML=LABO_DOCUMENTS.map(d=>`
     <tr>
       <td style="font-size:12.5px;font-weight:500">${d.doc}</td>
       <td><span class="nabm-tag">${d.version}</span></td>
       <td class="text-muted">${new Date(d.date).toLocaleDateString('fr-FR')}</td>
-      <td><span class="badge ${d.statut==='En vigueur'?'badge-valide':'badge-attente'}">${d.statut}</span></td>
-    </tr>`).join('');
+      <td><span class="badge ${d.statut==='En vigueur'?'badge-valide':'badge-attente'}" style="cursor:pointer" onclick="toggleDocStatut('${d.id}')">${d.statut}</span></td>
+    </tr>`).join('')||`<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Aucun document — cliquez « ➕ Document »</td></tr>`;
   document.getElementById('audit-tbody').innerHTML=[...LABO_AUDIT].reverse().map(a=>`
     <tr>
       <td style="font-size:12px;color:var(--text-muted)">${a.ts?new Date(a.ts).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):a.datetime||'—'}</td>
@@ -1477,7 +1619,7 @@ function validerDemande(){
   if(!checked.length){toast('Sélectionnez au moins un examen.','error');return}
   const id='BIO-'+new Date().getFullYear()+'-0'+String(demandes.length+841).padStart(4,'0');
   const horodate=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  const newDemande={id,dossier,patient,presc:document.getElementById('nd-presc').value,service:document.getElementById('nd-service').value,examens:checked.join(', '),type:document.getElementById('nd-type').value,heure:horodate,priorite:document.getElementById('nd-priorite').value,statut:'En attente prélèvement',critique:false};
+  const newDemande={id,dossier,patient,presc:document.getElementById('nd-presc').value,service:document.getElementById('nd-service').value,examens:checked.join(', '),type:document.getElementById('nd-type').value,heure:horodate,date:TODAY,priorite:document.getElementById('nd-priorite').value,statut:'En attente prélèvement',critique:false};
   demandes.push(newDemande);
   if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('demandes_labo', demandes, true);
   if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id, 'Enregistrée au registre labo (réf '+id+') — en cours d\'analyse');
@@ -1537,6 +1679,8 @@ document.addEventListener('DOMContentLoaded', function() {
     CQI_DATA = MEDICORE_STORE.sync('labo_cqi', CQI_DATA);
     NON_CONFORMITES = MEDICORE_STORE.sync('labo_nc', NON_CONFORMITES);
     EEQ_DATA = MEDICORE_STORE.sync('labo_eeq', EEQ_DATA);
+    AUTOMATE_ETAT = MEDICORE_STORE.sync('labo_automates_etat', AUTOMATE_ETAT);
+    LABO_DOCUMENTS = MEDICORE_STORE.sync('labo_documents', LABO_DOCUMENTS);
   }
 
   if (typeof initNav === 'function') {
