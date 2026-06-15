@@ -42,6 +42,7 @@ const MEDICORE_USERS = {
     const pwd=o.pwd||this.genererMotDePasse();
     const salt=this._salt(), hash=await this._hash(pwd,salt);
     const user={ login:o.login, nom:o.nom||o.login, role:o.role||'archiviste', service:o.service||'',
+      email:o.email||'', telephone:o.telephone||'', notif_email:o.notif_email!==false, notif_whatsapp:o.notif_whatsapp!==false,
       twofa:!!o.twofa, actif:true, salt, hash, must_change:true,
       created_at:new Date().toISOString(), created_par:o.par||'' };
     list.push(user); this._write(list);

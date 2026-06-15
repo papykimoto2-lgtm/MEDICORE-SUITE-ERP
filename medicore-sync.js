@@ -50,6 +50,8 @@ const MEDICORE_SYNC = {
     { store:'mouvements_stock',      label:'Mouvements stock'      },
     { store:'consommables',          label:'Consommables (dépôts)' },
     { store:'depots_stock',          label:'Dépôts de stock'       },
+    { store:'produits_catalogue',    label:'Catalogue produits'    },
+    { store:'familles_produits',     label:'Familles de produits'  },
     { store:'reappro',               label:'Réapprovisionnement'   },
     { store:'mouvements_consommables', label:'Mouvements consommables'},
     { store:'factures',              label:'Facturation'           },

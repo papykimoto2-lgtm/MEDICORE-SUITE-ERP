@@ -346,12 +346,15 @@ function renderBody(){
     b.innerHTML = head('Utilisateurs & rôles','Comptes, authentification et droits d\'accès par module')+
     `<div class="card"><div class="card-head"><div><h3>Comptes utilisateurs</h3><div class="sub">${ulist.filter(u=>u.actif).length} actif(s) sur ${ulist.length} — mots de passe chiffrés (SHA-256+sel)</div></div>
       <button class="btn btn-primary btn-sm" onclick="addUser()">＋ Ajouter</button></div>
-      <div class="card-body" style="padding:0"><table><thead><tr><th>Identifiant</th><th>Nom</th><th>Service</th><th>Rôle</th><th>2FA</th><th>Statut</th><th></th></tr></thead>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Identifiant</th><th>Nom</th><th>Contact</th><th>Service</th><th>Rôle</th><th>2FA</th><th>Statut</th><th></th></tr></thead>
       <tbody>${ulist.map(u=>{
         const roleLabel=(typeof MEDICORE_RBAC!=='undefined'&&MEDICORE_RBAC.ROLES[u.role])?MEDICORE_RBAC.ROLES[u.role].label:u.role;
+        const contact=[u.email?`<span title="${u.email}">✉</span>`:'',u.telephone?`<span title="${u.telephone}">📱</span>`:''].filter(Boolean).join(' ')||'<span style="color:var(--text-muted)">—</span>';
         return `<tr>
         <td><span class="mono">${u.login}</span>${u.must_change?' <span class="badge b-off" title="Mot de passe à changer">🔑</span>':''}</td>
-        <td>${u.nom}</td><td>${u.service||'—'}</td><td>${roleLabel}</td>
+        <td>${u.nom}</td>
+        <td style="font-size:12px">${contact}</td>
+        <td>${u.service||'—'}</td><td>${roleLabel}</td>
         <td>${u.twofa?'<span class="badge b-on">activée</span>':'<span class="badge b-off">non</span>'}</td>
         <td>${u.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
         <td style="text-align:right;white-space:nowrap">
@@ -371,6 +374,9 @@ function renderBody(){
       <button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button></div>
       <div class="card-body" style="padding:0">${renderDepotsStock()}</div></div>
 
+    <div class="card"><div class="card-head"><div><h3>Catalogue produits</h3><div class="sub">Médicaments, réactifs, consommables, dispositifs — définis une fois, affectés aux dépôts</div></div></div>
+      <div class="card-body" style="padding:16px"><div id="catalogue-produits"></div></div></div>
+
     <div class="card"><div class="card-head"><div><h3>Journal d'audit</h3><div class="sub">Connexions · consultations · modifications · suppressions</div></div></div>
       <div class="card-body" style="padding:0">${typeof MEDICORE_AUDIT!=='undefined'?MEDICORE_AUDIT.renderTable(200):'<div style="padding:20px;color:var(--text-muted)">Module audit non chargé.</div>'}</div></div>
 
@@ -381,6 +387,7 @@ function renderBody(){
       </tbody></table></div>
       <div class="card-body" style="border-top:1px solid var(--border)"><div class="save-bar">
         <button class="btn btn-primary" onclick="persist();toast('Permissions enregistrées.','success')">💾 Enregistrer les droits</button></div></div></div>`;
+    if(typeof MEDICORE_STOCK!=='undefined' && document.getElementById('catalogue-produits')) MEDICORE_STOCK.mountCatalogue('catalogue-produits');
   }
   else if(currentSection==='services'){
     const totLits = SERVICES.reduce((s,x)=>s+(+x.lits||0),0);
@@ -689,11 +696,14 @@ function addUser(){
   formModal('Nouvel utilisateur',[
     {key:'login',label:'Identifiant',required:true,placeholder:'ex : j.kessie',sub:'minuscules, sans espace'},
     {key:'nom',label:'Nom complet',placeholder:'ex : KESSIE Jean'},
+    {key:'email',label:'Email',type:'email',placeholder:'ex : j.kessie@hopital.ci',sub:'pour notifications & réinitialisation'},
+    {key:'telephone',label:'Téléphone / WhatsApp',placeholder:'ex : +225 07 00 00 00 00',sub:'format international'},
     {key:'service',label:'Service / poste',placeholder:'ex : Laboratoire',suggestions:serviceSuggestions()},
     {key:'role',label:'Rôle',type:'select',options:ro,value:'Médecin'},
   ], async v=>{
+    if(v.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email)){ toast('Email invalide.','error'); return; }
     const role=ro.find(r=>r.label===v.role)?.k||'archiviste';
-    const r=await MEDICORE_USERS.creer({login:v.login.trim(),nom:v.nom||v.login,service:v.service||'',role,par:'admin'});
+    const r=await MEDICORE_USERS.creer({login:v.login.trim(),nom:v.nom||v.login,email:(v.email||'').trim(),telephone:(v.telephone||'').trim(),service:v.service||'',role,par:'admin'});
     if(r.erreur){ toast('Identifiant déjà utilisé.','error'); return; }
     renderBody();
     afficherIdentifiants(r.user, r.pwd);
@@ -713,13 +723,16 @@ function editUser(login){
   const curLabel=MEDICORE_RBAC.ROLES[u.role]?.label||u.role;
   formModal('Modifier l\'utilisateur',[
     {key:'nom',label:'Nom complet',value:u.nom},
+    {key:'email',label:'Email',type:'email',value:u.email||'',placeholder:'ex : j.kessie@hopital.ci'},
+    {key:'telephone',label:'Téléphone / WhatsApp',value:u.telephone||'',placeholder:'ex : +225 07 00 00 00 00'},
     {key:'service',label:'Service / poste',value:u.service||'',suggestions:serviceSuggestions()},
     {key:'role',label:'Rôle',type:'select',options:ro,value:curLabel},
     {key:'twofa',label:'Authentification 2FA',type:'select',options:['Activée','Désactivée'],value:u.twofa?'Activée':'Désactivée'},
     {key:'actif',label:'Statut',type:'select',options:['Actif','Inactif'],value:u.actif?'Actif':'Inactif'}
   ], v=>{
+    if(v.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email)){ toast('Email invalide.','error'); return; }
     const role=ro.find(r=>r.label===v.role)?.k||u.role;
-    MEDICORE_USERS.modifier(login,{ nom:v.nom||u.nom, service:v.service||'', role, twofa:v.twofa==='Activée', actif:v.actif==='Actif' });
+    MEDICORE_USERS.modifier(login,{ nom:v.nom||u.nom, email:(v.email||'').trim(), telephone:(v.telephone||'').trim(), service:v.service||'', role, twofa:v.twofa==='Activée', actif:v.actif==='Actif' });
     renderBody(); toast('Utilisateur modifié.','success');
   });
 }
@@ -737,27 +750,31 @@ async function resetUserPwd(login){
   renderBody();
   afficherIdentifiants(u, r.pwd);
 }
-// Affiche les identifiants à transmettre (une seule fois) — copier / WhatsApp
+// Affiche les identifiants à transmettre (une seule fois) — copier / WhatsApp / email
 function afficherIdentifiants(u, pwd){
   const roleLabel=MEDICORE_RBAC.ROLES[u.role]?.label||u.role;
   const texte=`Bonjour ${u.nom},\n\nVos accès à MediCore Suite :\nIdentifiant : ${u.login}\nMot de passe : ${pwd}\nRôle : ${roleLabel}\n\nMerci de changer ce mot de passe dès votre première connexion.`;
+  const telNum=(u.telephone||'').replace(/[^0-9]/g,'');
+  const waUrl=telNum?`https://wa.me/${telNum}?text=`:'https://wa.me/?text=';
+  const mailUrl=u.email?`mailto:${u.email}?subject=`+encodeURIComponent('Vos accès MediCore Suite')+'&body=':null;
   let ov=document.getElementById('_pwd-ov'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='_pwd-ov';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.innerHTML=`<div class="modal" style="width:440px">
+  ov.innerHTML=`<div class="modal" style="width:460px">
     <div class="modal-header"><div><div class="modal-title">Identifiants — ${u.nom}</div><div class="sub">À communiquer une seule fois</div></div>
       <button onclick="document.getElementById('_pwd-ov').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-muted)">✕</button></div>
     <div style="padding:18px 24px">
       <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.7">
         Identifiant : <span class="mono"><strong>${u.login}</strong></span><br>
         Mot de passe : <span class="mono" style="background:#fff3cd;padding:1px 6px;border-radius:4px"><strong>${pwd}</strong></span><br>
-        Rôle : ${roleLabel}
+        Rôle : ${roleLabel}${u.email?'<br>Email : '+u.email:''}${u.telephone?'<br>Tél : '+u.telephone:''}
       </div>
       <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">⚠ Ce mot de passe ne sera plus affiché. Communiquez-le à l'utilisateur puis fermez cette fenêtre.</div>
     </div>
-    <div style="padding:0 24px 20px;display:flex;gap:10px;justify-content:flex-end">
+    <div style="padding:0 24px 20px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
       <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(${JSON.stringify(texte)}).then(()=>toast('Identifiants copiés.','success'))">📋 Copier</button>
-      <button class="btn btn-primary" onclick="window.open('https://wa.me/?text='+encodeURIComponent(${JSON.stringify(texte)}),'_blank')">📤 WhatsApp</button>
+      <button class="btn btn-primary" onclick="window.open('${waUrl}'+encodeURIComponent(${JSON.stringify(texte)}),'_blank')">📤 WhatsApp${telNum?'':' (n° manuel)'}</button>
+      ${mailUrl?`<button class="btn btn-secondary" onclick="window.location.href='${mailUrl}'+encodeURIComponent(${JSON.stringify(texte)})">✉ Email</button>`:''}
       <button class="btn btn-secondary" onclick="document.getElementById('_pwd-ov').remove()">Fermer</button>
     </div></div>`;
   document.body.appendChild(ov);

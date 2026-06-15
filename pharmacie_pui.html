@@ -556,13 +556,13 @@
 <script>
 // ── Données ───────────────────────────────────────────────────────────────────
 let produits = [
-  { code:'MED-001', dci:'Amoxicilline 500mg gél.', type:'Médicament', forme:'Gélule', depot:'Pharmacie centrale', stock:2400, mini:500, maxi:5000, peremption:'2026-08-15', pmp:180, lot:'LOT2025-0201' },
-  { code:'MED-002', dci:'Paracétamol 1g perf.', type:'Médicament', forme:'Perfusion', depot:'Pharmacie centrale', stock:380, mini:400, maxi:2000, peremption:'2025-12-31', pmp:850, lot:'LOT2025-0188' },
-  { code:'MED-003', dci:'Artémether/Luméfantrine 20/120mg cp.', type:'Médicament', forme:'Comprimé', depot:'Pharmacie centrale', stock:1800, mini:600, maxi:4000, peremption:'2026-04-20', pmp:2400, lot:'LOT2025-0301' },
+  { code:'MED-001', code_barre:'3401579801238', dci:'Amoxicilline 500mg gél.', type:'Médicament', forme:'Gélule', depot:'Pharmacie centrale', stock:2400, mini:500, maxi:5000, peremption:'2026-08-15', pmp:180, lot:'LOT2025-0201' },
+  { code:'MED-002', code_barre:'3401579802235', dci:'Paracétamol 1g perf.', type:'Médicament', forme:'Perfusion', depot:'Pharmacie centrale', stock:380, mini:400, maxi:2000, peremption:'2025-12-31', pmp:850, lot:'LOT2025-0188' },
+  { code:'MED-003', code_barre:'3401579803232', dci:'Artémether/Luméfantrine 20/120mg cp.', type:'Médicament', forme:'Comprimé', depot:'Pharmacie centrale', stock:1800, mini:600, maxi:4000, peremption:'2026-04-20', pmp:2400, lot:'LOT2025-0301' },
   { code:'MED-004', dci:'Morphine 10mg/mL inj.', type:'Stupéfiant', forme:'Injectable', depot:'Pharmacie centrale', stock:48, mini:20, maxi:100, peremption:'2025-11-30', pmp:12000, lot:'LOT2025-STUP-01' },
   { code:'MED-005', dci:'Fentanyl 50mcg/mL', type:'Stupéfiant', forme:'Injectable', depot:'Pharmacie centrale', stock:24, mini:10, maxi:50, peremption:'2025-10-15', pmp:18500, lot:'LOT2025-STUP-02' },
-  { code:'MED-006', dci:'Ceftriaxone 1g inj.', type:'Médicament', forme:'Injectable', depot:'Pharmacie centrale', stock:640, mini:200, maxi:1500, peremption:'2026-03-10', pmp:2800, lot:'LOT2025-0411' },
-  { code:'MED-007', dci:'Metformine 500mg cp.', type:'Médicament', forme:'Comprimé', depot:'Pharmacie centrale', stock:0, mini:300, maxi:2000, peremption:'2026-01-15', pmp:95, lot:'LOT2024-0812' },
+  { code:'MED-006', code_barre:'3401579806233', dci:'Ceftriaxone 1g inj.', type:'Médicament', forme:'Injectable', depot:'Pharmacie centrale', stock:640, mini:200, maxi:1500, peremption:'2026-03-10', pmp:2800, lot:'LOT2025-0411' },
+  { code:'MED-007', code_barre:'3401579807230', dci:'Metformine 500mg cp.', type:'Médicament', forme:'Comprimé', depot:'Pharmacie centrale', stock:0, mini:300, maxi:2000, peremption:'2026-01-15', pmp:95, lot:'LOT2024-0812' },
   { code:'DMI-001', dci:'Prothèse hanche totale cimentée', type:'DMI', forme:'Implant', depot:'Pharmacie centrale', stock:8, mini:3, maxi:15, peremption:'2028-06-01', pmp:480000, lot:'IMP2025-0041' },
   { code:'DMI-002', dci:'Sutures résorbables Vicryl 2/0', type:'Consommable', forme:'Fil chirurgical', depot:'Bloc opératoire', stock:220, mini:100, maxi:500, peremption:'2027-09-30', pmp:3200, lot:'LOT2025-0501' },
   { code:'MED-008', dci:'Herceptin (Trastuzumab) 150mg', type:'Médicament', forme:'Perfusion', depot:'Pharmacie centrale', stock:12, mini:5, maxi:30, peremption:'2025-09-20', pmp:320000, lot:'LOT2025-ONCO-01' },
@@ -686,6 +686,7 @@ function renderStock(){
       <td class="text-right amount" style="color:var(--accent)">${fmt(p.pmp)}</td>
       <td><span class="badge ${bStatut}">${statut}</span></td>
       <td>
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();definirCodeBarre('${p.code}')" title="Code-barres">🏷</button>
         <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openMouvStock('${p.code}')">↗</button>
       </td>
     </tr>`;
@@ -763,18 +764,21 @@ function ouvrirCaisseDispensation(patientId){
     const total=lignes.reduce((s,l)=>s+prixDispensation(l),0);
     const items=lignes.map(l=>{
       const px=prixDispensation(l); const st=stockPour(l);
+      const scanne=scanServies[l.id];
       let etat, action='';
-      if(st.sub && st.ok){ etat=`<span style="color:#15803d">→ remplacé par ${st.prod.dci}</span>`; action=`<button class="btn btn-xs btn-secondary" onclick="choisirSubstitut('${patientId}','${l.id}','${(l.med||'').replace(/'/g,"\\'")}')">✏</button>`; }
-      else if(st.ok){ etat=''; }
+      if(scanne){ etat=`<span style="color:#15803d;font-weight:600">✓ scanné</span>`; }
+      else if(st.sub && st.ok){ etat=`<span style="color:#15803d">→ remplacé par ${st.prod.dci}</span>`; action=`<button class="btn btn-xs btn-secondary" onclick="choisirSubstitut('${patientId}','${l.id}','${(l.med||'').replace(/'/g,"\\'")}')">✏</button>`; }
+      else if(st.ok){ etat='<span style="color:var(--text-muted);font-size:11px">à scanner</span>'; }
       else { etat=`<span style="color:#b91c1c">(rupture)</span>`; action=`<button class="btn btn-xs" style="background:#c8702a;color:#fff" onclick="choisirSubstitut('${patientId}','${l.id}','${(l.med||'').replace(/'/g,"\\'")}')">🔄 Substituer</button>`; }
-      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0;gap:8px">
+      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0;gap:8px${scanne?';background:#f0faf4;border-radius:4px;padding-left:6px':''}">
         <span style="flex:1">${l.med}${l.posologie?' — '+l.posologie:''} ${etat}</span>
         <span>${px.toLocaleString('fr-FR')} F</span>${action}</div>`;
     }).join('');
+    const nbScanne=lignes.filter(l=>scanServies[l.id]).length;
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <strong>Ordonnance ${lignes[0].date||''}</strong>
-        <span style="font-size:12px;color:var(--text-muted)">${lignes[0].medecin||''}</span>
+        <span style="font-size:12px;color:var(--text-muted)">${lignes[0].medecin||''}${nbScanne?` · <span style="color:#15803d">${nbScanne}/${lignes.length} scanné(s)</span>`:''}</span>
       </div>
       ${items}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
@@ -782,12 +786,82 @@ function ouvrirCaisseDispensation(patientId){
         <button class="btn btn-primary btn-sm" onclick="servirOrdonnance('${patientId}','${g}')">💰 Servir & encaisser</button>
       </div></div>`;
   }).join('');
-  ov.innerHTML=`<div class="modal" style="width:560px;max-width:96vw;max-height:90vh;overflow-y:auto">
+  ov.innerHTML=`<div class="modal" style="width:600px;max-width:96vw;max-height:90vh;overflow-y:auto">
     <div class="modal-header"><div><div class="modal-title">Caisse pharmacie — dispensation</div>
-      <div class="modal-subtitle">${nom} · ${Object.keys(groupes).length} ordonnance(s) à servir · le patient choisit</div></div>
+      <div class="modal-subtitle">${nom} · ${Object.keys(groupes).length} ordonnance(s) à servir</div></div>
       <button class="modal-close" onclick="document.getElementById('modal-caisse').remove()">✕</button></div>
-    <div class="modal-body">${blocs}</div></div>`;
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;align-items:center;background:var(--accent-light,#e8f0f7);border-radius:8px;padding:10px 12px;margin-bottom:14px">
+        <span style="font-size:18px">🔫</span>
+        <input id="scan-produit" placeholder="Scanner le code-barres du produit (douchette) ou saisir…" autocomplete="off"
+          onkeydown="if(event.key==='Enter'){scannerProduit(this.value);this.value='';event.preventDefault();}"
+          style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:13.5px">
+        <button class="btn btn-secondary btn-sm" onclick="scannerProduitCamera()">📷</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Scannez chaque produit pour le marquer servi, ou utilisez les boutons « Servir » par ordonnance.</div>
+      ${blocs}</div></div>`;
   document.body.appendChild(ov);
+  setTimeout(()=>{ const f=document.getElementById('scan-produit'); if(f) f.focus(); },100);
+  MEDICORE_DISP={ patientId, groupes };
+}
+
+// ── Scan d'un produit (douchette ou caméra) → coche la ligne d'ordonnance ───────
+let MEDICORE_DISP=null;          // contexte de dispensation courant
+let scanServies={};              // { lineId : produit servi }
+function scannerProduit(code){
+  code=(code||'').trim(); if(!code || !MEDICORE_DISP) return;
+  // Cherche le produit par code-barres (catalogue) puis par code article
+  const prod=trouverProduitParCode(code);
+  if(!prod){ toast('Code-barres inconnu : '+code,'error'); beep(false); return; }
+  if((prod.stock||0)<=0){ toast(prod.dci+' — rupture de stock.','error'); beep(false); return; }
+  // Cherche une ligne d'ordonnance correspondante non encore servie
+  const aServir = MEDICORE_RX.aServirPatient(MEDICORE_DISP.patientId);
+  const ligne = aServir.find(l=>!scanServies[l.id] && ligneCorrespondProduit(l, prod));
+  if(!ligne){ toast(prod.dci+' ne correspond à aucune ligne non servie de l\'ordonnance.','warn'); beep(false); return; }
+  scanServies[ligne.id]=prod;
+  beep(true);
+  toast('✓ '+prod.dci+' scanné','success');
+  // Re-render en surlignant les lignes scannées
+  rafraichirDispensation();
+}
+function scannerProduitCamera(){
+  if(typeof MEDICORE_SCAN==='undefined'||!MEDICORE_SCAN.supported){ toast('Caméra non disponible — utilisez la douchette.','info'); return; }
+  MEDICORE_SCAN.open(res=>{ if(res&&res.raw) scannerProduit(res.raw); });
+}
+// Correspondance produit ↔ code (code-barres du catalogue, puis code article, puis code pharmacie)
+function trouverProduitParCode(code){
+  const cat=(typeof MEDICORE_STOCK!=='undefined')?MEDICORE_STOCK.produits():[];
+  const pc=cat.find(p=>p.code_barre&&p.code_barre===code) || cat.find(p=>p.code===code);
+  if(pc){ // relie au stock pharmacie par désignation/dci
+    const local=produits.find(p=>(p.dci||'').toLowerCase()===(pc.designation||'').toLowerCase() || p.code===pc.code);
+    if(local) return local;
+    // sinon renvoie une vue compatible
+    return { dci:pc.designation, code:pc.code, stock:MEDICORE_STOCK.stockTotalProduit(pc.id), pmp:pc.prix_achat, _cat:pc };
+  }
+  // Fallback : code-barres/code stocké directement sur le produit pharmacie
+  return produits.find(p=>p.code_barre===code) || produits.find(p=>p.code===code);
+}
+function ligneCorrespondProduit(l, prod){
+  const d=(prod.dci||'').toLowerCase();
+  const toks=(l.med||'').toLowerCase().split(/[\s/0-9µ%.,()-]+/).filter(w=>w.length>3);
+  return toks.some(t=>d.includes(t)) || d.includes((l.med||'').toLowerCase().slice(0,6));
+}
+function beep(ok){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); const g=a.createGain();
+  o.connect(g); g.connect(a.destination); o.frequency.value=ok?880:220; g.gain.value=0.08; o.start(); setTimeout(()=>{o.stop();a.close();},ok?90:200); }catch(e){} }
+function rafraichirDispensation(){
+  // Rouvre la modale en conservant le contexte et les coches
+  if(MEDICORE_DISP) ouvrirCaisseDispensation(MEDICORE_DISP.patientId);
+}
+// Définir / modifier le code-barres d'un produit (peut être scanné directement dans le prompt)
+function definirCodeBarre(code){
+  const p=produits.find(x=>x.code===code); if(!p) return;
+  const cb=prompt('Code-barres pour « '+p.dci+' »\n(scannez le produit avec la douchette ou saisissez l\'EAN) :', p.code_barre||'');
+  if(cb===null) return;
+  p.code_barre=cb.trim();
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('stock', produits, true);
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Code-barres produit','MODIFICATION',`${p.dci} → ${p.code_barre||'(vidé)'}`, code);
+  renderStock();
+  toast(p.code_barre?'Code-barres enregistré.':'Code-barres retiré.','success');
 }
 
 let subsDispensation={};   // { rxLineId : dci_du_substitut }
@@ -890,17 +964,20 @@ function servirOrdonnance(patientId, groupe){
   if(!lignes.length){ toast('Ordonnance introuvable.','error'); return; }
   let total=0; const servies=[], ruptures=[], lignesCaisse=[];
   lignes.forEach(l=>{
-    const s=stockPour(l);
+    // Priorité au produit effectivement scanné (lot/code précis), sinon correspondance par nom
+    const scanne=scanServies[l.id];
+    const s = scanne ? { prod:scanne, sub:false } : stockPour(l);
     if(s.prod && s.prod.stock>0){
       s.prod.stock-=1;                                   // mouvement de stock (sortie)
       mouvements_stock.unshift({ date:new Date().toISOString(), produit:s.prod.dci, lot:s.prod.lot||'—',
-        mvt:'Sortie', qte:1, motif:'Dispensation', patient:l.patient_nom||patientId, ref:l.id });
+        mvt:'Sortie', qte:1, motif:scanne?'Dispensation (scan)':'Dispensation', patient:l.patient_nom||patientId, ref:l.id });
       const px=prixDispensation(l); total+=px;
       const lib=s.sub?`${s.prod.dci} (générique de ${l.med})`:l.med;
       lignesCaisse.push({ libelle:lib, montant:px, ref:l.id });
       MEDICORE_RX.delivrer(l.id, getPharmacien());        // ordonnance servie
       servies.push(lib);
       delete subsDispensation[l.id];
+      delete scanServies[l.id];
     } else ruptures.push(l.med);
   });
   if(!servies.length){ toast('Tous les produits sont en rupture.','error'); return; }

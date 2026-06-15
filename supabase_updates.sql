@@ -215,3 +215,39 @@ select doc_id, payload->>'login' as login, payload->>'nom' as nom,
        coalesce((payload->>'must_change')::boolean,false) as doit_changer_mdp,
        payload->>'created_at' as cree_le, payload->>'created_par' as cree_par, updated_at
 from public.medicore_sync_docs where store='utilisateurs' and not deleted;
+
+-- Catalogue produits (médicaments, réactifs, consommables, dispositifs)
+drop view if exists public.v_produits_catalogue cascade;
+create view public.v_produits_catalogue as
+select doc_id, payload->>'code' as code, payload->>'designation' as designation,
+       payload->>'famille' as famille, payload->>'dci' as dci, payload->>'forme' as forme,
+       payload->>'dosage' as dosage, payload->>'conditionnement' as conditionnement,
+       payload->>'unite' as unite, payload->>'fournisseur' as fournisseur,
+       (payload->>'prix_achat')::numeric as prix_achat, (payload->>'tva')::numeric as tva,
+       coalesce((payload->>'stupefiant')::boolean,false) as stupefiant,
+       coalesce((payload->>'thermosensible')::boolean,false) as thermosensible,
+       (payload->>'stock_min')::numeric as stock_min, (payload->>'stock_secu')::numeric as stock_secu,
+       (payload->>'stock_max')::numeric as stock_max,
+       coalesce((payload->>'actif')::boolean,true) as actif, updated_at
+from public.medicore_sync_docs where store='produits_catalogue' and not deleted;
+
+-- Familles de produits
+drop view if exists public.v_familles_produits cascade;
+create view public.v_familles_produits as
+select doc_id, payload->>'id' as famille_id, payload->>'libelle' as libelle,
+       payload->>'type' as type, updated_at
+from public.medicore_sync_docs where store='familles_produits' and not deleted;
+
+-- (MAJ) Comptes utilisateurs : ajout email + téléphone + préférences notifications
+drop view if exists public.v_utilisateurs cascade;
+create view public.v_utilisateurs as
+select doc_id, payload->>'login' as login, payload->>'nom' as nom,
+       payload->>'email' as email, payload->>'telephone' as telephone,
+       payload->>'service' as service, payload->>'role' as role,
+       coalesce((payload->>'notif_email')::boolean,true) as notif_email,
+       coalesce((payload->>'notif_whatsapp')::boolean,true) as notif_whatsapp,
+       coalesce((payload->>'twofa')::boolean,false) as twofa,
+       coalesce((payload->>'actif')::boolean,true) as actif,
+       coalesce((payload->>'must_change')::boolean,false) as doit_changer_mdp,
+       payload->>'created_at' as cree_le, payload->>'created_par' as cree_par, updated_at
+from public.medicore_sync_docs where store='utilisateurs' and not deleted;
