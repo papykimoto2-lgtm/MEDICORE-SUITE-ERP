@@ -413,8 +413,8 @@
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
           <div class="kpi-card blue"><div class="kpi-label">Actes facturés (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-nb">—</div><span class="kpi-badge neutral">NABM/CCAM</span></div>
           <div class="kpi-card green"><div class="kpi-label">CA biologie (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-ca">—</div><span class="kpi-badge up">▲ FCFA</span></div>
-          <div class="kpi-card orange"><div class="kpi-label">En attente remboursement</div><div class="kpi-value" style="font-size:20px" id="fact-att">—</div><span class="kpi-badge warn">⏳ AM/mutuelle</span></div>
-          <div class="kpi-card teal"><div class="kpi-label">Coût réactifs / acte</div><div class="kpi-value" style="font-size:20px" id="fact-cout">—</div><span class="kpi-badge neutral">Ratio</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Actes hors nomenclature</div><div class="kpi-value" style="font-size:20px" id="fact-att">—</div><span class="kpi-badge warn">⚠ Non codés NABM</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Acte le plus demandé</div><div class="kpi-value" style="font-size:15px" id="fact-cout">—</div><span class="kpi-badge neutral">Volume</span></div>
         </div>
         <div class="card">
           <div class="card-header"><div class="card-title">Actes de biologie — Nomenclature CNAM-CI</div></div>
@@ -516,8 +516,8 @@ let demandes = [
   // (données démo supprimées)
 ];
 
-const CRITIQUES = [
-  // (données démo supprimées)
+let CRITIQUES = [
+  // (données démo supprimées — alimenté par la validation de résultats)
 ];
 
 const AUTOMATES = [
@@ -536,14 +536,14 @@ const WORKLIST = [
 // Nomenclature CNAM-CI (Caisse Nationale d'Assurance Maladie — Côte d'Ivoire)
 // Codes et valeurs adaptés au contexte CI / OHADA (FCFA, pas de B/CCAM)
 const CNAMCI_ACTES = [
-  { code:'B-HEM-01', desig:'Numération formule sanguine (NFS)', tarif:4500,  nb:312 },
-  { code:'B-BIO-01', desig:'Glycémie',                          tarif:2000,  nb:248 },
-  { code:'B-BIO-02', desig:'Créatininémie',                     tarif:2500,  nb:195 },
-  { code:'B-BIO-03', desig:'Ionogramme sanguin complet',        tarif:8000,  nb:142 },
-  { code:'B-BIO-04', desig:'CRP ultra-sensible',                tarif:5500,  nb:118 },
-  { code:'B-COA-01', desig:'TP / TCA',                          tarif:5000,  nb:89  },
-  { code:'B-BAC-01', desig:'Hémoculture (× 2 flacons)',         tarif:12000, nb:64  },
-  { code:'B-IMM-01', desig:'TSH / T3 / T4 libre',               tarif:15000, nb:52  },
+  { code:'B-HEM-01', desig:'Numération formule sanguine (NFS)', tarif:4500 },
+  { code:'B-BIO-01', desig:'Glycémie',                          tarif:2000 },
+  { code:'B-BIO-02', desig:'Créatininémie',                     tarif:2500 },
+  { code:'B-BIO-03', desig:'Ionogramme sanguin complet',        tarif:8000 },
+  { code:'B-BIO-04', desig:'CRP ultra-sensible',                tarif:5500 },
+  { code:'B-COA-01', desig:'TP / TCA',                          tarif:5000 },
+  { code:'B-BAC-01', desig:'Hémoculture (× 2 flacons)',         tarif:12000 },
+  { code:'B-IMM-01', desig:'TSH / T3 / T4 libre',               tarif:15000 },
 ];
 
 const NON_CONFORMITES = [
@@ -554,12 +554,7 @@ const DOCUMENTS = [
   // (données démo supprimées)
 ];
 
-const AUDIT_TRAIL = [
-  { datetime:'2025-06-20 14:32', operateur:'Dr. Coulibaly A.', action:'Validation biologique', dossier:'BIO-2025-0841', detail:'NFS + Biochimie validés — transmis DPI' },
-  { datetime:'2025-06-20 14:18', operateur:'Tech. Bamba K.', action:'Saisie résultats', dossier:'BIO-2025-0843', detail:'Ionogramme saisi — K+ critique détecté' },
-  { datetime:'2025-06-20 13:55', operateur:'Tech. Dosso R.', action:'Chargement automate', dossier:'TUB-0847-A', detail:'Beckman AU480 — CRP, PCT' },
-  { datetime:'2025-06-20 13:10', operateur:'Dr. Traoré M.', action:'Modification résultat', dossier:'BIO-2025-0842', detail:'Correction TP 18% → 19% après contrôle' },
-];
+// (AUDIT_TRAIL démo retiré — le journal réel est LABO_AUDIT, persisté)
 
 const EXAMENS_CATALOGUE = {
   Hématologie:['NFS complète','Réticulocytes','Frottis sanguin','Groupe sanguin','RAI'],
@@ -568,6 +563,94 @@ const EXAMENS_CATALOGUE = {
   Immunologie:['TSH','T3/T4','Ag HBs','Ac VHC','Sérologie VIH','Ferritine'],
   Coagulation:['TP','TCA','Fibrinogène','D-Dimères','Facteurs coagulation'],
 };
+
+// ── Référentiel des paramètres par examen (valeurs de référence) ────────────────
+// Sert à pré-remplir la saisie de résultats (showCR) à partir des examens demandés.
+const REF_PARAMS = {
+  'NFS complète':[
+    {param:'Hémoglobine',unite:'g/dL',ref:'13,0–17,0'},
+    {param:'Leucocytes',unite:'G/L',ref:'4,0–10,0'},
+    {param:'Plaquettes',unite:'G/L',ref:'150–400'},
+    {param:'Hématocrite',unite:'%',ref:'40–52'},
+  ],
+  'Réticulocytes':[{param:'Réticulocytes',unite:'G/L',ref:'25–100'}],
+  'Groupe sanguin':[{param:'Groupe ABO / Rhésus',unite:'',ref:'—'}],
+  'RAI':[{param:'RAI',unite:'',ref:'Négatif'}],
+  'Glycémie':[{param:'Glycémie à jeun',unite:'mmol/L',ref:'3,9–6,1'}],
+  'Créatinine':[{param:'Créatininémie',unite:'µmol/L',ref:'62–106'}],
+  'Urée':[{param:'Urée',unite:'mmol/L',ref:'3–8'}],
+  'Ionogramme':[
+    {param:'Natrémie (Na+)',unite:'mmol/L',ref:'136–145'},
+    {param:'Kaliémie (K+)',unite:'mmol/L',ref:'3,5–5,0'},
+    {param:'Chlorémie (Cl-)',unite:'mmol/L',ref:'98–107'},
+  ],
+  'Bilan hépatique':[
+    {param:'ASAT',unite:'UI/L',ref:'5–40'},
+    {param:'ALAT',unite:'UI/L',ref:'5–41'},
+    {param:'Gamma-GT',unite:'UI/L',ref:'8–61'},
+    {param:'Bilirubine totale',unite:'µmol/L',ref:'3–21'},
+  ],
+  'CRP':[{param:'CRP ultra-sensible',unite:'mg/L',ref:'<5'}],
+  'Procalcitonine':[{param:'Procalcitonine',unite:'ng/mL',ref:'<0,5'}],
+  'Albumine':[{param:'Albumine',unite:'g/L',ref:'35–50'}],
+  'TP':[{param:'TP',unite:'%',ref:'70–100'}],
+  'TCA':[{param:'TCA',unite:'s',ref:'26–36'}],
+  'Fibrinogène':[{param:'Fibrinogène',unite:'g/L',ref:'2,0–4,0'}],
+  'D-Dimères':[{param:'D-Dimères',unite:'µg/L',ref:'<500'}],
+  'TSH':[{param:'TSH',unite:'mUI/L',ref:'0,4–4,0'}],
+  'T3/T4':[{param:'T4 libre',unite:'pmol/L',ref:'9–20'},{param:'T3 libre',unite:'pmol/L',ref:'3,5–6,5'}],
+  'Ferritine':[{param:'Ferritine',unite:'µg/L',ref:'15–300'}],
+  'ECBU':[{param:'Leucocyturie',unite:'/mm³',ref:'<10'},{param:'Bactériurie',unite:'UFC/mL',ref:'<10000'}],
+};
+
+// ── Seuils critiques (valeurs engageant le pronostic vital — notification immédiate) ──
+const CRITICAL_THRESHOLDS = [
+  {match:/kali[ée]mie|potassium|^k\+/i, min:2.5, max:6.5},
+  {match:/natr[ée]mie|sodium|^na\+/i, min:120, max:160},
+  {match:/glyc[ée]mie|glucose/i, min:2.2, max:25},
+  {match:/h[ée]moglobine/i, min:7},
+  {match:/plaquettes/i, min:20, max:1000},
+  {match:/cr[ée]atinin/i, max:500},
+  {match:/^tp\b/i, min:20},
+  {match:/chlor[ée]mie/i, min:80, max:120},
+];
+
+// ── Helpers de calcul résultats ──────────────────────────────────────────────────
+function parseNum(v){ if(v==null) return NaN; const n=parseFloat(String(v).replace(',','.').replace(/[^0-9.\-]/g,'')); return isNaN(n)?NaN:n; }
+function parseRefRange(ref){
+  if(!ref) return null;
+  ref=ref.trim();
+  let m=ref.match(/^<\s*([\d.,]+)/); if(m) return {hi:parseNum(m[1])};
+  m=ref.match(/^>\s*([\d.,]+)/); if(m) return {lo:parseNum(m[1])};
+  m=ref.match(/([\d.,]+)\s*[–\-àa]\s*([\d.,]+)/); if(m) return {lo:parseNum(m[1]),hi:parseNum(m[2])};
+  return null;
+}
+function calcAnormal(val,ref){
+  const n=parseNum(val), r=parseRefRange(ref);
+  if(isNaN(n)||!r) return {anormal:false};
+  if(r.lo!=null && n<r.lo) return {anormal:true,sens:'bas'};
+  if(r.hi!=null && n>r.hi) return {anormal:true,sens:'haut'};
+  return {anormal:false};
+}
+// Valeur engageant le pronostic vital → alerte critique + notification ≤30 min
+function calcCritique(param,val){
+  const n=parseNum(val); if(isNaN(n)) return false;
+  const seuil=CRITICAL_THRESHOLDS.find(c=>c.match.test(param));
+  if(!seuil) return false;
+  if(seuil.min!=null && n<seuil.min) return true;
+  if(seuil.max!=null && n>seuil.max) return true;
+  return false;
+}
+// Ligne(s) de référence à pré-remplir pour un libellé d'examens (séparés par virgules)
+function refRowsForExamens(examensStr){
+  const out=[];
+  (examensStr||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(ex=>{
+    const rows=REF_PARAMS[ex];
+    if(rows) rows.forEach(r=>out.push(Object.assign({},r)));
+    else out.push({param:ex,unite:'',ref:''});
+  });
+  return out.length?out:[{param:'',unite:'',ref:''}];
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
@@ -640,8 +723,9 @@ function renderDemandes(){
       <td>${prioriteBadge(d.priorite)}</td>
       <td>${statutBadge(d.statut)}</td>
       <td>
-        ${d.statut==='À valider'?`<button class="btn btn-success btn-sm" onclick="event.stopPropagation();validerDossier('${d.id}')">✓ Valider</button>`:
-        `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showCR('${d.id}')">👁</button>`}
+        ${d.statut==='En attente prélèvement'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();preleverDemande('${d.id}')">🧪 Prélever</button>`:
+        d.statut==='Validé'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showCR('${d.id}')">👁</button>`:
+        `<button class="btn btn-success btn-sm" onclick="event.stopPropagation();showCR('${d.id}')">📝 Résultats</button>`}
       </td>
     </tr>`).join('')||`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Aucune demande</td></tr>`;
   document.getElementById('dem-pag-info').textContent=total?`${(demPage-1)*DEM_PAGE+1}–${Math.min(demPage*DEM_PAGE,total)} sur ${total}`:'';
@@ -651,7 +735,7 @@ function renderDemandes(){
 
 // ── Validation / Compte rendu ─────────────────────────────────────────────────
 function renderValidationListe(){
-  const aValider=demandes.filter(d=>d.statut==='À valider'||d.statut==='En analyse');
+  const aValider=demandes.filter(d=>d.statut==='Prélevé'||d.statut==='En analyse');
   document.getElementById('validation-liste').innerHTML=aValider.map(d=>`
     <div onclick="showCR('${d.id}')" style="padding:12px;border:1px solid var(--border);border-radius:7px;margin-bottom:8px;cursor:pointer;transition:all .15s;background:var(--surface)"
       onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -662,27 +746,12 @@ function renderValidationListe(){
     </div>`).join('')||`<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">✅ Aucun dossier à valider</div>`;
 }
 
-// Résultats simulés par dossier
-const RESULTATS_SIMULES = {
-  'BIO-2025-0842':[
-    {param:'TP (%)',val:'18',ref:'70–100',unite:'%',anormal:true,sens:'bas'},
-    {param:'TCA (s)',val:'78',ref:'26–36',unite:'s',anormal:true,sens:'haut'},
-    {param:'Fibrinogène',val:'1,1',ref:'2,0–4,0',unite:'g/L',anormal:true,sens:'bas'},
-    {param:'NFS — Hémoglobine',val:'8,4',ref:'13,0–17,0',unite:'g/dL',anormal:true,sens:'bas'},
-    {param:'NFS — Plaquettes',val:'42',ref:'150–400',unite:'G/L',anormal:true,sens:'bas'},
-  ],
-  'BIO-2025-0843':[
-    {param:'Natrémie (Na+)',val:'132',ref:'136–145',unite:'mmol/L',anormal:true,sens:'bas'},
-    {param:'Kaliémie (K+)',val:'6,8',ref:'3,5–5,0',unite:'mmol/L',anormal:true,sens:'haut',critique:true},
-    {param:'Urée',val:'28',ref:'3–8',unite:'mmol/L',anormal:true,sens:'haut'},
-    {param:'Créatinine',val:'284',ref:'62–106',unite:'µmol/L',anormal:true,sens:'haut'},
-    {param:'Glucose',val:'5,2',ref:'3,9–6,1',unite:'mmol/L',anormal:false},
-  ],
-};
-
 function showCR(id){
   const d=demandes.find(x=>x.id===id);if(!d) return;
-  const resultats=RESULTATS_SIMULES[id]||[{param:'NFS — Hémoglobine',val:'12,8',ref:'11,5–16,5',unite:'g/dL',anormal:false},{param:'NFS — Leucocytes',val:'8,2',ref:'4,0–10,0',unite:'G/L',anormal:false},{param:'NFS — Plaquettes',val:'225',ref:'150–400',unite:'G/L',anormal:false},{param:'Glycémie',val:'5,4',ref:'3,9–6,1',unite:'mmol/L',anormal:false},{param:'CRP',val:'12',ref:'<5',unite:'mg/L',anormal:true,sens:'haut'}];
+  // Au premier ouvert, passe la demande en cours d'analyse
+  if(d.statut==='Prélevé'){ d.statut='En analyse'; persistDemandes(); }
+  const lectureSeule=d.statut==='Validé';
+  const rows=lectureSeule?(d.resultats||[]):refRowsForExamens(d.examens);
   document.getElementById('cr-container').innerHTML=`
     <div class="cr-box">
       <div class="cr-header">
@@ -697,45 +766,111 @@ function showCR(id){
         </div>
       </div>
       <div class="cr-section">
-        <h4>Résultats</h4>
-        <div style="display:grid;grid-template-columns:220px 80px 120px 130px;gap:0">
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border)">Paramètre</div>
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border);text-align:right">Résultat</div>
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border);text-align:center">Unité</div>
-          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:5px 0;border-bottom:1px solid var(--border);text-align:right">Valeurs de réf.</div>
+        <h4>Résultats${lectureSeule?'':' — saisie'}</h4>
+        <div style="display:grid;grid-template-columns:1.6fr 1fr .8fr 1fr 32px;gap:6px;margin-bottom:4px">
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted)">Paramètre</div>
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);text-align:right">Résultat</div>
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);text-align:center">Unité</div>
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);text-align:right">Valeurs de réf.</div>
+          <div></div>
         </div>
-        ${resultats.map(r=>`
-          <div style="display:grid;grid-template-columns:220px 80px 120px 130px;gap:0;padding:6px 0;border-bottom:1px solid var(--border);align-items:center">
-            <div style="font-size:13px${r.critique?';color:var(--red);font-weight:600':''}">
-              ${r.critique?'🚨 ':''}${r.param}
-            </div>
-            <div class="text-right ${r.anormal?(r.sens==='haut'?'result-high':'result-low'):'result-normal'}" style="font-size:13.5px">
-              ${r.val}${r.anormal?`<span style="font-size:10px;margin-left:3px">${r.sens==='haut'?'▲':'▼'}</span>`:''}
-            </div>
-            <div class="text-center text-muted" style="font-size:12px">${r.unite||'—'}</div>
-            <div class="text-right text-muted" style="font-size:12px">${r.ref}</div>
-          </div>`).join('')}
+        <div id="cr-lignes">${rows.map(r=>crLigneHTML(r,lectureSeule)).join('')}</div>
+        ${lectureSeule?'':`<button class="btn btn-secondary btn-sm" type="button" onclick="crAjouterLigne()" style="margin-top:4px">＋ Paramètre</button>`}
       </div>
-      ${d.statut==='À valider'?`
-      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-        <button class="btn btn-danger btn-sm" onclick="toast('Résultat refusé — Contre-validation requise.','error')">✕ Refuser</button>
-        <button class="btn btn-success" onclick="validerDossier('${d.id}')">✓ Valider biologiquement & Transmettre DPI</button>
-      </div>`:`<div style="margin-top:12px;padding:10px 14px;background:var(--green-bg);border:1px solid #a8d8be;border-radius:6px;font-size:12.5px;color:var(--green)">✓ Résultats validés et transmis au DPI</div>`}
+      ${lectureSeule?
+        `<div style="margin-top:12px;padding:10px 14px;background:var(--green-bg);border:1px solid #a8d8be;border-radius:6px;font-size:12.5px;color:var(--green)">
+          ✓ Résultats validés par ${d.validepar||'—'} le ${d.valideTs?new Date(d.valideTs).toLocaleString('fr-FR'):'—'} et transmis au DPI.
+          ${d.critique?'<br>🚨 Valeur(s) critique(s) signalée(s) — voir onglet « Alertes critiques ».':''}
+        </div>`:
+        `<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+          <button class="btn btn-danger btn-sm" onclick="toast('Résultat refusé — Contre-validation requise.','error')">✕ Refuser</button>
+          <button class="btn btn-success" onclick="validerDossier('${d.id}')">✓ Valider biologiquement & Transmettre DPI</button>
+        </div>`}
     </div>`;
 }
+function crLigneHTML(r,ro){
+  const chk=calcAnormal(r.val,r.ref);
+  const cls=chk.anormal?(chk.sens==='haut'?'result-high':'result-low'):'result-normal';
+  if(ro){
+    return `<div style="display:grid;grid-template-columns:1.6fr 1fr .8fr 1fr 32px;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);align-items:center">
+      <div style="font-size:13px${r.critique?';color:var(--red);font-weight:600':''}">${r.critique?'🚨 ':''}${r.param}</div>
+      <div class="text-right ${cls}" style="font-size:13.5px">${r.val}${chk.anormal?`<span style="font-size:10px;margin-left:3px">${chk.sens==='haut'?'▲':'▼'}</span>`:''}</div>
+      <div class="text-center text-muted" style="font-size:12px">${r.unite||'—'}</div>
+      <div class="text-right text-muted" style="font-size:12px">${r.ref||'—'}</div>
+      <div></div>
+    </div>`;
+  }
+  return `<div class="cr-row" style="display:grid;grid-template-columns:1.6fr 1fr .8fr 1fr 32px;gap:6px;margin-bottom:5px;align-items:center">
+    <input class="cr-param" value="${r.param||''}" placeholder="Paramètre" style="padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:12.5px">
+    <input class="cr-val" value="${r.val||''}" placeholder="Résultat" oninput="crLigneCheck(this)" style="padding:6px 8px;border:1px solid var(--border);border-radius:5px;text-align:right;font-size:13px">
+    <input class="cr-unite" value="${r.unite||''}" placeholder="Unité" style="padding:6px 8px;border:1px solid var(--border);border-radius:5px;text-align:center;font-size:12px">
+    <input class="cr-ref" value="${r.ref||''}" placeholder="Réf." oninput="crLigneCheck(this)" style="padding:6px 8px;border:1px solid var(--border);border-radius:5px;text-align:right;font-size:12px">
+    <button onclick="this.parentElement.remove()" style="border:1px solid var(--border);background:var(--surface);border-radius:5px;cursor:pointer;font-size:13px">✕</button>
+  </div>`;
+}
+function crLigneCheck(el){
+  const row=el.closest('.cr-row'); const val=row.querySelector('.cr-val'), ref=row.querySelector('.cr-ref');
+  const chk=calcAnormal(val.value,ref.value);
+  val.className='cr-val'; val.style.color=chk.anormal?(chk.sens==='haut'?'var(--red)':'var(--accent)'):'';
+  val.style.fontWeight=chk.anormal?'700':'';
+}
+function crAjouterLigne(){
+  document.getElementById('cr-lignes').insertAdjacentHTML('beforeend', crLigneHTML({param:'',val:'',unite:'',ref:''},false));
+}
+
+function persistDemandes(){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('demandes_labo', demandes, true); }
 
 function validerDossier(id){
-  const d=demandes.find(x=>x.id===id);
-  if(d){d.statut='Validé';d.critique=false;d.validepar=getPrescripteurLabo();d.valideTs=new Date().toISOString();}
-  laboAudit('VALIDATION_BIOLOGIQUE', id, `Résultats validés et transmis DPI`);
-  // Publier dans le BUS pour le DPI
-  if(typeof MEDICORE_BUS!=='undefined' && d){
-    MEDICORE_BUS.publish('LABO_RESULTATS_PRETS',{demandeId:id,patientId:d.dossier,patient:d.patient,examens:d.examens,critique:d.critique});
+  const d=demandes.find(x=>x.id===id); if(!d) return;
+  const rows=Array.from(document.querySelectorAll('#cr-lignes .cr-row')).map(r=>{
+    const param=r.querySelector('.cr-param').value.trim();
+    const val=r.querySelector('.cr-val').value.trim();
+    const unite=r.querySelector('.cr-unite').value.trim();
+    const ref=r.querySelector('.cr-ref').value.trim();
+    const chk=calcAnormal(val,ref);
+    return { param, val, unite, ref, anormal:chk.anormal, sens:chk.sens||null, critique:calcCritique(param,val) };
+  }).filter(r=>r.param && r.val);
+  if(!rows.length){ toast('Saisissez au moins un résultat.','error'); return; }
+
+  const critiques=rows.filter(r=>r.critique);
+  d.statut='Validé'; d.critique=critiques.length>0; d.resultats=rows;
+  d.validepar=getPrescripteurLabo(); d.valideTs=new Date().toISOString();
+
+  // 1) Résultat partagé → dossier DPI / Urgences
+  if(typeof MEDICORE_RESULTATS!=='undefined'){
+    MEDICORE_RESULTATS.ajouter({ patientId:d.dossier, patient_nom:d.patient, type:'biologie',
+      libelle:d.examens, params:rows, demandeRef:d.id, par:d.validepar });
   }
-  renderDemandes();renderValidationListe();updateKPIs();
+  // 2) Retour au praticien prescripteur (clôture de la demande inter-services)
+  if(typeof MEDICORE_DEMANDES!=='undefined'){
+    const dem=MEDICORE_DEMANDES.all().filter(x=>x.module_cible==='laboratoire' && x.patient && x.patient.id===d.dossier && x.statut!==MEDICORE_DEMANDES.S.RETOURNEE).pop();
+    if(dem){ MEDICORE_DEMANDES.traiter(dem.id, d.examens); MEDICORE_DEMANDES.retourner(dem.id, `Résultats disponibles : ${d.examens} (${rows.length} paramètre(s))${d.critique?' — 🚨 valeur critique':''}`); }
+  }
+  // 3) Valeurs critiques → registre + notification ≤30 min
+  if(critiques.length){
+    const now=new Date(); const heure=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    critiques.forEach(r=>{
+      CRITIQUES.unshift({ id:'CRIT'+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+        heure, date:now.toISOString(), patient:d.patient, service:d.service, examen:r.param,
+        resultat:r.val+' '+(r.unite||''), reference:r.ref, criticite:'Vitale', presc:d.presc,
+        dossier:d.dossier, demandeId:d.id, notif:'Non notifié' });
+    });
+    if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('labo_critiques', CRITIQUES, true);
+  }
+
+  laboAudit('VALIDATION_BIOLOGIQUE', id, `${d.examens} — ${rows.length} paramètre(s)${d.critique?' — 🚨 valeur critique':''} — transmis DPI`);
+  persistDemandes();
+  renderDemandes();renderValidationListe();updateKPIs();renderCritiques();
   showCR(id);
-  toast('Dossier '+id+' validé biologiquement. Transmis au DPI.','success');
-  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('demandes_labo', demandes);
+  toast(d.critique?`Dossier ${id} validé — 🚨 VALEUR CRITIQUE : notifier le prescripteur immédiatement.`:`Dossier ${id} validé et transmis au DPI.`, d.critique?'error':'success');
+}
+// Marque une demande comme prélevée (étape avant saisie des résultats)
+function preleverDemande(id){
+  const d=demandes.find(x=>x.id===id); if(!d) return;
+  d.statut='Prélevé'; d.preleveTs=new Date().toISOString(); d.prelevePar=getPrescripteurLabo();
+  laboAudit('PRELEVEMENT', id, `${d.patient} — ${d.examens}`);
+  persistDemandes(); renderDemandes(); updateKPIs();
+  toast('Échantillon prélevé pour '+id+'.','success');
 }
 
 // ── Alertes critiques ─────────────────────────────────────────────────────────
@@ -764,7 +899,9 @@ function notifierCritique(i){
   const op=getPrescripteurLabo();
   CRITIQUES[i].notif=`Notifié ${heure}`;
   CRITIQUES[i].notifPar=op;
-  laboAudit('VALEUR_CRITIQUE_NOTIFIEE', CRITIQUES[i].patient, `${CRITIQUES[i].examen} = ${CRITIQUES[i].resultat} — ${CRITIQUES[i].presc} prévenu`);
+  CRITIQUES[i].notifTs=now.toISOString();
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('labo_critiques', CRITIQUES, true);
+  laboAudit('VALEUR_CRITIQUE_NOTIFIEE', CRITIQUES[i].demandeId||CRITIQUES[i].dossier, `${CRITIQUES[i].examen} = ${CRITIQUES[i].resultat} — ${CRITIQUES[i].presc} prévenu (${CRITIQUES[i].patient})`);
   renderCritiques();updateKPIs();
   toast(`Notification enregistrée — ${CRITIQUES[i].examen} : ${CRITIQUES[i].resultat}. Traçabilité sauvegardée.`,'success');
 }
@@ -861,21 +998,53 @@ function renderAutomates(){
 }
 
 // ── Facturation NABM ──────────────────────────────────────────────────────────
+// Correspondance examen (catalogue) → code NABM/CNAM-CI (pour comptage réel des actes)
+const NABM_MAP={
+  'NFS complète':'B-HEM-01','Glycémie':'B-BIO-01','Créatinine':'B-BIO-02','Ionogramme':'B-BIO-03',
+  'CRP':'B-BIO-04','TP':'B-COA-01','TCA':'B-COA-01','Hémoculture':'B-BAC-01','TSH':'B-IMM-01','T3/T4':'B-IMM-01',
+};
 function renderFacturation(){
-  const totNb=CNAMCI_ACTES.reduce((s,a)=>s+a.nb,0);
-  const totCA=CNAMCI_ACTES.reduce((s,a)=>s+a.nb*a.tarif,0);
-  document.getElementById('fact-nb').textContent=totNb;
+  // Comptage réel des actes à partir des prestations labo (créées à chaque demande)
+  const prest=(typeof MEDICORE_STORE!=='undefined')?MEDICORE_STORE.load('prestations',[]):[];
+  const compte={}, nonCodes={};
+  prest.filter(p=>p.module==='laboratoire').forEach(p=>{
+    (p.libelle||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(ex=>{
+      const code=NABM_MAP[ex];
+      if(code) compte[code]=(compte[code]||0)+1;
+      else nonCodes[ex]=(nonCodes[ex]||0)+1;
+    });
+  });
+  const totMappes=Object.values(compte).reduce((s,n)=>s+n,0);
+  const totNonCodes=Object.values(nonCodes).reduce((s,n)=>s+n,0);
+  const tarifDefaut=(typeof MEDICORE_PRESTA!=='undefined'&&MEDICORE_PRESTA.TARIF_DEFAUT)?MEDICORE_PRESTA.TARIF_DEFAUT.laboratoire||0:0;
+  const totNb=totMappes+totNonCodes;
+  const totCA=CNAMCI_ACTES.reduce((s,a)=>s+(compte[a.code]||0)*a.tarif,0)+totNonCodes*tarifDefaut;
+
+  document.getElementById('fact-nb').textContent=fmt(totNb);
   document.getElementById('fact-ca').textContent=fmtF(totCA);
-  document.getElementById('fact-att').textContent=fmtF(totCA*0.38);
-  document.getElementById('fact-cout').textContent=Math.round(totCA*0.22/totNb).toLocaleString('fr-FR')+' F';
-  document.getElementById('nabm-tbody').innerHTML=CNAMCI_ACTES.map(a=>`
-    <tr>
+  document.getElementById('fact-att').textContent=fmt(totNonCodes);
+  // Acte le plus demandé (toutes nomenclatures confondues)
+  let topLabel='—', topNb=0;
+  CNAMCI_ACTES.forEach(a=>{ const n=compte[a.code]||0; if(n>topNb){topNb=n;topLabel=a.desig;} });
+  Object.keys(nonCodes).forEach(ex=>{ if(nonCodes[ex]>topNb){topNb=nonCodes[ex];topLabel=ex;} });
+  document.getElementById('fact-cout').textContent=topNb>0?`${topLabel} (${topNb})`:'—';
+
+  document.getElementById('nabm-tbody').innerHTML=CNAMCI_ACTES.map(a=>{
+    const nb=compte[a.code]||0;
+    return `<tr>
       <td><span class="nabm-tag">${a.code}</span></td>
       <td style="font-weight:500">${a.desig}</td>
       <td class="text-right amount" style="color:var(--accent)">${fmtF(a.tarif)}</td>
-      <td class="text-right">${fmt(a.nb)}</td>
-      <td class="text-right amount" style="color:var(--green)">${fmtF(a.nb*a.tarif)}</td>
-    </tr>`).join('');
+      <td class="text-right">${fmt(nb)}</td>
+      <td class="text-right amount" style="color:var(--green)">${fmtF(nb*a.tarif)}</td>
+    </tr>`;
+  }).join('') + (totNonCodes?Object.keys(nonCodes).map(ex=>`<tr>
+      <td><span class="nabm-tag" style="opacity:.5">—</span></td>
+      <td style="font-weight:500">${ex} <span style="font-size:10.5px;color:var(--text-muted)">(hors nomenclature, tarif standard)</span></td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(tarifDefaut)}</td>
+      <td class="text-right">${fmt(nonCodes[ex])}</td>
+      <td class="text-right amount" style="color:var(--green)">${fmtF(nonCodes[ex]*tarifDefaut)}</td>
+    </tr>`).join(''):'');
   document.getElementById('nabm-total-nb').textContent=fmt(totNb);
   document.getElementById('nabm-total-ca').textContent=fmtF(totCA);
 }
@@ -901,7 +1070,7 @@ function renderQualite(){
       <td class="text-muted">${new Date(d.date).toLocaleDateString('fr-FR')}</td>
       <td><span class="badge ${d.statut==='En vigueur'?'badge-valide':'badge-attente'}">${d.statut}</span></td>
     </tr>`).join('');
-  document.getElementById('audit-tbody').innerHTML=[...LABO_AUDIT].reverse().concat(AUDIT_TRAIL.map(a=>({ts:a.datetime,auteur:a.operateur,action:a.action,dossier:a.dossier,detail:a.detail}))).map(a=>`
+  document.getElementById('audit-tbody').innerHTML=[...LABO_AUDIT].reverse().map(a=>`
     <tr>
       <td style="font-size:12px;color:var(--text-muted)">${a.ts?new Date(a.ts).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):a.datetime||'—'}</td>
       <td style="font-weight:500">${a.auteur||a.operateur||'—'}</td>
@@ -912,10 +1081,13 @@ function renderQualite(){
 }
 
 // ── Journal d'audit Laboratoire ───────────────────────────────────────────────
-const LABO_AUDIT = [];
+let LABO_AUDIT = [];
 function laboAudit(action, dossier, detail){
   const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
   LABO_AUDIT.push({ts:new Date().toISOString(),action,dossier,detail,auteur:s.nom||'Biologiste',role:s.role||'—'});
+  if(LABO_AUDIT.length>1000) LABO_AUDIT=LABO_AUDIT.slice(-1000);
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('labo_journal', LABO_AUDIT, true);
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log(action,'MODIFICATION',detail,dossier);
 }
 function getPrescripteurLabo(){
   const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
@@ -1143,7 +1315,11 @@ updateKPIs();renderDemandes();
 <script>
 // Auto-init navigation MediCore
 document.addEventListener('DOMContentLoaded', function() {
-  if(typeof MEDICORE_STORE!=='undefined'){ demandes = MEDICORE_STORE.sync('demandes_labo', demandes); }
+  if(typeof MEDICORE_STORE!=='undefined'){
+    demandes = MEDICORE_STORE.sync('demandes_labo', demandes);
+    CRITIQUES = MEDICORE_STORE.sync('labo_critiques', CRITIQUES);
+    LABO_AUDIT = MEDICORE_STORE.sync('labo_journal', LABO_AUDIT);
+  }
 
   if (typeof initNav === 'function') {
     initNav('laboratoire', 'Laboratoire', 'CNAM-CI · Biologie médicale', [

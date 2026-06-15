@@ -112,3 +112,50 @@ select doc_id, payload->>'id' as dossier, payload->>'ipp' as ipp, payload->>'nom
        payload->>'service' as service, payload->>'sortie' as date_sortie,
        payload->>'archive_le' as date_archivage, payload->>'archive_par' as archive_par, updated_at
 from public.medicore_sync_docs where store='patients_archives' and not deleted;
+
+-- Valeurs critiques labo (notification ≤30 min au prescripteur)
+drop view if exists public.v_labo_critiques cascade;
+create view public.v_labo_critiques as
+select doc_id, payload->>'heure' as heure, payload->>'date' as date_resultat,
+       payload->>'patient' as patient, payload->>'service' as service,
+       payload->>'examen' as examen, payload->>'resultat' as resultat,
+       payload->>'reference' as reference, payload->>'presc' as prescripteur,
+       payload->>'dossier' as dossier, payload->>'demandeId' as demande_id,
+       payload->>'notif' as notification, payload->>'notifPar' as notifie_par,
+       payload->>'notifTs' as notifie_le, updated_at
+from public.medicore_sync_docs where store='labo_critiques' and not deleted;
+
+-- Comptes rendus d'imagerie validés (registre interne, traçabilité)
+drop view if exists public.v_cr_imagerie cascade;
+create view public.v_cr_imagerie as
+select doc_id, payload->>'demId' as demande_id, payload->>'patient' as patient,
+       payload->>'patientId' as patient_id, payload->>'type' as type,
+       payload->>'examen' as examen, payload->>'radio' as radiologue,
+       payload->>'conclusion' as conclusion, payload->>'date' as date_cr, updated_at
+from public.medicore_sync_docs where store='cr_imagerie' and not deleted;
+
+-- Worklist imagerie (demandes, planning, statuts)
+drop view if exists public.v_demandes_img cascade;
+create view public.v_demandes_img as
+select doc_id, payload->>'id' as ref, payload->>'patient' as patient,
+       payload->>'presc' as prescripteur, payload->>'type' as type,
+       payload->>'examen' as examen, payload->>'equip' as equipement,
+       payload->>'priorite' as priorite, payload->>'date' as date_creneau,
+       payload->>'statut' as statut, payload->>'ccam' as code_cnam, updated_at
+from public.medicore_sync_docs where store='demandes_img' and not deleted;
+
+-- Imagerie — journal interne (audit module)
+drop view if exists public.v_img_journal cascade;
+create view public.v_img_journal as
+select doc_id, payload->>'ts' as horodatage, payload->>'action' as action,
+       payload->>'id' as reference, payload->>'detail' as detail,
+       payload->>'auteur' as auteur, payload->>'role' as role, updated_at
+from public.medicore_sync_docs where store='img_journal' and not deleted;
+
+-- Imagerie — historique de maintenance des équipements
+drop view if exists public.v_img_maintenance cascade;
+create view public.v_img_maintenance as
+select doc_id, payload->>'equip' as equipement, payload->>'type' as type_intervention,
+       payload->>'date' as date_intervention, payload->>'prochaine' as prochaine_echeance,
+       payload->>'tech' as technicien, payload->>'statut' as statut, updated_at
+from public.medicore_sync_docs where store='img_maintenance' and not deleted;

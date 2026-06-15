@@ -321,9 +321,7 @@
                 <option value="">Tous statuts</option>
                 <option value="En attente">En attente</option>
                 <option value="En cours">En cours</option>
-                <option value="CR à rédiger">CR à rédiger</option>
-                <option value="Validé">Validé</option>
-                <option value="Transmis">Transmis DPI</option>
+                <option value="Validé">Validé (transmis DPI)</option>
               </select>
             </div>
           </div>
@@ -435,8 +433,8 @@
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
           <div class="kpi-card blue"><div class="kpi-label">Actes CNAM-CI facturés</div><div class="kpi-value" style="font-size:20px" id="fact-nb">—</div><span class="kpi-badge neutral">Ce mois</span></div>
           <div class="kpi-card green"><div class="kpi-label">CA imagerie (mois)</div><div class="kpi-value" style="font-size:20px" id="fact-ca">—</div><span class="kpi-badge up">FCFA</span></div>
-          <div class="kpi-card orange"><div class="kpi-label">En attente remboursement</div><div class="kpi-value" style="font-size:20px" id="fact-att">—</div><span class="kpi-badge warn">AM/mutuelle</span></div>
-          <div class="kpi-card teal"><div class="kpi-label">Coût moyen / examen</div><div class="kpi-value" style="font-size:20px" id="fact-cout">—</div><span class="kpi-badge neutral">FCFA</span></div>
+          <div class="kpi-card orange"><div class="kpi-label">Actes hors nomenclature</div><div class="kpi-value" style="font-size:20px" id="fact-att">—</div><span class="kpi-badge warn">⚠ Non codés CNAM-CI</span></div>
+          <div class="kpi-card teal"><div class="kpi-label">Acte le plus demandé</div><div class="kpi-value" style="font-size:15px" id="fact-cout">—</div><span class="kpi-badge neutral">Volume</span></div>
         </div>
         <div class="card">
           <div class="card-header"><div class="card-title">Actes d'imagerie — Nomenclature CNAM-CI</div></div>
@@ -627,42 +625,47 @@ let demandes = [
   // (données démo supprimées)
 ];
 
-const CR_DATA = [
-  // (données démo supprimées)
+let CR_DATA = [
+  // (données démo supprimées — alimenté à la validation du CR)
 ];
 
 const EQUIPEMENTS = [
-  { nom:'Radiologie — Salle 1',  type:'Radiologie',   icon:'☢️',  marque:'Siemens Ysio Max',     statut:'Opérationnel', exam_jour:22, maintenance:'2025-09-01', taux:78 },
-  { nom:'Radiologie — Salle 2',  type:'Radiologie',   icon:'☢️',  marque:'GE Discovery XR656',   statut:'Opérationnel', exam_jour:18, maintenance:'2025-08-15', taux:65 },
-  { nom:'Échographie — Salle 1', type:'Échographie',  icon:'🔊',  marque:'GE Logiq E10',         statut:'Opérationnel', exam_jour:15, maintenance:'2025-07-20', taux:80 },
-  { nom:'Échographie — Salle 2', type:'Échographie',  icon:'🔊',  marque:'Philips EPIQ Elite',   statut:'En maintenance',exam_jour:0,  maintenance:'2025-06-22', taux:0  },
-  { nom:'Scanner (TDM)',         type:'Scanner',      icon:'🌀',  marque:'Siemens SOMATOM go.Top',statut:'Opérationnel', exam_jour:12, maintenance:'2025-10-01', taux:90 },
-  { nom:'IRM 3T',                type:'IRM',          icon:'🧲',  marque:'Philips Ingenia 3.0T', statut:'Opérationnel', exam_jour:8,  maintenance:'2025-11-15', taux:72 },
-  { nom:'Mammographe',           type:'Mammographie', icon:'🩻',  marque:'Hologic 3D Dimensions',statut:'Opérationnel', exam_jour:6,  maintenance:'2025-08-30', taux:55 },
-  { nom:'Amplificateur de bloc', type:'Radiologie',   icon:'💡',  marque:'Philips BV Pulsera',   statut:'Opérationnel', exam_jour:4,  maintenance:'2025-09-15', taux:40 },
+  { nom:'Radiologie — Salle 1',  type:'Radiologie',   icon:'☢️',  marque:'Siemens Ysio Max',     statut:'Opérationnel', planKey:'Radio 1', maintenance:'2025-09-01' },
+  { nom:'Radiologie — Salle 2',  type:'Radiologie',   icon:'☢️',  marque:'GE Discovery XR656',   statut:'Opérationnel', planKey:null, maintenance:'2025-08-15' },
+  { nom:'Échographie — Salle 1', type:'Échographie',  icon:'🔊',  marque:'GE Logiq E10',         statut:'Opérationnel', planKey:'Echo 1', maintenance:'2025-07-20' },
+  { nom:'Échographie — Salle 2', type:'Échographie',  icon:'🔊',  marque:'Philips EPIQ Elite',   statut:'En maintenance',planKey:null, maintenance:'2025-06-22' },
+  { nom:'Scanner (TDM)',         type:'Scanner',      icon:'🌀',  marque:'Siemens SOMATOM go.Top',statut:'Opérationnel', planKey:'Scanner', maintenance:'2025-10-01' },
+  { nom:'IRM 3T',                type:'IRM',          icon:'🧲',  marque:'Philips Ingenia 3.0T', statut:'Opérationnel', planKey:'IRM', maintenance:'2025-11-15' },
+  { nom:'Mammographe',           type:'Mammographie', icon:'🩻',  marque:'Hologic 3D Dimensions',statut:'Opérationnel', planKey:'Mammo', maintenance:'2025-08-30' },
+  { nom:'Amplificateur de bloc', type:'Radiologie',   icon:'💡',  marque:'Philips BV Pulsera',   statut:'Opérationnel', planKey:null, maintenance:'2025-09-15' },
 ];
 
-const MAINTENANCE_HIST = [
-  // (données démo supprimées)
+let MAINTENANCE_HIST = [
+  // (données démo supprimées — alimenté via "🔧 Maintenance" sur chaque équipement)
 ];
+// État persisté des équipements (statut / prochaine maintenance), surcharge EQUIPEMENTS
+let EQUIP_ETAT = {};
 
 // Nomenclature CNAM-CI imagerie — tarifs FCFA (pas de cotation CCAM France)
 const CNAMCI_IMG = [
-  { code:'ZBQK002', lib:'TDM thorax-abdomen-pelvis avec injection', type:'Scanner',      tarif:85000,  nb:18 },
-  { code:'ZBQK001', lib:'Radiographie thorax face',                  type:'Radiologie',   tarif:15000,  nb:124 },
-  { code:'ZCQM001', lib:'Échographie abdominale complète',           type:'Échographie',  tarif:28000,  nb:68 },
-  { code:'ZCQM002', lib:'Échographie obstétricale 3e trim.',         type:'Échographie',  tarif:32000,  nb:42 },
-  { code:'CBQK001', lib:'IRM cérébrale sans + avec injection',       type:'IRM',          tarif:120000, nb:14 },
-  { code:'QEQE001', lib:'Mammographie bilatérale',                   type:'Mammographie', tarif:42000,  nb:28 },
-  { code:'ZBQK003', lib:'Radiographie abdomen sans préparation',     type:'Radiologie',   tarif:14000,  nb:56 },
-  { code:'ZBQK004', lib:'Radiographie osseuse (2 incidences)',       type:'Radiologie',   tarif:16000,  nb:88 },
+  { code:'ZBQK002', lib:'TDM thorax-abdomen-pelvis avec injection', type:'Scanner',      tarif:85000 },
+  { code:'ZBQK001', lib:'Radiographie thorax face',                  type:'Radiologie',   tarif:15000 },
+  { code:'ZCQM001', lib:'Échographie abdominale complète',           type:'Échographie',  tarif:28000 },
+  { code:'ZCQM002', lib:'Échographie obstétricale 3e trim.',         type:'Échographie',  tarif:32000 },
+  { code:'CBQK001', lib:'IRM cérébrale sans + avec injection',       type:'IRM',          tarif:120000 },
+  { code:'QEQE001', lib:'Mammographie bilatérale',                   type:'Mammographie', tarif:42000 },
+  { code:'ZBQK003', lib:'Radiographie abdomen sans préparation',     type:'Radiologie',   tarif:14000 },
+  { code:'ZBQK004', lib:'Radiographie osseuse (2 incidences)',       type:'Radiologie',   tarif:16000 },
 ];
 
 // ── Journal d'audit Imagerie ──────────────────────────────────────────────────
-const IMG_AUDIT = [];
+let IMG_AUDIT = [];
 function imgAudit(action, id, detail){
   const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
   IMG_AUDIT.push({ts:new Date().toISOString(),action,id,detail,auteur:s.nom||'Radiologue',role:s.role||'—'});
+  if(IMG_AUDIT.length>1000) IMG_AUDIT=IMG_AUDIT.slice(-1000);
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('img_journal', IMG_AUDIT, true);
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log(action,'MODIFICATION',detail,id);
 }
 function getRadiologue(){
   const s=(typeof MEDICORE_SESSION!=='undefined'&&MEDICORE_SESSION)||{};
@@ -687,7 +690,7 @@ function typeBadge(t){
 }
 
 function statutBadge(s){
-  const m={'En attente':'b-attend','En cours':'b-encours','CR à rédiger':'b-attend',Validé:'b-valide',Transmis:'b-transmis'};
+  const m={'En attente':'b-attend','En cours':'b-encours',Validé:'b-valide'};
   return`<span class="badge ${m[s]||''}">${s}</span>`;
 }
 
@@ -701,14 +704,14 @@ function prioriteBadge(p){
 function updateKPIs(){
   const today=demandes.filter(d=>d.date.startsWith(TODAY));
   const urg=demandes.filter(d=>d.priorite==='STAT'||d.priorite==='Urgente').length;
-  const cr=demandes.filter(d=>d.statut==='Transmis').length;
-  const equip=EQUIPEMENTS.filter(e=>e.statut==='Opérationnel').length;
+  const cr=demandes.filter(d=>d.statut==='Validé').length;
+  const equip=EQUIPEMENTS.filter(e=>(EQUIP_ETAT[e.nom]?.statut||e.statut)==='Opérationnel').length;
   document.getElementById('kpi-dem').textContent=today.length;
   document.getElementById('kpi-urg').textContent=urg;
   document.getElementById('kpi-cr').textContent=cr;
   document.getElementById('kpi-equip').textContent=equip+'/'+EQUIPEMENTS.length;
     const now2=new Date();
-  const enCours=demandes.filter(d=>d.statut!=='Transmis');
+  const enCours=demandes.filter(d=>d.statut==='En attente'||d.statut==='En cours');
   if(enCours.length){
     const mins=enCours.reduce((acc,d)=>{
       const parts=(d.date||'').split(' ');
@@ -721,8 +724,8 @@ function updateKPIs(){
   } else { document.getElementById('kpi-delai').textContent='—'; }
 
   const alertDiv=document.getElementById('alertes-img');alertDiv.innerHTML='';
-  const stat=demandes.filter(d=>d.priorite==='STAT'&&d.statut!=='Transmis');
-  const maint=EQUIPEMENTS.filter(e=>e.statut==='En maintenance');
+  const stat=demandes.filter(d=>d.priorite==='STAT'&&(d.statut==='En attente'||d.statut==='En cours'));
+  const maint=EQUIPEMENTS.filter(e=>(EQUIP_ETAT[e.nom]?.statut||e.statut)==='En maintenance');
   if(stat.length) alertDiv.innerHTML+=`<div class="alert-box" style="background:var(--red-bg);border:1px solid #f3b4b4;color:var(--red)"><span class="alert-icon">🚨</span><span><strong>${stat.length} examen(s) STAT</strong> en attente : ${stat.map(d=>d.patient.split('—')[0].trim()).join(', ')}</span></div>`;
   if(maint.length) alertDiv.innerHTML+=`<div class="alert-box warn"><span class="alert-icon">⚠️</span><span><strong>${maint.length} équipement(s) en maintenance</strong> : ${maint.map(e=>e.nom).join(', ')}</span></div>`;
 }
@@ -753,9 +756,7 @@ function renderDemandes(){
       <td style="white-space:nowrap">
         ${d.statut==='En attente'?`<button class="btn btn-success btn-xs" onclick="event.stopPropagation();demarrerExamen('${d.id}')">▶ Démarrer</button>`:
           d.statut==='En cours'?`<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();ouvrirCR('${d.id}')">📋 CR</button>`:
-          d.statut==='CR à rédiger'?`<button class="btn btn-primary btn-xs" onclick="event.stopPropagation();ouvrirCR('${d.id}')">✍ Rédiger</button>`:
-          d.statut==='Validé'?`<button class="btn btn-success btn-xs" onclick="event.stopPropagation();transmettreDPI('${d.id}')">→ DPI</button>`:
-          `<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openPACSStudy('${d.id}')">🖼 PACS</button>`}
+          `<button class="btn btn-success btn-xs" onclick="event.stopPropagation();voirCR('${d.id}')">👁 CR</button>`}
       </td>
     </tr>`).join('')||`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">Aucune demande</td></tr>`;
   document.getElementById('dem-pag-info').textContent=total?`${(demPage-1)*DEM_PAGE+1}–${Math.min(demPage*DEM_PAGE,total)} sur ${total}`:'';
@@ -766,64 +767,65 @@ function renderDemandes(){
 function demarrerExamen(id){
   const d=demandes.find(x=>x.id===id);
   if(d){d.statut='En cours';imgAudit('EXAMEN_DEMARRE',id,`${d.examen} — ${d.equip}`);}
+  persistImg();
   renderDemandes();updateKPIs();toast(`Examen ${id} démarré.`,'success');
 }
-function transmettreDPI(id){
-  const d=demandes.find(x=>x.id===id);
-  if(d){d.statut='Transmis';imgAudit('CR_TRANSMIS_DPI',id,`CR transmis au DPI — ${d.patient}`);}
-  renderDemandes();updateKPIs();toast(`CR ${id} transmis au DPI.`,'success');
+function voirCR(id){
+  for(const b of document.querySelectorAll('.tab-btn')) if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'cr'")) b.click();
+  showCRDetail(id,null);
 }
-function openCRfromDem(id){const d=demandes.find(x=>x.id===id);if(d&&['CR à rédiger','Validé','Transmis'].includes(d.statut)) showCRDetail(id);}
+function openCRfromDem(id){const d=demandes.find(x=>x.id===id);if(d&&d.statut==='Validé') showCRDetail(id);}
 
 // ── Planning ──────────────────────────────────────────────────────────────────
 const HEURES_PLAN=['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00'];
 const EQUIPEMENTS_PLAN=['Radio 1','Echo 1','Scanner','IRM'];
 const COULEURS_EQUIP={'Radio 1':'#1a4b6e','Echo 1':'#1e7a4e','Scanner':'#6b21a8','IRM':'#0f766e','Mammo':'#c8702a'};
+const EQUIP_LABEL={'Radio 1':'Radiologie — Salle 1','Echo 1':'Échographie — Salle 1','Scanner':'Scanner (TDM)','IRM':'IRM 3T','Mammo':'Mammographe'};
 
-const PLANNING_DATA={
-  'Radio 1':  [1,1,0,0,1,1,0,0],
-  'Echo 1':   [1,1,1,0,1,1,1,0],
-  'Scanner':  [1,1,0,1,1,0,1,1],
-  'IRM':      [0,1,1,0,0,1,1,0],
-};
-
-const PLANNING_PATIENTS={
-  'Radio 1':  [null,null,'KONÉ A.',null,null,'BAMBA I.',null,null],
-  'Echo 1':   [null,'DIALLO F.','KONÉ A.',null,null,'YÉO M.','OUATTARA S.',null],
-  'Scanner':  ['OUATTARA S.','—',null,'SORO A.','—',null,'—','TRAORÉ M.'],
-  'IRM':      [null,'SORO A.','—',null,null,'—','KONÉ A.',null],
-};
-
+// Grille du jour construite à partir des demandes réelles (date/heure/équipement)
+function planningGrille(equip, jour){
+  const occ=Array(HEURES_PLAN.length).fill(null);
+  demandes.forEach(d=>{
+    if(d.equip!==equip || !d.date) return;
+    const [dDate,dHeure]=d.date.split('T');
+    if(dDate!==jour || !dHeure) return;
+    const idx=HEURES_PLAN.findIndex(h=>dHeure.slice(0,5)===h);
+    if(idx>=0) occ[idx]=d;
+  });
+  return occ;
+}
 function renderPlanning(){
   const fe=document.getElementById('f-plan-equip').value;
   const equips=fe?[fe]:EQUIPEMENTS_PLAN;
+  const jour=TODAY;
   const cols=`120px repeat(${HEURES_PLAN.length},1fr)`;
   let html=`<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:${cols};gap:3px;padding:16px;min-width:800px">
     <div style="font-size:11px;font-weight:600;color:var(--text-muted)">Équipement</div>
     ${HEURES_PLAN.map(h=>`<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-align:center;padding:4px">${h}</div>`).join('')}
   `;
   equips.forEach(eq=>{
-    const data=PLANNING_DATA[eq]||[];
-    const patients=PLANNING_PATIENTS[eq]||[];
+    const data=planningGrille(eq,jour);
     const couleur=COULEURS_EQUIP[eq]||'#888';
-    html+=`<div style="font-size:12px;font-weight:600;color:${couleur};display:flex;align-items:center;padding:4px">${eq}</div>`;
-    data.forEach((occ,i)=>{
-      const pat=patients[i];
-      if(occ===0) html+=`<div class="slot-cell slot-libre" onclick="openDemande()" title="Créneau libre — Cliquer pour réserver">Libre</div>`;
-      else if(occ===1) html+=`<div class="slot-cell slot-occupe" style="background:${couleur}" title="${pat||'Occupé'}">${pat||'Occupé'}</div>`;
-      else html+=`<div class="slot-cell slot-pause">Pause</div>`;
+    html+=`<div style="font-size:12px;font-weight:600;color:${couleur};display:flex;align-items:center;padding:4px">${EQUIP_LABEL[eq]||eq}</div>`;
+    data.forEach((d,i)=>{
+      if(!d) html+=`<div class="slot-cell slot-libre" onclick="reserverCreneau('${eq}','${HEURES_PLAN[i]}')" title="Créneau libre — Cliquer pour réserver">Libre</div>`;
+      else{
+        const pat=(d.patient||'').split('—')[0].trim();
+        html+=`<div class="slot-cell slot-occupe" style="background:${couleur};cursor:pointer" onclick="event.stopPropagation();${d.statut==='Validé'?`voirCR('${d.id}')`:`toast('${d.examen.replace(/'/g,"\\\\'")} — statut : ${d.statut}','info')`}" title="${pat||'Occupé'} — ${d.examen||''} (${d.statut})">${pat||'Occupé'}</div>`;
+      }
     });
   });
   html+=`</div></div>`;
   document.getElementById('planning-container').innerHTML=html;
 
   document.getElementById('planning-stats').innerHTML=EQUIPEMENTS_PLAN.map(eq=>{
-    const occ=PLANNING_DATA[eq]?.filter(x=>x===1).length||0;
+    const data=planningGrille(eq,jour);
+    const occ=data.filter(Boolean).length;
     const total=HEURES_PLAN.length;
     const pct=Math.round(occ/total*100);
     const couleur=COULEURS_EQUIP[eq];
     return`<div class="kpi-card" style="border-left:4px solid ${couleur}">
-      <div class="kpi-label">${eq}</div>
+      <div class="kpi-label">${EQUIP_LABEL[eq]||eq}</div>
       <div style="font-family:'DM Serif Display',serif;font-size:20px;color:${couleur}">${pct}%</div>
       <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin:6px 0">
         <div style="width:${pct}%;height:100%;background:${couleur};border-radius:3px"></div>
@@ -831,6 +833,12 @@ function renderPlanning(){
       <div style="font-size:11.5px;color:var(--text-muted)">${occ}/${total} créneaux</div>
     </div>`;
   }).join('');
+}
+// Réserve un créneau libre : pré-remplit la demande avec équipement + heure
+function reserverCreneau(equip, heure){
+  openDemande();
+  document.getElementById('d-equip').value=equip;
+  document.getElementById('d-date').value=TODAY+'T'+heure;
 }
 
 // ── Comptes rendus ────────────────────────────────────────────────────────────
@@ -842,7 +850,7 @@ function renderCRListe(){
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px">${cr.examen} · ${cr.date}</div>
       <div style="display:flex;gap:6px">
         ${typeBadge(cr.type)}
-        <span class="badge ${cr.statut==='Transmis'?'b-transmis':'b-valide'}">${cr.statut}</span>
+        <span class="badge b-valide">${cr.statut}</span>
       </div>
     </div>`).join('');
 }
@@ -862,7 +870,7 @@ function showCRDetail(demId, crId){
           </div>
           <div style="display:flex;gap:6px">
             ${typeBadge(cr.type)}
-            <span class="badge ${cr.statut==='Transmis'?'b-transmis':'b-valide'}">${cr.statut}</span>
+            <span class="badge b-valide">${cr.statut}</span>
           </div>
         </div>
       </div>
@@ -873,12 +881,11 @@ function showCRDetail(demId, crId){
       <div class="cr-section-title">Conclusion</div>
       <div class="cr-conclusion">${cr.conclusion}</div>
       <div style="margin-top:14px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:8px">
-        Radiologue : ${cr.radio} · Validé le ${cr.date}
+        Radiologue : ${cr.radio} · Validé le ${cr.date} · ✓ Transmis au dossier DPI
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
         <button class="btn btn-secondary btn-sm" onclick="toast('CR imprimé.','success')">🖨 Imprimer</button>
         <button class="btn btn-secondary btn-sm" onclick="openPACSStudy('${cr.demId||''}')">🖼 Images PACS</button>
-        <button class="btn btn-success btn-sm" onclick="toast('CR transmis au DPI — ${cr.patient}.','success')">→ DPI</button>
       </div>
     </div>`;
 }
@@ -886,7 +893,7 @@ function showCRDetail(demId, crId){
 // ── PACS ──────────────────────────────────────────────────────────────────────
 function renderPACSListe(){
   const q=document.getElementById('pacs-search').value.toLowerCase();
-  const data=demandes.filter(d=>d.statut==='Transmis'||d.statut==='Validé'||d.statut==='CR à rédiger');
+  const data=demandes.filter(d=>d.statut==='En cours'||d.statut==='Validé');
   const filtered=data.filter(d=>!q||d.patient.toLowerCase().includes(q)||d.examen.toLowerCase().includes(q));
   document.getElementById('pacs-liste').innerHTML=filtered.map(d=>`
     <div onclick="openPACSStudy('${d.id}')" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;margin-bottom:6px;cursor:pointer;background:var(--surface);transition:all .15s"
@@ -975,21 +982,32 @@ function drawMedicalImage(canvas,type,small){
 
 // ── Équipements ────────────────────────────────────────────────────────────────
 function renderEquipements(){
-  document.getElementById('equip-grid').innerHTML=EQUIPEMENTS.map(e=>`
-    <div class="equip-card" style="border-left:4px solid ${e.statut==='Opérationnel'?'var(--green)':'var(--orange)'}">
+  document.getElementById('equip-grid').innerHTML=EQUIPEMENTS.map(e=>{
+    // États persistés (statut / prochaine maintenance) — surchargent la config par défaut
+    const etat=EQUIP_ETAT[e.nom]||{};
+    const statut=etat.statut||e.statut;
+    const maintenance=etat.maintenance||e.maintenance;
+    // Activité réelle du jour, calculée depuis les demandes (si équipement planifiable)
+    const examJour=e.planKey?demandes.filter(d=>d.equip===e.planKey && (d.date||'').startsWith(TODAY)).length:null;
+    const taux=e.planKey?Math.round((examJour/HEURES_PLAN.length)*100):null;
+    const retard=new Date(maintenance)<new Date();
+    return `
+    <div class="equip-card" style="border-left:4px solid ${statut==='Opérationnel'?'var(--green)':'var(--orange)'}">
       <div class="equip-icon">${e.icon}</div>
       <div class="equip-name">${e.nom}</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${e.marque}</div>
-      <div class="equip-stat"><span style="color:var(--text-muted)">Statut</span><span class="badge ${e.statut==='Opérationnel'?'b-valide':'b-attend'}" style="font-size:10.5px">${e.statut}</span></div>
-      <div class="equip-stat"><span style="color:var(--text-muted)">Examens/j</span><span style="font-weight:700;color:var(--accent)">${e.exam_jour}</span></div>
-      <div class="equip-stat"><span style="color:var(--text-muted)">Taux occupation</span><span style="font-weight:600">${e.taux}%</span></div>
+      <div class="equip-stat"><span style="color:var(--text-muted)">Statut</span><span class="badge ${statut==='Opérationnel'?'b-valide':'b-attend'}" style="font-size:10.5px">${statut}</span></div>
+      <div class="equip-stat"><span style="color:var(--text-muted)">Examens/j</span><span style="font-weight:700;color:var(--accent)">${examJour==null?'—':examJour}</span></div>
+      <div class="equip-stat"><span style="color:var(--text-muted)">Taux occupation</span><span style="font-weight:600">${taux==null?'—':taux+'%'}</span></div>
       <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px">
-        <div style="width:${e.taux}%;height:100%;background:${e.taux>80?'var(--orange)':e.taux>50?'var(--green)':'var(--accent)'};border-radius:2px"></div>
+        <div style="width:${taux||0}%;height:100%;background:${(taux||0)>80?'var(--orange)':(taux||0)>50?'var(--green)':'var(--accent)'};border-radius:2px"></div>
       </div>
-      <div class="equip-stat" style="margin-top:6px"><span style="color:var(--text-muted)">Maint. prévue</span><span style="font-size:12px">${new Date(e.maintenance).toLocaleDateString('fr-FR')}</span></div>
-    </div>`).join('');
+      <div class="equip-stat" style="margin-top:6px"><span style="color:var(--text-muted)">Maint. prévue</span><span style="font-size:12px${retard?';color:var(--red);font-weight:600':''}">${new Date(maintenance).toLocaleDateString('fr-FR')}${retard?' ⚠':''}</span></div>
+      <button class="btn btn-secondary btn-xs" style="width:100%;margin-top:8px" onclick="declarerMaintenance('${e.nom.replace(/'/g,"\\'")}')">🔧 Maintenance</button>
+    </div>`;
+  }).join('');
 
-  document.getElementById('maintenance-tbody').innerHTML=MAINTENANCE_HIST.map(m=>`
+  document.getElementById('maintenance-tbody').innerHTML=[...MAINTENANCE_HIST].reverse().map(m=>`
     <tr>
       <td style="font-weight:500">${m.equip}</td>
       <td style="font-size:12.5px">${m.type}</td>
@@ -997,27 +1015,98 @@ function renderEquipements(){
       <td class="text-muted">${new Date(m.prochaine).toLocaleDateString('fr-FR')}</td>
       <td style="font-size:12.5px;color:var(--text-muted)">${m.tech}</td>
       <td><span class="badge ${m.statut==='Effectuée'?'b-valide':m.statut==='En cours'?'b-encours':'b-attend'}">${m.statut}</span></td>
-    </tr>`).join('');
+    </tr>`).join('')||`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Aucune intervention enregistrée</td></tr>`;
+}
+
+// ── Maintenance équipements (déclaration + mise à jour du statut) ───────────────
+function declarerMaintenance(nomEquip){
+  const e=EQUIPEMENTS.find(x=>x.nom===nomEquip); if(!e) return;
+  let ov=document.getElementById('m-maint'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='m-maint'; ov.className='overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=ev=>{ if(ev.target===ov) ov.remove(); };
+  const today=TODAY;
+  ov.innerHTML=`<div class="modal" style="width:440px"><div class="modal-header">
+    <div><div class="modal-title">Maintenance — ${e.nom}</div><div class="modal-subtitle">${e.marque}</div></div>
+    <button class="modal-close" onclick="document.getElementById('m-maint').remove()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Type d'intervention</label>
+        <select id="mt-type"><option>Préventive</option><option>Corrective</option><option>Calibration</option><option>Contrôle qualité</option></select></div>
+      <div class="form-group"><label>Date de l'intervention</label><input id="mt-date" type="date" value="${today}"></div>
+      <div class="form-group"><label>Technicien</label><input id="mt-tech" placeholder="Nom / société"></div>
+      <div class="form-group"><label>Résultat</label>
+        <select id="mt-statut" onchange="document.getElementById('mt-prochaine-grp').style.display=this.value==='Effectuée'?'block':'none'">
+          <option>Effectuée</option><option>En cours</option><option>Planifiée</option></select></div>
+      <div class="form-group" id="mt-prochaine-grp"><label>Prochaine échéance</label><input id="mt-prochaine" type="date"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('m-maint').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerMaintenance('${e.nom.replace(/'/g,"\\'")}')">Enregistrer</button></div></div>`;
+  document.body.appendChild(ov);
+}
+function validerMaintenance(nomEquip){
+  const type=document.getElementById('mt-type').value;
+  const date=document.getElementById('mt-date').value||TODAY;
+  const tech=document.getElementById('mt-tech').value.trim()||'—';
+  const statut=document.getElementById('mt-statut').value;
+  const prochaine=document.getElementById('mt-prochaine').value;
+  MAINTENANCE_HIST.push({ equip:nomEquip, type, date, tech, statut, prochaine:prochaine||date });
+  if(MAINTENANCE_HIST.length>500) MAINTENANCE_HIST=MAINTENANCE_HIST.slice(-500);
+  // Met à jour l'état persisté de l'équipement
+  EQUIP_ETAT[nomEquip]={ statut: statut==='En cours'?'En maintenance':'Opérationnel',
+    maintenance: prochaine || EQUIP_ETAT[nomEquip]?.maintenance || date };
+  if(typeof MEDICORE_STORE!=='undefined'){
+    MEDICORE_STORE.save('img_maintenance', MAINTENANCE_HIST, true);
+    MEDICORE_STORE.save('img_equip_etat', EQUIP_ETAT, true);
+  }
+  imgAudit('MAINTENANCE', nomEquip, `${type} — ${tech} — ${statut}`);
+  document.getElementById('m-maint').remove();
+  renderEquipements(); updateKPIs();
+  toast('Maintenance enregistrée pour '+nomEquip+'.','success');
 }
 
 // ── Facturation ────────────────────────────────────────────────────────────────
 function renderFacturation(){
-  const totNb=CNAMCI_IMG.reduce((s,a)=>s+a.nb,0);
-  const totCA=CNAMCI_IMG.reduce((s,a)=>s+a.nb*a.tarif,0);
-  document.getElementById('fact-nb').textContent=totNb;
+  // Comptage réel des actes à partir des prestations imagerie (créées à chaque demande)
+  const prest=(typeof MEDICORE_STORE!=='undefined')?MEDICORE_STORE.load('prestations',[]):[];
+  const compte={}, nonCodes={};
+  prest.filter(p=>p.module==='imagerie').forEach(p=>{
+    const code=p.code;
+    if(code && CNAMCI_IMG.some(a=>a.code===code)) compte[code]=(compte[code]||0)+1;
+    else nonCodes[p.libelle||'Acte non codé']=(nonCodes[p.libelle||'Acte non codé']||0)+1;
+  });
+  const totMappes=Object.values(compte).reduce((s,n)=>s+n,0);
+  const totNonCodes=Object.values(nonCodes).reduce((s,n)=>s+n,0);
+  const tarifDefaut=(typeof MEDICORE_PRESTA!=='undefined'&&MEDICORE_PRESTA.TARIF_DEFAUT)?MEDICORE_PRESTA.TARIF_DEFAUT.imagerie||0:0;
+  const totNb=totMappes+totNonCodes;
+  const totCA=CNAMCI_IMG.reduce((s,a)=>s+(compte[a.code]||0)*a.tarif,0)+totNonCodes*tarifDefaut;
+
+  document.getElementById('fact-nb').textContent=fmt(totNb);
   document.getElementById('fact-ca').textContent=fmtF(totCA);
-  document.getElementById('fact-att').textContent=fmtF(totCA*0.42);
-  document.getElementById('fact-cout').textContent=fmtF(Math.round(totCA/totNb));
+  document.getElementById('fact-att').textContent=fmt(totNonCodes);
+  let topLabel='—', topNb=0;
+  CNAMCI_IMG.forEach(a=>{ const n=compte[a.code]||0; if(n>topNb){topNb=n;topLabel=a.lib;} });
+  Object.keys(nonCodes).forEach(ex=>{ if(nonCodes[ex]>topNb){topNb=nonCodes[ex];topLabel=ex;} });
+  document.getElementById('fact-cout').textContent=topNb>0?`${topLabel} (${topNb})`:'—';
+
   const typeBadgeS=t=>`<span class="badge ${t==='Scanner'?'b-scanner':t==='IRM'?'b-irm':t==='Échographie'?'b-echo':t==='Mammographie'?'b-mammo':'b-radio'}" style="font-size:10.5px">${t}</span>`;
-  document.getElementById('ccam-tbody').innerHTML=CNAMCI_IMG.map(a=>`
-    <tr>
+  document.getElementById('ccam-tbody').innerHTML=CNAMCI_IMG.map(a=>{
+    const nb=compte[a.code]||0;
+    return `<tr>
       <td><span class="compte-tag">${a.code}</span></td>
       <td style="font-weight:500">${a.lib}</td>
       <td>${typeBadgeS(a.type)}</td>
       <td class="text-right amount" style="color:var(--accent)">${fmtF(a.tarif)}</td>
-      <td class="text-right">${fmt(a.nb)}</td>
-      <td class="text-right amount" style="color:var(--green)">${fmtF(a.nb*a.tarif)}</td>
-    </tr>`).join('');
+      <td class="text-right">${fmt(nb)}</td>
+      <td class="text-right amount" style="color:var(--green)">${fmtF(nb*a.tarif)}</td>
+    </tr>`;
+  }).join('') + (totNonCodes?Object.keys(nonCodes).map(ex=>`<tr>
+      <td><span class="compte-tag" style="opacity:.5">—</span></td>
+      <td style="font-weight:500">${ex} <span style="font-size:10.5px;color:var(--text-muted)">(hors nomenclature, tarif standard)</span></td>
+      <td>${typeBadgeS('Radiologie')}</td>
+      <td class="text-right amount" style="color:var(--accent)">${fmtF(tarifDefaut)}</td>
+      <td class="text-right">${fmt(nonCodes[ex])}</td>
+      <td class="text-right amount" style="color:var(--green)">${fmtF(nonCodes[ex]*tarifDefaut)}</td>
+    </tr>`).join(''):'');
   document.getElementById('ccam-total-nb').textContent=fmt(totNb);
   document.getElementById('ccam-total-ca').textContent=fmtF(totCA);
 }
@@ -1037,38 +1126,36 @@ function updateExamensList(){
   sel.innerHTML=examens.map(e=>`<option>${e}</option>`).join('');
 }
 // ══ RENDRE COMPTE-RENDU au praticien (→ dossier patient + notification) ═════════
+// ── Raccourci "Rendre CR" : ouvre le compte-rendu de l'examen en cours du patient
+// actif (registre demandes/CR), ou démarre/crée l'examen si besoin — tout passe
+// par ouvrirCR()/validerCR() pour rester tracé (statut, CR_DATA, MEDICORE_RESULTATS,
+// retour DPI, audit, facturation).
 function rendreCR(){
   const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;
   if(!ap||!ap.id){ toast('Scannez d\'abord le patient (📷 en haut).','warn'); return; }
-  let ov=document.getElementById('m-cr'); if(ov) ov.remove();
-  ov=document.createElement('div'); ov.id='m-cr'; ov.className='overlay';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
-  ov.innerHTML=`<div class="modal" style="width:600px;max-width:96vw"><div class="modal-header">
-    <div><div class="modal-title">Compte-rendu d'imagerie — ${ap.nom||ap.id}</div></div>
-    <button class="modal-close" onclick="document.getElementById('m-cr').remove()">✕</button></div>
-    <div class="modal-body">
-      <div class="form-group"><label>Examen</label><input id="cr-libelle" placeholder="ex : Scanner thoracique, Échographie abdominale"></div>
-      <div class="form-group"><label>Compte-rendu</label><textarea id="cr-texte" style="min-height:120px" placeholder="Technique, résultats, descriptions…"></textarea></div>
-      <div class="form-group"><label>Conclusion</label><textarea id="cr-conclusion" style="min-height:48px"></textarea></div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('m-cr').remove()">Annuler</button>
-      <button class="btn btn-primary" onclick="envoiCR('${ap.id}','${(ap.nom||'').replace(/'/g,"\\'")}')">📤 Valider & renvoyer</button></div></div>`;
-  document.body.appendChild(ov);
-}
-function envoiCR(patientId, nom){
-  const libelle=document.getElementById('cr-libelle').value.trim()||'Imagerie';
-  const compteRendu=document.getElementById('cr-texte').value.trim();
-  const conclusion=document.getElementById('cr-conclusion').value.trim();
-  if(!compteRendu){ toast('Saisissez le compte-rendu.','error'); return; }
-  if(typeof MEDICORE_RESULTATS!=='undefined') MEDICORE_RESULTATS.ajouter({ patientId, patient_nom:nom, type:'imagerie', libelle, compteRendu, conclusion });
-  if(typeof MEDICORE_DEMANDES!=='undefined'){
-    const dem=MEDICORE_DEMANDES.all().filter(d=>d.module_cible==='imagerie' && d.patient && d.patient.id===patientId && d.statut!==MEDICORE_DEMANDES.S.RETOURNEE).pop();
-    if(dem){ MEDICORE_DEMANDES.traiter(dem.id, libelle); MEDICORE_DEMANDES.retourner(dem.id, `Compte-rendu disponible : ${libelle}`); }
+  const pid=ap.id, nom=ap.nom||ap.id;
+  // Examen en cours (priorité) ou en attente pour ce patient
+  let d=demandes.find(x=>x.statut==='En cours' && (x.patient.split('—')[1]||'').trim()===pid);
+  if(!d) d=demandes.find(x=>x.statut==='En attente' && (x.patient.split('—')[1]||'').trim()===pid);
+  if(d){
+    if(d.statut==='En attente') demarrerExamen(d.id);
+    ouvrirCR(d.id);
+    return;
   }
-  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Compte-rendu rendu','VALIDATION',`${nom} — ${libelle}`, patientId);
-  document.getElementById('m-cr').remove();
-  toast('Compte-rendu validé et renvoyé au praticien.','success');
+  // Aucun examen planifié pour ce patient : créer une entrée ad hoc puis ouvrir le CR
+  const id='IMG-'+new Date().getFullYear()+'-'+String(demandes.length+1).padStart(4,'0');
+  const newDem={ id, patient:nom+' — '+pid, presc:getRadiologue(), type:'Radiologie',
+    examen:'Examen (saisie directe)', equip:'—', priorite:'Normale',
+    date:TODAY+' '+new Date().toTimeString().slice(0,5), statut:'En cours', ccam:'—' };
+  demandes.unshift(newDem);
+  if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id,'Compte-rendu en cours de saisie (réf '+id+')');
+  if(typeof MEDICORE_PRESTA!=='undefined'){
+    MEDICORE_PRESTA.ajouter({ patientId:pid, patient_nom:nom, module:'imagerie',
+      libelle:newDem.examen, code:'—', montant:MEDICORE_PRESTA.TARIF_DEFAUT.imagerie, ref:id });
+  }
+  imgAudit('EXAMEN_SAISIE_DIRECTE', id, `${nom} — saisie directe depuis patient actif`);
+  persistImg();
+  ouvrirCR(id);
 }
 
 // ══ CAISSE IMAGERIE — encaissement des examens du patient actif ════════════════
@@ -1153,6 +1240,7 @@ function validerDemande(){
     });
   }
   imgAudit('DEMANDE_PLANIFIEE', id, `${patient} — ${newDem.examen} — ${newDem.priorite}`);
+  persistImg();
   closeDemande();renderDemandes();updateKPIs();
   toast(`Examen ${id} planifié.`,'success');
 }
@@ -1172,6 +1260,7 @@ function ouvrirCR(demId){
   document.getElementById('modal-cr').classList.add('open');
 }
 function closeCR(){document.getElementById('modal-cr').classList.remove('open')}
+function persistImg(){ if(typeof MEDICORE_STORE!=='undefined'){ MEDICORE_STORE.save('demandes_img', demandes, true); MEDICORE_STORE.save('cr_imagerie', CR_DATA, true); } }
 function validerCR(){
   const demId=document.getElementById('modal-cr').dataset.demId;
   const desc=document.getElementById('cr-description').value;
@@ -1180,11 +1269,27 @@ function validerCR(){
   const d=demandes.find(x=>x.id===demId);if(!d) return;
   const radio=document.getElementById('cr-radio').value;
   const horodate=new Date().toISOString();
-  CR_DATA.push({id:'CR-'+demId,demId,patient:d.patient.split('—')[0].trim(),type:d.type,examen:d.examen,radio,date:TODAY,horodate,technique:document.getElementById('cr-technique').value||'Examen standard.',description:desc,conclusion:concl,statut:'Validé'});
+  const nomPatient=d.patient.split('—')[0].trim();
+  const patientId=(d.patient.split('—')[1]||'').trim();
+  const technique=document.getElementById('cr-technique').value||'Examen standard.';
+  CR_DATA.unshift({id:'CR-'+demId,demId,patient:nomPatient,patientId,type:d.type,examen:d.examen,radio,date:TODAY,horodate,technique,description:desc,conclusion:concl,statut:'Validé'});
   d.statut='Validé';
-  imgAudit('CR_VALIDE', demId, `${d.examen} — Radiologue: ${radio}`);
+
+  // Résultat partagé → dossier DPI / Urgences
+  if(typeof MEDICORE_RESULTATS!=='undefined' && patientId){
+    MEDICORE_RESULTATS.ajouter({ patientId, patient_nom:nomPatient, type:'imagerie',
+      libelle:d.examen, compteRendu:(technique+'\n\n'+desc), conclusion:concl, demandeRef:demId, par:radio });
+  }
+  // Retour au praticien prescripteur (clôture de la demande inter-services)
+  if(typeof MEDICORE_DEMANDES!=='undefined' && patientId){
+    const dem=MEDICORE_DEMANDES.all().filter(x=>x.module_cible==='imagerie' && x.patient && x.patient.id===patientId && x.statut!==MEDICORE_DEMANDES.S.RETOURNEE).pop();
+    if(dem){ MEDICORE_DEMANDES.traiter(dem.id, d.examen); MEDICORE_DEMANDES.retourner(dem.id, `Compte-rendu disponible : ${d.examen}`); }
+  }
+
+  imgAudit('CR_VALIDE', demId, `${d.examen} — Radiologue: ${radio} — transmis DPI`);
+  persistImg();
   closeCR();renderDemandes();updateKPIs();renderCRListe();
-  toast('Compte rendu validé — prêt pour transmission au DPI.','success');
+  toast('Compte rendu validé et transmis au DPI.','success');
 }
 
 function openPACS(demId){document.getElementById('modal-pacs').classList.add('open');renderPACSCanvases(demId?demandes.find(x=>x.id===demId)?.type||'Radiologie':'Radiologie')}
@@ -1222,6 +1327,13 @@ document.addEventListener('DOMContentLoaded',function(){
         grp.items.push({id:'imagerie',label:'Imagerie Médicale',icon:'🩻',file:'imagerie.html',syscohada:'CNAM-CI/PACS',statut:'actif',alertes:1});
       }
     }
+  }
+  if(typeof MEDICORE_STORE!=='undefined'){
+    demandes = MEDICORE_STORE.sync('demandes_img', demandes);
+    CR_DATA = MEDICORE_STORE.sync('cr_imagerie', CR_DATA);
+    IMG_AUDIT = MEDICORE_STORE.sync('img_journal', IMG_AUDIT);
+    MAINTENANCE_HIST = MEDICORE_STORE.sync('img_maintenance', MAINTENANCE_HIST);
+    EQUIP_ETAT = MEDICORE_STORE.sync('img_equip_etat', EQUIP_ETAT);
   }
   updateKPIs();renderDemandes();
 });
