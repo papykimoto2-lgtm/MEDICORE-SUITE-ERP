@@ -71,6 +71,10 @@
   .form-group{display:flex;flex-direction:column;gap:4px}
   .form-group.full{grid-column:1/-1}
   label{font-size:12px;font-weight:500;color:var(--text-muted)}
+  .modal{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-lg);max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  .modal-header{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--accent)}
+  @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
   input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
   input[readonly]{background:var(--surface-alt);color:var(--text-muted)}
@@ -333,6 +337,11 @@ function renderBody(){
       </div></div>`;
   }
   else if(currentSection==='utilisateurs'){
+    if(typeof MEDICORE_USERS==='undefined'){
+      b.innerHTML = head('Utilisateurs & rôles','Comptes, authentification et droits d\'accès par module')+
+        `<div class="card"><div class="card-body" style="padding:20px;color:var(--text-muted)">Module de gestion des utilisateurs non chargé. Vérifiez que <span class="mono">medicore-users.js</span> est bien déployé, puis rechargez la page (Ctrl+F5).</div></div>`;
+      return;
+    }
     const ulist=MEDICORE_USERS.liste();
     b.innerHTML = head('Utilisateurs & rôles','Comptes, authentification et droits d\'accès par module')+
     `<div class="card"><div class="card-head"><div><h3>Comptes utilisateurs</h3><div class="sub">${ulist.filter(u=>u.actif).length} actif(s) sur ${ulist.length} — mots de passe chiffrés (SHA-256+sel)</div></div>
@@ -632,9 +641,25 @@ function formModal(titre, champs, onOk){
   ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
   const inputs=champs.map(c=>{
     const id='fm-'+c.key;
-    let inp;
-    if(c.type==='select') inp=`<select id="${id}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">${c.options.map(o=>`<option value="${o}"${o===c.value?' selected':''}>${o}</option>`).join('')}</select>`;
-    else inp=`<input id="${id}" type="${c.type||'text'}"${c.type==='number'?' step="any"':''} value="${c.value!=null?c.value:''}" placeholder="${c.placeholder||''}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">`;
+    let inp, help='';
+    if(c.type==='select'){
+      const opts=c.options.map(o=>{
+        const label=typeof o==='object'?o.label:o;
+        const titre=typeof o==='object'&&o.desc?` title="${o.desc.replace(/"/g,'&quot;')}"`:'';
+        return `<option value="${label}"${label===c.value?' selected':''}${titre}>${label}</option>`;
+      }).join('');
+      inp=`<select id="${id}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">${opts}</select>`;
+      // Aide contextuelle sous le select (description du rôle sélectionné)
+      if(c.options.some(o=>typeof o==='object'&&o.desc)){
+        const descs={}; c.options.forEach(o=>{ if(typeof o==='object') descs[o.label]=o.desc; });
+        inp+=`<div id="${id}-help" style="font-size:11.5px;color:var(--text-muted);margin-top:3px">${descs[c.value]||''}</div>`;
+        inp=inp.replace(`id="${id}"`, `id="${id}" data-descs='${JSON.stringify(descs).replace(/'/g,"&apos;")}' onchange="document.getElementById('${id}-help').textContent=(JSON.parse(this.dataset.descs)[this.value]||'')"`);
+      }
+    } else {
+      const list=c.suggestions?` list="${id}-list"`:'';
+      inp=`<input id="${id}" type="${c.type||'text'}"${c.type==='number'?' step="any"':''} value="${c.value!=null?c.value:''}" placeholder="${c.placeholder||''}"${list} style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box">`;
+      if(c.suggestions) inp+=`<datalist id="${id}-list">${c.suggestions.map(s=>`<option value="${s}">`).join('')}</datalist>`;
+    }
     return `<div><label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:3px">${c.label}${c.required?' *':''}${c.sub?` <span style="font-weight:400">(${c.sub})</span>`:''}</label>${inp}</div>`;
   }).join('');
   ov.innerHTML=`<div class="modal" style="width:460px">
@@ -656,15 +681,16 @@ function formModal(titre, champs, onOk){
 
 // ── CRUD listes ───────────────────────────────────────────────────────────────
 function roleOptions(){
-  return Object.keys(MEDICORE_RBAC.ROLES).map(k=>({k,label:MEDICORE_RBAC.ROLES[k].label}));
+  return Object.keys(MEDICORE_RBAC.ROLES).map(k=>({k,label:MEDICORE_RBAC.ROLES[k].label,desc:MEDICORE_RBAC.ROLES[k].desc}));
 }
+function serviceSuggestions(){ return SERVICES.map(s=>s.nom); }
 function addUser(){
   const ro=roleOptions();
   formModal('Nouvel utilisateur',[
-    {key:'login',label:'Identifiant',required:true,placeholder:'j.kessie'},
-    {key:'nom',label:'Nom complet',placeholder:'KESSIE Jean'},
-    {key:'service',label:'Service / poste',placeholder:'ex : Laboratoire'},
-    {key:'role',label:'Rôle',type:'select',options:ro.map(r=>r.label),value:'Médecin'},
+    {key:'login',label:'Identifiant',required:true,placeholder:'ex : j.kessie',sub:'minuscules, sans espace'},
+    {key:'nom',label:'Nom complet',placeholder:'ex : KESSIE Jean'},
+    {key:'service',label:'Service / poste',placeholder:'ex : Laboratoire',suggestions:serviceSuggestions()},
+    {key:'role',label:'Rôle',type:'select',options:ro,value:'Médecin'},
   ], async v=>{
     const role=ro.find(r=>r.label===v.role)?.k||'archiviste';
     const r=await MEDICORE_USERS.creer({login:v.login.trim(),nom:v.nom||v.login,service:v.service||'',role,par:'admin'});
@@ -687,8 +713,8 @@ function editUser(login){
   const curLabel=MEDICORE_RBAC.ROLES[u.role]?.label||u.role;
   formModal('Modifier l\'utilisateur',[
     {key:'nom',label:'Nom complet',value:u.nom},
-    {key:'service',label:'Service / poste',value:u.service||''},
-    {key:'role',label:'Rôle',type:'select',options:ro.map(r=>r.label),value:curLabel},
+    {key:'service',label:'Service / poste',value:u.service||'',suggestions:serviceSuggestions()},
+    {key:'role',label:'Rôle',type:'select',options:ro,value:curLabel},
     {key:'twofa',label:'Authentification 2FA',type:'select',options:['Activée','Désactivée'],value:u.twofa?'Activée':'Désactivée'},
     {key:'actif',label:'Statut',type:'select',options:['Actif','Inactif'],value:u.actif?'Actif':'Inactif'}
   ], v=>{
@@ -1295,7 +1321,8 @@ document.addEventListener('DOMContentLoaded',function(){
       [{label:'Étape 4 — Administration',file:'#'},{label:'Paramétrage',file:''}]);
   }
   loadConfig(); renderNav();
-  MEDICORE_USERS.seed().then(renderBody);
+  if(typeof MEDICORE_USERS!=='undefined' && MEDICORE_USERS.seed){ MEDICORE_USERS.seed().then(renderBody); }
+  else { renderBody(); }
 });
 </script>
 <script src="medicore-secure.js"></script>

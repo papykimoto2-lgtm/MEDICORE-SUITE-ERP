@@ -485,6 +485,10 @@ async function submitLogin(){
   }
 
   // ── Comptes locaux (MEDICORE_USERS — mots de passe SHA-256+sel) ──────────────
+  if(typeof MEDICORE_USERS==='undefined'){
+    showMsg('error','⚠️','Module d\'authentification non chargé. Rechargez la page (Ctrl+F5).');
+    return;
+  }
   await MEDICORE_USERS.seed();
   const compteUser=await MEDICORE_USERS.verifier(user, pwd);
   if(!compteUser){
