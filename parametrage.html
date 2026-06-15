@@ -10,6 +10,7 @@
 <script src="medicore-stock.js"></script>
 <script src="medicore-audit.js"></script>
 <script src="medicore-rbac.js"></script>
+<script src="medicore-users.js"></script>
 <script src="medicore-auth.js"></script>
 <script src="medicore-session.js"></script>
 <script src="medicore-scanner.js"></script>
@@ -182,13 +183,8 @@ const DEFAULT_CFG = {
   seuils: { stockMini:20, peremptionJours:60, valeurCritiqueLabo:true, delaiResultat:30, tauxOccupationAlerte:90, delaiArchivageJours:90 }
 };
 
-let USERS = [
-  { login:'admin',        nom:'Administrateur Système', role:'Administrateur', twofa:true,  actif:true },
-  { login:'dr.toure',     nom:'Dr. TOURÉ Mamadou',      role:'Médecin',        twofa:false, actif:true },
-  { login:'pharma.konan', nom:'Dr. KONAN Adjoua',       role:'Pharmacien',     twofa:false, actif:true },
-  { login:'daf.gnonsoa',  nom:'GNONSOA Paul',           role:'DAF',            twofa:true,  actif:true },
-  { login:'dsi',          nom:'Responsable SI',         role:'Administrateur SI', twofa:true, actif:true },
-];
+// Comptes utilisateurs : gérés par MEDICORE_USERS (store 'utilisateurs', mots de
+// passe SHA-256+sel). Voir medicore-users.js.
 
 let SERVICES = [
   { nom:'Médecine générale', code:'MED', pole:'Médecine',  responsable:'Dr. COULIBALY Seydou', lits:24 },
@@ -228,7 +224,6 @@ let FOURNISSEURS = [
 ];
 
 // Copies immuables pour la réinitialisation
-const DEFAULT_USERS       = JSON.parse(JSON.stringify(USERS));
 const DEFAULT_SERVICES    = JSON.parse(JSON.stringify(SERVICES));
 const DEFAULT_TARIFS      = JSON.parse(JSON.stringify(TARIFS));
 const DEFAULT_FOURNISSEURS= JSON.parse(JSON.stringify(FOURNISSEURS));
@@ -259,7 +254,6 @@ function loadConfig(){
     }
     if(saved){
       CFG = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)), saved.cfg||{});
-      if(saved.users)        USERS        = saved.users;
       if(saved.services)     SERVICES     = saved.services;
       if(saved.tarifs)       TARIFS       = saved.tarifs;
       if(saved.fournisseurs) FOURNISSEURS = saved.fournisseurs;
@@ -268,7 +262,7 @@ function loadConfig(){
   } catch(e){}
 }
 function persist(){
-  const payload = { cfg:CFG, users:USERS, services:SERVICES,
+  const payload = { cfg:CFG, services:SERVICES,
     tarifs:TARIFS, fournisseurs:FOURNISSEURS, permissions:PERMISSIONS };
   if(typeof MEDICORE_STORE !== 'undefined'){
     MEDICORE_STORE.save('parametrage', payload, true); // immediate = true (config critique)
@@ -339,20 +333,26 @@ function renderBody(){
       </div></div>`;
   }
   else if(currentSection==='utilisateurs'){
+    const ulist=MEDICORE_USERS.liste();
     b.innerHTML = head('Utilisateurs & rôles','Comptes, authentification et droits d\'accès par module')+
-    `<div class="card"><div class="card-head"><div><h3>Comptes utilisateurs</h3><div class="sub">${USERS.filter(u=>u.actif).length} actifs sur ${USERS.length}</div></div>
-      <button class="btn btn-secondary btn-sm" onclick="addUser()">＋ Ajouter</button></div>
-      <div class="card-body" style="padding:0"><table><thead><tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>2FA</th><th>Statut</th><th></th></tr></thead>
-      <tbody>${USERS.map((u,i)=>`<tr>
-        <td><span class="mono">${u.login}</span></td><td>${u.nom}</td><td>${u.role}</td>
+    `<div class="card"><div class="card-head"><div><h3>Comptes utilisateurs</h3><div class="sub">${ulist.filter(u=>u.actif).length} actif(s) sur ${ulist.length} — mots de passe chiffrés (SHA-256+sel)</div></div>
+      <button class="btn btn-primary btn-sm" onclick="addUser()">＋ Ajouter</button></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Identifiant</th><th>Nom</th><th>Service</th><th>Rôle</th><th>2FA</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${ulist.map(u=>{
+        const roleLabel=(typeof MEDICORE_RBAC!=='undefined'&&MEDICORE_RBAC.ROLES[u.role])?MEDICORE_RBAC.ROLES[u.role].label:u.role;
+        return `<tr>
+        <td><span class="mono">${u.login}</span>${u.must_change?' <span class="badge b-off" title="Mot de passe à changer">🔑</span>':''}</td>
+        <td>${u.nom}</td><td>${u.service||'—'}</td><td>${roleLabel}</td>
         <td>${u.twofa?'<span class="badge b-on">activée</span>':'<span class="badge b-off">non</span>'}</td>
         <td>${u.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
         <td style="text-align:right;white-space:nowrap">
-          <button class="btn btn-secondary btn-sm" onclick="editUser(${i})" title="Modifier">✎</button>
-          <button class="btn btn-secondary btn-sm" onclick="toggleUserActif(${i})" title="${u.actif?'Désactiver':'Activer'}">${u.actif?'⏸':'▶'}</button>
-          <button class="btn btn-danger btn-sm" onclick="removeUser(${i})" title="Supprimer">✕</button>
+          <button class="btn btn-secondary btn-sm" onclick="editUser('${u.login}')" title="Modifier">✎</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetUserPwd('${u.login}')" title="Réinitialiser le mot de passe">🔑</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleUserActif('${u.login}')" title="${u.actif?'Désactiver':'Activer'}">${u.actif?'⏸':'▶'}</button>
+          <button class="btn btn-danger btn-sm" onclick="removeUser('${u.login}')" title="Supprimer">✕</button>
         </td>
-      </tr>`).join('')}</tbody></table></div></div>
+      </tr>`;}).join('')}</tbody></table></div></div>
+
 
     <div class="card"><div class="card-head"><div><h3>Historique de connexion</h3><div class="sub">200 derniers événements · succès et échecs</div></div>
       <button class="btn btn-secondary btn-sm" onclick="viderHistoConnexion()">Purger</button></div>
@@ -655,32 +655,86 @@ function formModal(titre, champs, onOk){
 }
 
 // ── CRUD listes ───────────────────────────────────────────────────────────────
-function addUser(){ formModal('Nouvel utilisateur',[
+function roleOptions(){
+  return Object.keys(MEDICORE_RBAC.ROLES).map(k=>({k,label:MEDICORE_RBAC.ROLES[k].label}));
+}
+function addUser(){
+  const ro=roleOptions();
+  formModal('Nouvel utilisateur',[
     {key:'login',label:'Identifiant',required:true,placeholder:'j.kessie'},
     {key:'nom',label:'Nom complet',placeholder:'KESSIE Jean'},
-    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Direction','Médecin','Infirmier','Pharmacien','Laborantin','Caissier','Comptable','RH','Archiviste'],value:'Médecin'}
-  ], v=>{ USERS.push({login:v.login,nom:v.nom||v.login,role:v.role,twofa:false,actif:true}); persist(); renderBody(); toast('Utilisateur ajouté.','success'); }); }
-function removeUser(i){
-  if(USERS[i].login==='admin'){ toast('Le compte admin ne peut pas être supprimé.','error'); return; }
-  if(confirm('Supprimer '+USERS[i].login+' ?')){ USERS.splice(i,1); persist(); renderBody(); toast('Utilisateur supprimé.','warn'); }
+    {key:'service',label:'Service / poste',placeholder:'ex : Laboratoire'},
+    {key:'role',label:'Rôle',type:'select',options:ro.map(r=>r.label),value:'Médecin'},
+  ], async v=>{
+    const role=ro.find(r=>r.label===v.role)?.k||'archiviste';
+    const r=await MEDICORE_USERS.creer({login:v.login.trim(),nom:v.nom||v.login,service:v.service||'',role,par:'admin'});
+    if(r.erreur){ toast('Identifiant déjà utilisé.','error'); return; }
+    renderBody();
+    afficherIdentifiants(r.user, r.pwd);
+  });
 }
-function editUser(i){
-  const u=USERS[i];
+function removeUser(login){
+  if(login==='admin'){ toast('Le compte admin ne peut pas être supprimé.','error'); return; }
+  if(confirm('Supprimer le compte '+login+' ?')){
+    const r=MEDICORE_USERS.supprimer(login);
+    if(r.erreur){ toast('Suppression refusée.','error'); return; }
+    renderBody(); toast('Utilisateur supprimé.','warn');
+  }
+}
+function editUser(login){
+  const u=MEDICORE_USERS.get(login); if(!u) return;
+  const ro=roleOptions();
+  const curLabel=MEDICORE_RBAC.ROLES[u.role]?.label||u.role;
   formModal('Modifier l\'utilisateur',[
-    {key:'login',label:'Identifiant',required:true,value:u.login},
     {key:'nom',label:'Nom complet',value:u.nom},
-    {key:'role',label:'Rôle',type:'select',options:['Administrateur','Direction','Médecin','Infirmier','Pharmacien','Laborantin','Caissier','Comptable','RH','Archiviste'],value:u.role},
+    {key:'service',label:'Service / poste',value:u.service||''},
+    {key:'role',label:'Rôle',type:'select',options:ro.map(r=>r.label),value:curLabel},
     {key:'twofa',label:'Authentification 2FA',type:'select',options:['Activée','Désactivée'],value:u.twofa?'Activée':'Désactivée'},
     {key:'actif',label:'Statut',type:'select',options:['Actif','Inactif'],value:u.actif?'Actif':'Inactif'}
   ], v=>{
-    USERS[i]={ login:v.login, nom:v.nom||v.login, role:v.role, twofa:v.twofa==='Activée', actif:v.actif==='Actif' };
-    persist(); renderBody(); toast('Utilisateur modifié.','success');
+    const role=ro.find(r=>r.label===v.role)?.k||u.role;
+    MEDICORE_USERS.modifier(login,{ nom:v.nom||u.nom, service:v.service||'', role, twofa:v.twofa==='Activée', actif:v.actif==='Actif' });
+    renderBody(); toast('Utilisateur modifié.','success');
   });
 }
-function toggleUserActif(i){
-  if(USERS[i].login==='admin' && USERS[i].actif){ toast('Le compte admin reste actif.','error'); return; }
-  USERS[i].actif=!USERS[i].actif; persist(); renderBody();
-  toast('Compte '+(USERS[i].actif?'activé':'désactivé')+'.','success');
+function toggleUserActif(login){
+  const r=MEDICORE_USERS.toggleActif(login);
+  if(r&&r.erreur){ toast('Le compte admin reste actif.','error'); return; }
+  renderBody();
+  toast('Compte '+(r.actif?'activé':'désactivé')+'.','success');
+}
+// ── Réinitialisation et transmission du mot de passe ─────────────────────────
+async function resetUserPwd(login){
+  const u=MEDICORE_USERS.get(login); if(!u) return;
+  if(!confirm(`Réinitialiser le mot de passe de ${u.nom} (${login}) ?\n\nUn nouveau mot de passe sera généré et devra être communiqué à l'utilisateur.`)) return;
+  const r=await MEDICORE_USERS.reinitialiser(login);
+  renderBody();
+  afficherIdentifiants(u, r.pwd);
+}
+// Affiche les identifiants à transmettre (une seule fois) — copier / WhatsApp
+function afficherIdentifiants(u, pwd){
+  const roleLabel=MEDICORE_RBAC.ROLES[u.role]?.label||u.role;
+  const texte=`Bonjour ${u.nom},\n\nVos accès à MediCore Suite :\nIdentifiant : ${u.login}\nMot de passe : ${pwd}\nRôle : ${roleLabel}\n\nMerci de changer ce mot de passe dès votre première connexion.`;
+  let ov=document.getElementById('_pwd-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='_pwd-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML=`<div class="modal" style="width:440px">
+    <div class="modal-header"><div><div class="modal-title">Identifiants — ${u.nom}</div><div class="sub">À communiquer une seule fois</div></div>
+      <button onclick="document.getElementById('_pwd-ov').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-muted)">✕</button></div>
+    <div style="padding:18px 24px">
+      <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.7">
+        Identifiant : <span class="mono"><strong>${u.login}</strong></span><br>
+        Mot de passe : <span class="mono" style="background:#fff3cd;padding:1px 6px;border-radius:4px"><strong>${pwd}</strong></span><br>
+        Rôle : ${roleLabel}
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">⚠ Ce mot de passe ne sera plus affiché. Communiquez-le à l'utilisateur puis fermez cette fenêtre.</div>
+    </div>
+    <div style="padding:0 24px 20px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(${JSON.stringify(texte)}).then(()=>toast('Identifiants copiés.','success'))">📋 Copier</button>
+      <button class="btn btn-primary" onclick="window.open('https://wa.me/?text='+encodeURIComponent(${JSON.stringify(texte)}),'_blank')">📤 WhatsApp</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('_pwd-ov').remove()">Fermer</button>
+    </div></div>`;
+  document.body.appendChild(ov);
 }
 
 // ── Historique de connexion ─────────────────────────────────────────────────────
@@ -831,7 +885,6 @@ function supprimerTout(){
   if(typeof MEDICORE_BUS   !== 'undefined'){ MEDICORE_BUS._cache = null; MEDICORE_BUS._counts = null; }
   // Réinitialiser les tableaux en mémoire avec les valeurs par défaut
   CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
-  USERS = JSON.parse(JSON.stringify(DEFAULT_USERS));
   SERVICES = JSON.parse(JSON.stringify(DEFAULT_SERVICES));
   TARIFS = JSON.parse(JSON.stringify(DEFAULT_TARIFS));
   FOURNISSEURS = JSON.parse(JSON.stringify(DEFAULT_FOURNISSEURS));
@@ -1176,7 +1229,7 @@ function renderCloud(){
 
 function exportConfig(){
   // Export configuration seulement
-  const data=JSON.stringify({cfg:CFG,users:USERS,services:SERVICES,tarifs:TARIFS,fournisseurs:FOURNISSEURS,permissions:PERMISSIONS},null,2);
+  const data=JSON.stringify({cfg:CFG,services:SERVICES,tarifs:TARIFS,fournisseurs:FOURNISSEURS,permissions:PERMISSIONS},null,2);
   const blob=new Blob([data],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='medicore_config_'+CFG.etablissement.exercice+'.json'; a.click();
   toast('Configuration exportée.','success');
@@ -1220,7 +1273,6 @@ function importConfig(input){
       }
       // ── Format config seulement (v1) ──────────────────────────────────────
       if(d.cfg)   CFG          = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)), d.cfg);
-      if(d.users)        USERS        = d.users;
       if(d.services)     SERVICES     = d.services;
       if(d.tarifs)       TARIFS       = d.tarifs;
       if(d.fournisseurs) FOURNISSEURS = d.fournisseurs;
@@ -1242,7 +1294,8 @@ document.addEventListener('DOMContentLoaded',function(){
     initNav('parametrage','Paramétrage','Configuration ERP',
       [{label:'Étape 4 — Administration',file:'#'},{label:'Paramétrage',file:''}]);
   }
-  loadConfig(); renderNav(); renderBody();
+  loadConfig(); renderNav();
+  MEDICORE_USERS.seed().then(renderBody);
 });
 </script>
 <script src="medicore-secure.js"></script>

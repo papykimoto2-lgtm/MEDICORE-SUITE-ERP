@@ -215,22 +215,22 @@
       <!-- Sélecteur rôle rapide -->
       <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Profil</div>
       <div class="role-grid" id="role-grid">
-        <div class="role-card selected" onclick="selectRole('medecin',this)" data-login="dr.toure" data-pwd="Med@2025!">
+        <div class="role-card" onclick="selectRole('medecin',this)">
           <div class="role-icon">👨‍⚕️</div>
           <div class="role-name">Médecin</div>
           <div class="role-desc">Accès DPI, prescriptions</div>
         </div>
-        <div class="role-card" onclick="selectRole('pharmacien',this)" data-login="pharma.konan" data-pwd="Pharm@2025!">
+        <div class="role-card" onclick="selectRole('pharmacien',this)">
           <div class="role-icon">💊</div>
           <div class="role-name">Pharmacien</div>
           <div class="role-desc">PUI, dispensation</div>
         </div>
-        <div class="role-card" onclick="selectRole('daf',this)" data-login="daf.gnonsoa" data-pwd="Finance@2025!">
+        <div class="role-card" onclick="selectRole('daf',this)">
           <div class="role-icon">💼</div>
           <div class="role-name">DAF</div>
           <div class="role-desc">Finance, comptabilité</div>
         </div>
-        <div class="role-card" onclick="selectRole('admin',this)" data-login="admin" data-pwd="Admin@2025!">
+        <div class="role-card selected" onclick="selectRole('administrateur',this)">
           <div class="role-icon">⚙️</div>
           <div class="role-name">Administrateur</div>
           <div class="role-desc">Accès complet</div>
@@ -350,20 +350,17 @@
 
 <script src="medicore-audit.js"></script>
 <script src="medicore-rbac.js"></script>
+<script src="medicore-users.js"></script>
 <script src="medicore-auth.js"></script>
 <script src="medicore-session.js"></script>
 <script>
-// ── Comptes de démonstration ───────────────────────────────────────────────────
-const COMPTES = {
-  'admin':       { pwd:'Admin@2025!',    nom:'Administrateur Système', role:'Administrateur',  modules:'all',     avatar:'⚙️',  require2FA:true  },
-  'dr.toure':    { pwd:'Med@2025!',      nom:'Dr. TOURÉ Mamadou',      role:'Médecin chirurgien', modules:'dpi,bloc,facturation,labo', avatar:'👨‍⚕️', require2FA:false },
-  'pharma.konan':{ pwd:'Pharm@2025!',    nom:'Dr. KONAN Adjoua',       role:'Pharmacien PUI',  modules:'pharmacie,facturation,dpi', avatar:'💊',  require2FA:false },
-  'daf.gnonsoa': { pwd:'Finance@2025!',  nom:'GNONSOA Paul',           role:'Directeur Financier', modules:'all_finance', avatar:'💼', require2FA:true  },
-  'dsi':         { pwd:'DSI@2025!',      nom:'Responsable SI',         role:'Administrateur SI',modules:'all',   avatar:'💻', require2FA:true  },
-};
+// ── Comptes locaux ──────────────────────────────────────────────────────────────
+// Source de vérité : MEDICORE_USERS (store 'utilisateurs', mots de passe hachés
+// SHA-256+sel). Comptes créés par l'administrateur via Paramétrage > Utilisateurs.
+// Seul le compte 'admin' est créé automatiquement au premier lancement.
 
 const ROLE_MAP = {
-  medecin:'dr.toure', pharmacien:'pharma.konan', daf:'daf.gnonsoa', admin:'admin'
+  administrateur:'admin'
 };
 
 const LOADING_MESSAGES = [
@@ -473,7 +470,7 @@ async function supabaseLogin(email, pwd){
   }
 }
 
-function submitLogin(){
+async function submitLogin(){
   if(isLocked){showMsg('error','🔒','Compte verrouillé après 5 tentatives. Contactez le DSI.');return}
 
   const user=document.getElementById('login-user').value.trim();
@@ -487,15 +484,20 @@ function submitLogin(){
     return supabaseLogin(user, pwd);
   }
 
-  const compte=COMPTES[user];
-  if(!compte||compte.pwd!==pwd){
+  // ── Comptes locaux (MEDICORE_USERS — mots de passe SHA-256+sel) ──────────────
+  await MEDICORE_USERS.seed();
+  const compteUser=await MEDICORE_USERS.verifier(user, pwd);
+  if(!compteUser){
     loginAttempts++;
-    logConnexion(user, compte?compte.nom:'', compte?compte.role:'', false, compte?'Mot de passe incorrect':'Identifiant inconnu');
+    const connu=MEDICORE_USERS.get(user);
+    logConnexion(user, connu?connu.nom:'', connu?connu.role:'', false, connu?'Mot de passe incorrect':'Identifiant inconnu');
     document.getElementById('login-pwd').classList.add('error');
     if(loginAttempts>=5){isLocked=true;showMsg('error','🔒',`Compte verrouillé après ${loginAttempts} tentatives échouées.`);}
     else showMsg('error','❌',`Identifiant ou mot de passe incorrect. (${loginAttempts}/5 tentatives)`);
     shakeBox();return;
   }
+  const roleLabel=(typeof MEDICORE_RBAC!=='undefined' && MEDICORE_RBAC.ROLES[compteUser.role])?MEDICORE_RBAC.ROLES[compteUser.role].label:compteUser.role;
+  const compte={ nom:compteUser.nom, role:compteUser.role, roleLabel, require2FA:compteUser.twofa, must_change:compteUser.must_change };
 
   currentUser=compte;currentUser.login=user;
   loginAttempts=0;

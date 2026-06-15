@@ -204,3 +204,14 @@ create view public.v_labo_documents as
 select doc_id, payload->>'doc' as document, payload->>'version' as version,
        payload->>'date' as date_revision, payload->>'statut' as statut, updated_at
 from public.medicore_sync_docs where store='labo_documents' and not deleted;
+
+-- Comptes utilisateurs (mots de passe SHA-256+sel — jamais en clair côté serveur)
+drop view if exists public.v_utilisateurs cascade;
+create view public.v_utilisateurs as
+select doc_id, payload->>'login' as login, payload->>'nom' as nom,
+       payload->>'service' as service, payload->>'role' as role,
+       coalesce((payload->>'twofa')::boolean,false) as twofa,
+       coalesce((payload->>'actif')::boolean,true) as actif,
+       coalesce((payload->>'must_change')::boolean,false) as doit_changer_mdp,
+       payload->>'created_at' as cree_le, payload->>'created_par' as cree_par, updated_at
+from public.medicore_sync_docs where store='utilisateurs' and not deleted;

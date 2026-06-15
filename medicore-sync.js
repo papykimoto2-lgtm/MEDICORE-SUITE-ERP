@@ -18,6 +18,7 @@ const MEDICORE_SYNC = {
   // ── Stores synchronisés (clé localStorage sans préfixe → libellé) ───────────
   STORES: [
 
+    { store:'utilisateurs',          label:'Comptes utilisateurs'  },
     { store:'demandes',              label:'Demandes inter-modules' },
     { store:'prestations',           label:'Prestations facturables' },
     { store:'caisse',                label:'Caisse / encaissements'  },
