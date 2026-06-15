@@ -159,3 +159,31 @@ select doc_id, payload->>'equip' as equipement, payload->>'type' as type_interve
        payload->>'date' as date_intervention, payload->>'prochaine' as prochaine_echeance,
        payload->>'tech' as technicien, payload->>'statut' as statut, updated_at
 from public.medicore_sync_docs where store='img_maintenance' and not deleted;
+
+-- Contrôle qualité interne (CQI) — points Levey-Jennings persistés
+drop view if exists public.v_labo_cqi cascade;
+create view public.v_labo_cqi as
+select doc_id, payload->>'date' as date, payload->>'param' as parametre, payload->>'automate' as automate,
+       payload->>'niveau' as niveau, (payload->>'valeur')::numeric as valeur,
+       (payload->>'cible')::numeric as cible, (payload->>'sd')::numeric as sd,
+       (payload->>'z')::numeric as z_score, payload->>'statut' as statut,
+       payload->>'regle' as regle, payload->>'par' as operateur, updated_at
+from public.medicore_sync_docs where store='labo_cqi' and not deleted;
+
+-- Non-conformités labo (CQI auto + saisies manuelles)
+drop view if exists public.v_labo_nc cascade;
+create view public.v_labo_nc as
+select doc_id, payload->>'date' as date, payload->>'type' as type,
+       payload->>'automate' as automate, payload->>'description' as description,
+       payload->>'regle' as regle, payload->>'action' as action_corrective,
+       payload->>'statut' as statut, payload->>'cloture_par' as cloture_par,
+       payload->>'cloture_le' as cloture_le, updated_at
+from public.medicore_sync_docs where store='labo_nc' and not deleted;
+
+-- Programmes EEQ (évaluation externe de la qualité)
+drop view if exists public.v_labo_eeq cascade;
+create view public.v_labo_eeq as
+select doc_id, payload->>'programme' as programme, payload->>'cycle' as cycle,
+       payload->>'statut' as statut, payload->>'resultat' as resultat,
+       payload->>'date_soumission' as date_soumission, updated_at
+from public.medicore_sync_docs where store='labo_eeq' and not deleted;

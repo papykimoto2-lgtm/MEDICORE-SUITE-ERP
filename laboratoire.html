@@ -173,6 +173,8 @@
     .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
     .automate-grid{grid-template-columns:repeat(2,1fr)!important}
     .tabs{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-scroll table{min-width:1080px}
     .tabs::-webkit-scrollbar{display:none}
     .tab-btn{white-space:nowrap;flex-shrink:0}
     /* Layout analytique 2 colonnes → 1 */
@@ -287,7 +289,6 @@
                 <option value="En attente prélèvement">En attente prélèvement</option>
                 <option value="Prélevé">Prélevé</option>
                 <option value="En analyse">En analyse</option>
-                <option value="À valider">À valider</option>
                 <option value="Validé">Validé</option>
               </select>
               <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-dem-type" onchange="renderDemandes()">
@@ -300,6 +301,7 @@
               </select>
             </div>
           </div>
+          <div class="table-scroll">
           <table>
             <thead><tr>
               <th>N° Dossier</th><th>Patient</th><th>Prescripteur</th><th>Service</th>
@@ -308,6 +310,7 @@
             </tr></thead>
             <tbody id="dem-tbody"></tbody>
           </table>
+          </div>
           <div class="pagination">
             <span id="dem-pag-info"></span>
             <div class="pagination-btns" id="dem-pag-btns"></div>
@@ -362,18 +365,28 @@
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px" id="cq-kpis"></div>
         <div class="card">
           <div class="card-header">
-            <div><div class="card-title">Graphiques de Levey-Jennings — CQI du mois</div><div class="card-subtitle">Contrôles internes par automate et paramètre</div></div>
-            <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="lj-param" onchange="renderLJ()">
-              <option value="Glucose">Glucose — Beckman AU480</option>
-              <option value="Hémoglobine">Hémoglobine — Sysmex XN</option>
-              <option value="Créatinine">Créatinine — Beckman AU480</option>
-              <option value="TP">TP (%) — STA-R Max</option>
-            </select>
+            <div><div class="card-title">Graphiques de Levey-Jennings — CQI</div><div class="card-subtitle">Contrôles internes par automate, paramètre et niveau</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="lj-param" onchange="renderLJ()">
+                <option value="Glucose|Beckman AU480">Glucose — Beckman AU480</option>
+                <option value="Hémoglobine|Sysmex XN-1000">Hémoglobine — Sysmex XN-1000</option>
+                <option value="Créatinine|Beckman AU480">Créatinine — Beckman AU480</option>
+                <option value="TP|STA-R Max">TP (%) — STA-R Max</option>
+              </select>
+              <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="lj-niveau" onchange="renderLJ()">
+                <option value="N1">Niveau 1</option>
+                <option value="N2">Niveau 2</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="ouvrirSaisieCQI()">➕ Saisir un contrôle</button>
+            </div>
           </div>
           <div id="lj-chart-container" style="padding:20px"></div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">Non-conformités du mois</div><div class="card-subtitle">Enregistrement, analyse, actions correctives</div></div>
+          <div class="card-header">
+            <div><div class="card-title">Non-conformités</div><div class="card-subtitle">Enregistrement, analyse, actions correctives</div></div>
+            <button class="btn btn-secondary btn-sm" onclick="ouvrirNC()">➕ Non-conformité</button>
+          </div>
           <table>
             <thead><tr>
               <th>Date</th><th>Type</th><th>Automate / Paramètre</th><th>Description</th>
@@ -381,6 +394,42 @@
             </tr></thead>
             <tbody id="nc-tbody"></tbody>
           </table>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Programmes EEQ — cycle en cours</div><div class="card-subtitle">Évaluation externe de la qualité (contrôles inter-laboratoires)</div></div></div>
+          <table>
+            <thead><tr><th>Programme</th><th>Cycle</th><th>Statut</th><th>Résultat</th><th>Soumis le</th><th></th></tr></thead>
+            <tbody id="eeq-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Modal saisie CQI ── -->
+      <div class="overlay" id="modal-cqi">
+        <div class="modal" style="width:420px">
+          <div class="modal-header">
+            <div><div class="modal-title">Saisie d'un contrôle CQI</div></div>
+            <button class="modal-close" onclick="fermerSaisieCQI()">✕</button>
+          </div>
+          <div class="modal-body" id="m-cqi-body"></div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fermerSaisieCQI()">Annuler</button>
+            <button class="btn btn-primary" onclick="validerSaisieCQI()">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+      <!-- ── Modal non-conformité ── -->
+      <div class="overlay" id="modal-nc">
+        <div class="modal" style="width:420px">
+          <div class="modal-header">
+            <div><div class="modal-title">Nouvelle non-conformité</div></div>
+            <button class="modal-close" onclick="fermerNC()">✕</button>
+          </div>
+          <div class="modal-body" id="m-nc-body"></div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fermerNC()">Annuler</button>
+            <button class="btn btn-primary" onclick="validerNC()">Enregistrer</button>
+          </div>
         </div>
       </div>
 
@@ -546,9 +595,35 @@ const CNAMCI_ACTES = [
   { code:'B-IMM-01', desig:'TSH / T3 / T4 libre',               tarif:15000 },
 ];
 
-const NON_CONFORMITES = [
-  // (données démo supprimées)
+// ── Contrôle qualité — référentiel des contrôles internes (CQI) ─────────────────
+// Cible + écart-type par automate/paramètre/niveau (lots de contrôle du fournisseur)
+const QC_PARAMS = {
+  'Glucose|Beckman AU480':       { unite:'mmol/L', niveaux:{ N1:{cible:5.0,  sd:0.15}, N2:{cible:13.0, sd:0.30} } },
+  'Hémoglobine|Sysmex XN-1000':  { unite:'g/dL',   niveaux:{ N1:{cible:8.0,  sd:0.20}, N2:{cible:14.0, sd:0.25} } },
+  'Créatinine|Beckman AU480':    { unite:'µmol/L', niveaux:{ N1:{cible:80,   sd:3},    N2:{cible:280,  sd:8}    } },
+  'TP|STA-R Max':                { unite:'%',      niveaux:{ N1:{cible:100,  sd:4},    N2:{cible:35,   sd:3}    } },
+};
+
+let CQI_DATA = [
+  // (alimenté via "➕ Saisir un contrôle" — store 'labo_cqi')
 ];
+let NON_CONFORMITES = [
+  // (alimenté manuellement ou auto. sur violation de règle CQI — store 'labo_nc')
+];
+// Programmes d'évaluation externe de la qualité (EEQ/EQAS) — cycle en cours
+let EEQ_DATA = [];
+function eeqCycleCourant(){
+  const d=new Date(); return d.getFullYear()+'-T'+(Math.floor(d.getMonth()/3)+1);
+}
+function eeqInit(){
+  const cycle=eeqCycleCourant();
+  if(EEQ_DATA.some(e=>e.cycle===cycle)) return;
+  ['Hématologie — Sysmex XN-1000','Biochimie — Beckman AU480','Coagulation — STA-R Max','Bactériologie — VITEK 2'].forEach(p=>{
+    EEQ_DATA.push({ id:'EEQ'+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+      programme:p, cycle, statut:'À soumettre', date_soumission:'', resultat:'' });
+  });
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('labo_eeq', EEQ_DATA, true);
+}
 
 const DOCUMENTS = [
   // (données démo supprimées)
@@ -907,11 +982,137 @@ function notifierCritique(i){
 }
 
 // ── Contrôle qualité ──────────────────────────────────────────────────────────
+// ── Règles de Westgard (multirègles 1_3s/2_2s/R_4s/4_1s/10x) ────────────────────
+// history = z-scores chronologiques précédents (sans le nouveau point)
+function evalWestgard(history, z){
+  if(Math.abs(z)>3) return {statut:'Rejet', regle:'1_3s'};
+  const seq=[...history,z];
+  const n=seq.length;
+  if(n>=2){
+    const [a,b]=[seq[n-2],seq[n-1]];
+    if(Math.abs(a)>2 && Math.abs(b)>2 && Math.sign(a)===Math.sign(b)) return {statut:'Rejet', regle:'2_2s'};
+    if((a>2&&b<-2)||(a<-2&&b>2)) return {statut:'Rejet', regle:'R_4s'};
+  }
+  if(n>=4){
+    const last4=seq.slice(-4);
+    if(last4.every(v=>v>1)||last4.every(v=>v<-1)) return {statut:'Rejet', regle:'4_1s'};
+  }
+  if(n>=10){
+    const last10=seq.slice(-10);
+    if(last10.every(v=>v>0)||last10.every(v=>v<0)) return {statut:'Rejet', regle:'10x'};
+  }
+  if(Math.abs(z)>2) return {statut:'Alerte', regle:'1_2s'};
+  return {statut:'Conforme', regle:''};
+}
+const REGLE_LIB={'1_3s':'1₃s — rejet, erreur aléatoire','2_2s':'2₂s — rejet, erreur systématique',
+  'R_4s':'R₄s — rejet, imprécision','4_1s':'4₁s — rejet, dérive','10x':'10x — rejet, biais','1_2s':'1₂s — alerte'};
+
+function persistCQ(){
+  if(typeof MEDICORE_STORE==='undefined') return;
+  MEDICORE_STORE.save('labo_cqi', CQI_DATA, true);
+  MEDICORE_STORE.save('labo_nc', NON_CONFORMITES, true);
+  MEDICORE_STORE.save('labo_eeq', EEQ_DATA, true);
+}
+
+// ── Saisie d'un contrôle CQI ─────────────────────────────────────────────────
+function ouvrirSaisieCQI(){
+  const opts=Object.keys(QC_PARAMS).map(k=>{
+    const [p,a]=k.split('|'); return `<option value="${k}">${p} — ${a}</option>`;
+  }).join('');
+  document.getElementById('m-cqi-body').innerHTML=`
+    <div class="form-group"><label>Paramètre / Automate</label>
+      <select id="cqi-key">${opts}</select></div>
+    <div class="form-group"><label>Niveau de contrôle</label>
+      <select id="cqi-niveau"><option value="N1">Niveau 1 (bas)</option><option value="N2">Niveau 2 (haut)</option></select></div>
+    <div class="form-group"><label>Valeur mesurée</label><input id="cqi-valeur" type="number" step="0.01"></div>
+    <div class="form-group"><label>Date</label><input id="cqi-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>`;
+  document.getElementById('modal-cqi').classList.add('open');
+}
+function fermerSaisieCQI(){ document.getElementById('modal-cqi').classList.remove('open'); }
+function validerSaisieCQI(){
+  const key=document.getElementById('cqi-key').value;
+  const niveau=document.getElementById('cqi-niveau').value;
+  const valeur=parseFloat(document.getElementById('cqi-valeur').value);
+  const date=document.getElementById('cqi-date').value||new Date().toISOString().slice(0,10);
+  if(isNaN(valeur)){ toast('Saisissez une valeur.','error'); return; }
+  const ref=QC_PARAMS[key].niveaux[niveau];
+  const z=(valeur-ref.cible)/ref.sd;
+  const history=CQI_DATA.filter(c=>c.key===key&&c.niveau===niveau).map(c=>c.z);
+  const {statut,regle}=evalWestgard(history,z);
+  const [param,automate]=key.split('|');
+  const entry={ id:'CQI'+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    key, param, automate, niveau, valeur, unite:QC_PARAMS[key].unite, cible:ref.cible, sd:ref.sd,
+    z:+z.toFixed(2), date, statut, regle, par:getPrescripteurLabo() };
+  CQI_DATA.push(entry);
+  if(statut==='Rejet'){
+    NON_CONFORMITES.unshift({ id:'NC'+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+      date, type:'CQI', automate:`${param} ${niveau} — ${automate}`,
+      description:`Contrôle ${niveau} = ${valeur} ${QC_PARAMS[key].unite} (cible ${ref.cible}, z=${entry.z})`,
+      regle:REGLE_LIB[regle]||regle, action:'', statut:'En cours' });
+    laboAudit('CQI_REJET', entry.id, `${param} ${niveau} (${automate}) — règle ${regle} violée — NC ouverte`);
+  } else {
+    laboAudit('CQI_SAISIE', entry.id, `${param} ${niveau} (${automate}) = ${valeur} — ${statut}`);
+  }
+  persistCQ();
+  fermerSaisieCQI();
+  renderCQ();
+  toast(statut==='Rejet'?`🚨 Règle ${regle} violée — non-conformité ouverte.`:statut==='Alerte'?'⚠ Contrôle hors ±2 SD (alerte 1₂s).':'Contrôle conforme.', statut==='Rejet'?'error':statut==='Alerte'?'warn':'success');
+}
+
+// ── Non-conformités : ajout manuel + clôture ────────────────────────────────────
+function ouvrirNC(){
+  document.getElementById('m-nc-body').innerHTML=`
+    <div class="form-group"><label>Type</label>
+      <select id="nc-type"><option>Préanalytique</option><option>Analytique</option><option>Postanalytique</option><option>CQI</option></select></div>
+    <div class="form-group"><label>Automate / Origine</label><input id="nc-automate" placeholder="ex : Préleveur, Beckman AU480…"></div>
+    <div class="form-group"><label>Description</label><textarea id="nc-description" style="min-height:60px"></textarea></div>
+    <div class="form-group"><label>Date</label><input id="nc-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>`;
+  document.getElementById('modal-nc').classList.add('open');
+}
+function fermerNC(){ document.getElementById('modal-nc').classList.remove('open'); }
+function validerNC(){
+  const description=document.getElementById('nc-description').value.trim();
+  if(!description){ toast('Description requise.','error'); return; }
+  NON_CONFORMITES.unshift({ id:'NC'+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    date:document.getElementById('nc-date').value, type:document.getElementById('nc-type').value,
+    automate:document.getElementById('nc-automate').value.trim()||'—', description, regle:'—', action:'', statut:'En cours' });
+  laboAudit('NC_OUVERTE', 'NC', description);
+  persistCQ(); fermerNC(); renderCQ();
+  toast('Non-conformité enregistrée.','success');
+}
+function cloturerNC(id){
+  const n=NON_CONFORMITES.find(x=>x.id===id); if(!n) return;
+  const action=prompt('Action corrective mise en œuvre :', n.action||'');
+  if(action===null) return;
+  n.action=action.trim(); n.statut='Clôturée'; n.cloture_par=getPrescripteurLabo(); n.cloture_le=new Date().toISOString();
+  laboAudit('NC_CLOTUREE', id, `${n.description} — action : ${n.action}`);
+  persistCQ(); renderCQ();
+  toast('Non-conformité clôturée.','success');
+}
+
+// ── EEQ : déclaration de soumission ──────────────────────────────────────────
+function declarerEEQ(id){
+  const e=EEQ_DATA.find(x=>x.id===id); if(!e) return;
+  const resultat=prompt('Résultat reçu (Satisfaisant / Insuffisant / En attente) :', e.resultat||'En attente');
+  if(resultat===null) return;
+  e.statut='Soumis'; e.date_soumission=new Date().toISOString().slice(0,10); e.resultat=resultat.trim();
+  laboAudit('EEQ_SOUMIS', id, `${e.programme} — ${e.cycle} — ${e.resultat}`);
+  persistCQ(); renderCQ();
+  toast('Participation EEQ enregistrée.','success');
+}
+
 function renderCQ(){
+  eeqInit();
+  const now=new Date();
+  const cqiMois=CQI_DATA.filter(c=>c.date && c.date.startsWith(now.toISOString().slice(0,7)));
+  const conformesMois=cqiMois.filter(c=>c.statut==='Conforme'||c.statut==='Alerte').length;
+  const pctConforme=cqiMois.length?Math.round(conformesMois/cqiMois.length*100):0;
+  const eeqCycle=EEQ_DATA.filter(e=>e.cycle===eeqCycleCourant());
+  const eeqSoumis=eeqCycle.filter(e=>e.statut==='Soumis').length;
   const cqKpis=[
-    {label:'CQI conformes ce mois',val:'94%',color:'var(--green)',sub:'38/40 contrôles'},
+    {label:'CQI conformes ce mois',val:cqiMois.length?pctConforme+'%':'—',color:'var(--green)',sub:cqiMois.length+' contrôle(s) saisi(s)'},
     {label:'Non-conformités',val:NON_CONFORMITES.length,color:'var(--orange)',sub:NON_CONFORMITES.filter(n=>n.statut==='En cours').length+' en cours'},
-    {label:'Participation EEQ',val:'4/4',color:'var(--accent)',sub:'100% programmes'},
+    {label:'Participation EEQ',val:eeqCycle.length?eeqSoumis+'/'+eeqCycle.length:'—',color:'var(--accent)',sub:eeqCycleCourant()},
   ];
   document.getElementById('cq-kpis').innerHTML=cqKpis.map(k=>`
     <div class="kpi-card" style="border-left:4px solid ${k.color}">
@@ -927,40 +1128,54 @@ function renderCQ(){
       <td style="font-size:12.5px">${n.automate}</td>
       <td style="font-size:12.5px">${n.description}</td>
       <td style="font-family:monospace;font-size:11.5px;color:var(--orange)">${n.regle}</td>
-      <td style="font-size:12.5px">${n.action}</td>
-      <td><span class="badge ${n.statut==='Clôturée'?'badge-valide':'badge-attente'}">${n.statut}</span></td>
+      <td style="font-size:12.5px">${n.action||'—'}</td>
+      <td>${n.statut==='Clôturée'?`<span class="badge badge-valide">Clôturée</span>`:`<button class="btn btn-secondary btn-xs" onclick="cloturerNC('${n.id}')">Clôturer</button>`}</td>
+    </tr>`).join('')||`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted)">Aucune non-conformité enregistrée</td></tr>`;
+  document.getElementById('eeq-tbody').innerHTML=eeqCycle.map(e=>`
+    <tr>
+      <td style="font-weight:500">${e.programme}</td>
+      <td class="text-muted">${e.cycle}</td>
+      <td><span class="badge ${e.statut==='Soumis'?'badge-valide':'badge-attente'}">${e.statut}</span></td>
+      <td style="font-size:12.5px">${e.resultat||'—'}</td>
+      <td class="text-muted">${e.date_soumission?new Date(e.date_soumission).toLocaleDateString('fr-FR'):'—'}</td>
+      <td>${e.statut==='Soumis'?'':`<button class="btn btn-secondary btn-xs" onclick="declarerEEQ('${e.id}')">Déclarer soumission</button>`}</td>
     </tr>`).join('');
 }
 
 function renderLJ(){
-  const param=document.getElementById('lj-param')?.value||'Glucose';
-  // Simuler 20 points de contrôle
-  const target=100,sd=3;
-  const points=Array.from({length:20},(_,i)=>({
-    x:i+1,
-    y:target+(Math.sin(i*0.8)*sd*(0.5+Math.random()*1.2)),
-    warn:Math.abs(Math.sin(i*0.8)*sd*(0.5+Math.random()*1.2))>2*sd
-  }));
-  const maxY=target+3.5*sd,minY=target-3.5*sd,rangeY=maxY-minY;
-  const W=100;
-  const H=60;
+  const key=document.getElementById('lj-param')?.value||Object.keys(QC_PARAMS)[0];
+  const niveau=document.getElementById('lj-niveau')?.value||'N1';
+  const [param,automate]=key.split('|');
+  const ref=QC_PARAMS[key].niveaux[niveau], unite=QC_PARAMS[key].unite;
+  const points=CQI_DATA.filter(c=>c.key===key&&c.niveau===niveau).slice(-20);
+
+  const maxY=ref.cible+3.5*ref.sd, minY=ref.cible-3.5*ref.sd, rangeY=maxY-minY;
+  const W=100, H=60;
   const getY=v=>H-((v-minY)/rangeY*H);
-  const lines=[
-  // (données démo supprimées)
-];
-  const svgLines=lines.map(l=>`<line x1="0" y1="${l.y}" x2="${W}" y2="${l.y}" stroke="${l.color}" stroke-width=".4" stroke-dasharray="${l.dash}"/><text x="${W+1}" y="${l.y+1}" font-size="2.5" fill="${l.color}" font-family="DM Sans">${l.label}</text>`).join('');
-  const svgPath=`<polyline points="${points.map((p,i)=>`${i/(points.length-1)*W},${getY(p.y)}`).join(' ')}" fill="none" stroke="var(--accent)" stroke-width=".8"/>`;
-  const svgDots=points.map((p,i)=>`<circle cx="${i/(points.length-1)*W}" cy="${getY(p.y)}" r="${p.warn?1.8:1.2}" fill="${p.warn?'var(--red)':'var(--accent)'}"/>`).join('');
+  const bandes=[
+    {sd:3,color:'var(--red)',dash:'1,1',label:'+3SD'},{sd:2,color:'var(--orange)',dash:'1,1',label:'+2SD'},{sd:1,color:'var(--border)',dash:'0.5,1',label:'+1SD'},
+    {sd:0,color:'var(--text-muted)',dash:'2,0',label:'Cible'},
+    {sd:-1,color:'var(--border)',dash:'0.5,1',label:'-1SD'},{sd:-2,color:'var(--orange)',dash:'1,1',label:'-2SD'},{sd:-3,color:'var(--red)',dash:'1,1',label:'-3SD'},
+  ];
+  const svgLines=bandes.map(b=>{
+    const y=getY(ref.cible+b.sd*ref.sd);
+    return `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="${b.color}" stroke-width=".4" stroke-dasharray="${b.dash}"/><text x="${W+1}" y="${y+1}" font-size="2.5" fill="${b.color}" font-family="DM Sans">${b.label}</text>`;
+  }).join('');
+  const colorFor=p=>p.statut==='Rejet'?'var(--red)':p.statut==='Alerte'?'var(--orange)':'var(--accent)';
+  const svgPath=points.length>1?`<polyline points="${points.map((p,i)=>`${i/(points.length-1)*W},${getY(p.valeur)}`).join(' ')}" fill="none" stroke="var(--accent)" stroke-width=".8"/>`:'';
+  const svgDots=points.map((p,i)=>`<circle cx="${points.length>1?i/(points.length-1)*W:W/2}" cy="${getY(p.valeur)}" r="${p.statut==='Conforme'?1.2:1.8}" fill="${colorFor(p)}"/>`).join('');
+
   document.getElementById('lj-chart-container').innerHTML=`
-    <div style="margin-bottom:8px;font-size:12.5px;font-weight:500">${param} — Graphique de Levey-Jennings (20 derniers contrôles)</div>
-    <svg viewBox="0 0 108 ${H+4}" style="width:100%;max-height:200px;border:1px solid var(--border);border-radius:6px;background:var(--surface-alt);padding:2px">
+    <div style="margin-bottom:8px;font-size:12.5px;font-weight:500">${param} — ${automate} — Niveau ${niveau} (cible ${ref.cible} ${unite}, écart-type ${ref.sd}) — ${points.length} contrôle(s)</div>
+    ${points.length?`<svg viewBox="0 0 108 ${H+4}" style="width:100%;max-height:200px;border:1px solid var(--border);border-radius:6px;background:var(--surface-alt);padding:2px">
       <rect x="0" y="0" width="${W}" height="${H}" fill="none"/>
       ${svgLines}${svgPath}${svgDots}
     </svg>
     <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--text-muted)">
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block"></span>Dans les limites</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--red);display:inline-block"></span>Hors limites (règle violée)</span>
-    </div>`;
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block"></span>Conforme</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--orange);display:inline-block"></span>Alerte (1₂s)</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--red);display:inline-block"></span>Rejet (règle Westgard)</span>
+    </div>`:`<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12.5px">Aucun contrôle saisi pour ce paramètre/niveau. Cliquez « ➕ Saisir un contrôle ».</div>`}`;
 }
 
 // ── Automates ──────────────────────────────────────────────────────────────────
@@ -1319,6 +1534,9 @@ document.addEventListener('DOMContentLoaded', function() {
     demandes = MEDICORE_STORE.sync('demandes_labo', demandes);
     CRITIQUES = MEDICORE_STORE.sync('labo_critiques', CRITIQUES);
     LABO_AUDIT = MEDICORE_STORE.sync('labo_journal', LABO_AUDIT);
+    CQI_DATA = MEDICORE_STORE.sync('labo_cqi', CQI_DATA);
+    NON_CONFORMITES = MEDICORE_STORE.sync('labo_nc', NON_CONFORMITES);
+    EEQ_DATA = MEDICORE_STORE.sync('labo_eeq', EEQ_DATA);
   }
 
   if (typeof initNav === 'function') {
