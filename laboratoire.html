@@ -169,12 +169,24 @@
   .val-anormal{color:var(--red);font-weight:700}
   .val-normal{color:var(--green)}
   /* ── Mobile Laboratoire ──────────────────────────────────────────────────── */
+  /* ── Scroll horizontal tableau — global (toutes tailles d'écran) ── */
+  .table-scroll{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    /* scrollbar fine et discrète */
+    scrollbar-width:thin;
+    scrollbar-color:var(--border) transparent;
+  }
+  .table-scroll::-webkit-scrollbar{height:6px}
+  .table-scroll::-webkit-scrollbar-track{background:var(--surface-alt);border-radius:3px}
+  .table-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  .table-scroll::-webkit-scrollbar-thumb:hover{background:#b0aba1}
+  .table-scroll table{min-width:1080px}
+
   @media(max-width:1024px){
     .kpi-grid{grid-template-columns:repeat(2,1fr)!important}
     .automate-grid{grid-template-columns:repeat(2,1fr)!important}
     .tabs{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
-  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .table-scroll table{min-width:1080px}
     .tabs::-webkit-scrollbar{display:none}
     .tab-btn{white-space:nowrap;flex-shrink:0}
     /* Layout analytique 2 colonnes → 1 */
