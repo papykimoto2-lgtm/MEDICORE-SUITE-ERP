@@ -295,7 +295,8 @@
         <div class="card">
           <div class="card-header">
             <div><div class="card-title">Registre des demandes d'examens</div><div class="card-subtitle" id="dem-count">—</div></div>
-            <div style="display:flex;gap:8px;align-items:center">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" id="btn-tout-prelever" onclick="ouvrirPrelGlobal()" style="white-space:nowrap">🧪 Tout prélever</button>
               <div class="search-bar"><span>🔍</span><input type="text" id="dem-search" placeholder="Patient, N° dossier, examen…" oninput="renderDemandes()"></div>
               <select style="padding:6px 10px;font-size:12.5px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;background:var(--surface);outline:none" id="f-dem-statut" onchange="renderDemandes()">
                 <option value="">Tous statuts</option>
@@ -552,6 +553,47 @@
           </table>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Prélèvement groupé -->
+<div class="overlay" id="modal-prel-global" onclick="if(event.target===this)fermerPrelGlobal()">
+  <div class="modal" style="width:700px;max-width:97vw">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🧪 Session de prélèvement</div>
+        <div class="modal-subtitle">Cochez les demandes à prélever, renseignez le préleveur et validez</div>
+      </div>
+      <button class="modal-close" onclick="fermerPrelGlobal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Préleveur + heure -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="form-group">
+          <label>Préleveur <span class="req">*</span></label>
+          <input type="text" id="prel-agent" placeholder="Nom du préleveur">
+        </div>
+        <div class="form-group">
+          <label>Heure de prélèvement</label>
+          <input type="time" id="prel-heure">
+        </div>
+      </div>
+      <!-- Actions sélection -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="prelToutCocher(true)">☑ Tout sélectionner</button>
+        <button class="btn btn-secondary btn-sm" onclick="prelToutCocher(false)">☐ Tout désélectionner</button>
+        <span id="prel-nb-sel" style="margin-left:auto;font-size:12.5px;color:var(--text-muted);font-weight:600"></span>
+      </div>
+      <!-- Liste des demandes en attente -->
+      <div id="prel-liste" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px"></div>
+      <div id="prel-vide" style="display:none;text-align:center;padding:32px;color:var(--text-muted)">
+        ✅ Aucune demande en attente de prélèvement.
+      </div>
+    </div>
+    <div class="modal-footer" style="gap:10px">
+      <button class="btn btn-secondary" onclick="fermerPrelGlobal()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerPrelGlobal()">✓ Valider le(s) prélèvement(s)</button>
     </div>
   </div>
 </div>
@@ -844,7 +886,7 @@ function renderDemandes(){
       <td>${prioriteBadge(d.priorite)}</td>
       <td>${statutBadge(d.statut)}</td>
       <td>
-        ${d.statut==='En attente prélèvement'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();preleverDemande('${d.id}')">🧪 Prélever</button>`:
+        ${d.statut==='En attente prélèvement'?`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();preleverDemande('${d.id}')">🧪 Prélever</button>`:
         d.statut==='Validé'?`<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();showCR('${d.id}')">👁</button>`:
         `<button class="btn btn-success btn-sm" onclick="event.stopPropagation();showCR('${d.id}')">📝 Résultats</button>`}
       </td>
@@ -991,7 +1033,91 @@ function preleverDemande(id){
   d.statut='Prélevé'; d.preleveTs=new Date().toISOString(); d.prelevePar=getPrescripteurLabo();
   laboAudit('PRELEVEMENT', id, `${d.patient} — ${d.examens}`);
   persistDemandes(); renderDemandes(); updateKPIs();
+  // Mise à jour du badge du bouton "Tout prélever"
+  _majBoutonToutPrelever();
   toast('Échantillon prélevé pour '+id+'.','success');
+}
+
+// ── Prélèvement groupé ────────────────────────────────────────────────────────
+function _majBoutonToutPrelever(){
+  const nb=demandes.filter(d=>d.statut==='En attente prélèvement').length;
+  const btn=document.getElementById('btn-tout-prelever');
+  if(!btn) return;
+  btn.textContent='🧪 Tout prélever';
+  if(nb>0){ btn.style.display=''; btn.textContent+=' ('+nb+')'; }
+  else { btn.style.display='none'; }
+}
+
+function ouvrirPrelGlobal(){
+  const enAttente=demandes.filter(d=>d.statut==='En attente prélèvement');
+  const liste=document.getElementById('prel-liste');
+  const vide=document.getElementById('prel-vide');
+  // Pré-remplir préleveur + heure courante
+  document.getElementById('prel-agent').value=getPrescripteurLabo();
+  const now=new Date();
+  document.getElementById('prel-heure').value=now.toTimeString().slice(0,5);
+  if(!enAttente.length){
+    liste.style.display='none'; vide.style.display='';
+  } else {
+    liste.style.display=''; vide.style.display='none';
+    liste.innerHTML=enAttente.map((d,i)=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;
+           border-bottom:${i<enAttente.length-1?'1px solid var(--border)':''}; 
+           ${d.priorite==='STAT'?'background:var(--red-bg);':d.priorite==='Urgente'?'background:#fffbeb;':''}"
+           class="prel-row" data-id="${d.id}">
+        <input type="checkbox" class="prel-cb" data-id="${d.id}" checked
+          onchange="prelMajCompteur()"
+          style="width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;cursor:pointer">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${d.patient}
+            ${d.priorite==='STAT'?'<span style="margin-left:6px;font-size:11px;font-weight:700;color:var(--red)">⚡ STAT</span>':
+              d.priorite==='Urgente'?'<span style="margin-left:6px;font-size:11px;font-weight:700;color:#ca8a04">⚠ URGENT</span>':''}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+            <span style="font-family:monospace">${d.id}</span> · ${d.service} · ${d.examens}
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);text-align:right;flex-shrink:0">
+          ${d.heure}<br>${typeBadge(d.type)}
+        </div>
+      </div>`).join('');
+  }
+  prelMajCompteur();
+  document.getElementById('modal-prel-global').classList.add('open');
+}
+
+function fermerPrelGlobal(){
+  document.getElementById('modal-prel-global').classList.remove('open');
+}
+
+function prelToutCocher(etat){
+  document.querySelectorAll('.prel-cb').forEach(cb=>cb.checked=etat);
+  prelMajCompteur();
+}
+
+function prelMajCompteur(){
+  const cbs=document.querySelectorAll('.prel-cb');
+  const sel=Array.from(cbs).filter(cb=>cb.checked).length;
+  const span=document.getElementById('prel-nb-sel');
+  if(span) span.textContent=sel+' / '+cbs.length+' sélectionnée(s)';
+}
+
+function validerPrelGlobal(){
+  const agent=document.getElementById('prel-agent').value.trim()||getPrescripteurLabo();
+  const heure=document.getElementById('prel-heure').value||new Date().toTimeString().slice(0,5);
+  const selIds=Array.from(document.querySelectorAll('.prel-cb:checked')).map(cb=>cb.dataset.id);
+  if(!selIds.length){ toast('Sélectionnez au moins une demande.','error'); return; }
+  const ts=new Date().toISOString();
+  let nb=0;
+  selIds.forEach(id=>{
+    const d=demandes.find(x=>x.id===id); if(!d) return;
+    d.statut='Prélevé'; d.preleveTs=ts; d.prelevePar=agent; d.preleveHeure=heure;
+    laboAudit('PRELEVEMENT', id, `${d.patient} — ${d.examens} — par ${agent}`);
+    nb++;
+  });
+  persistDemandes(); renderDemandes(); updateKPIs();
+  _majBoutonToutPrelever();
+  fermerPrelGlobal();
+  toast(nb+' prélèvement(s) enregistré(s) par '+agent+' à '+heure+'.','success');
 }
 
 // ── Alertes critiques ─────────────────────────────────────────────────────────
@@ -1678,7 +1804,7 @@ function toast(msg,type=''){
 document.addEventListener('keydown',e=>{if(e.key==='Escape') closeNouvelledemande()});
 document.getElementById('modal-demande').addEventListener('click',e=>{if(e.target===e.currentTarget) closeNouvelledemande()});
 
-updateKPIs();renderDemandes();
+updateKPIs();renderDemandes();_majBoutonToutPrelever();
 </script>
 
 <script>
@@ -1696,6 +1822,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fix: re-render après sync pour afficher les données chargées depuis le store
     renderDemandes();
     updateKPIs();
+    _majBoutonToutPrelever();
   }
 
   if (typeof initNav === 'function') {
