@@ -42,6 +42,68 @@ const MEDICORE_STOCK = {
   _uid(p){ return (p||'CS')+Date.now().toString(36)+Math.random().toString(36).slice(2,4); },
   _user(){ try{ return JSON.parse(sessionStorage.getItem('medicore_user')||'{}'); }catch(e){ return {}; } },
 
+  // ── Jeu de données de démonstration (idempotent) ─────────────────────────────
+  // Crée un catalogue réaliste + affecte chaque produit à plusieurs dépôts avec
+  // des prix de vente différenciés. Ne fait rien si le catalogue contient déjà des produits.
+  seedDemo(force){
+    if(!force && this.produits().length) return { skip:true, raison:'catalogue non vide' };
+    // Catalogue : médical & paramédical
+    const cat=[
+      { designation:'Paracétamol 500mg cp.',         famille:'medicament',  dci:'Paracétamol',           forme:'Comprimé',           dosage:'500 mg',  conditionnement:'Boîte de 20', unite:'boîte',   prix_achat:1200, prix_vente:1800, code_barre:'3401570001011' },
+      { designation:'Amoxicilline 500mg gél.',       famille:'medicament',  dci:'Amoxicilline',          forme:'Gélule',             dosage:'500 mg',  conditionnement:'Boîte de 12', unite:'boîte',   prix_achat:1500, prix_vente:2200, code_barre:'3401570001028' },
+      { designation:'Artémether/Luméfantrine 20/120',famille:'medicament',  dci:'Artémether+Luméfantrine',forme:'Comprimé',          dosage:'20/120 mg',conditionnement:'Boîte de 24',unite:'boîte',  prix_achat:2400, prix_vente:3500, code_barre:'3401570001035' },
+      { designation:'Ceftriaxone 1g inj.',           famille:'medicament',  dci:'Ceftriaxone',           forme:'Ampoule injectable', dosage:'1 g',     conditionnement:'Flacon',      unite:'flacon',  prix_achat:2800, prix_vente:4000, thermosensible:true, code_barre:'3401570001042' },
+      { designation:'Métronidazole 250mg cp.',       famille:'medicament',  dci:'Métronidazole',         forme:'Comprimé',           dosage:'250 mg',  conditionnement:'Boîte de 20', unite:'boîte',   prix_achat:900,  prix_vente:1500, code_barre:'3401570001059' },
+      { designation:'Oméprazole 20mg gél.',          famille:'medicament',  dci:'Oméprazole',            forme:'Gélule',             dosage:'20 mg',   conditionnement:'Boîte de 14', unite:'boîte',   prix_achat:1800, prix_vente:2800, code_barre:'3401570001066' },
+      { designation:'Morphine 10mg/mL inj.',         famille:'medicament',  dci:'Morphine',              forme:'Ampoule injectable', dosage:'10 mg/mL',conditionnement:'Ampoule',     unite:'ampoule', prix_achat:12000,prix_vente:15000,stupefiant:true, thermosensible:true, code_barre:'3401570001073' },
+      { designation:'Sérum physiologique 500mL',     famille:'solute',      dci:'Chlorure de sodium 0,9%',forme:'Poche',             dosage:'500 mL',  conditionnement:'Poche',       unite:'poche',   prix_achat:800,  prix_vente:1200, code_barre:'3401570001080' },
+      { designation:'Ringer Lactate 500mL',          famille:'solute',      dci:'Ringer Lactate',        forme:'Poche',              dosage:'500 mL',  conditionnement:'Poche',       unite:'poche',   prix_achat:950,  prix_vente:1400, code_barre:'3401570001097' },
+      { designation:'Glucosé 5% 500mL',              famille:'solute',      dci:'Glucose 5%',            forme:'Poche',              dosage:'500 mL',  conditionnement:'Poche',       unite:'poche',   prix_achat:850,  prix_vente:1300, code_barre:'3401570001103' },
+      { designation:'Gants d\'examen nitrile (M)',   famille:'consommable', forme:'Paire',              conditionnement:'Boîte de 100',unite:'boîte', prix_achat:4500, prix_vente:6500, code_barre:'3401570001110' },
+      { designation:'Seringue 5mL stérile',          famille:'consommable', forme:'Unité',              conditionnement:'Boîte de 100',unite:'boîte', prix_achat:3500, prix_vente:5000, code_barre:'3401570001127' },
+      { designation:'Compresses stériles 10×10',     famille:'consommable', forme:'Sachet',             conditionnement:'Boîte de 50',unite:'boîte',  prix_achat:2500, prix_vente:3800, code_barre:'3401570001134' },
+      { designation:'Sutures résorbables Vicryl 2/0',famille:'chirurgie',   forme:'Unité',              conditionnement:'Boîte de 12',unite:'boîte',  prix_achat:32000,prix_vente:42000,code_barre:'3401570001141' },
+      { designation:'Bistouri lame n°22',            famille:'chirurgie',   forme:'Unité',              conditionnement:'Boîte de 100',unite:'boîte', prix_achat:6000, prix_vente:9000, code_barre:'3401570001158' },
+      { designation:'Tube EDTA 5mL (hémato)',        famille:'prelevement', forme:'Unité',              conditionnement:'Boîte de 100',unite:'boîte', prix_achat:5500, prix_vente:8000, code_barre:'3401570001165' },
+      { designation:'Réactif Glucose (kit)',         famille:'reactif',     forme:'Kit',                conditionnement:'Kit 200 tests',unite:'kit',  prix_achat:45000,prix_vente:0,    thermosensible:true, code_barre:'3401570001172' },
+      { designation:'Film radiographique 35×43',     famille:'imagerie',    forme:'Unité',              conditionnement:'Boîte de 100',unite:'boîte', prix_achat:55000,prix_vente:0,    code_barre:'3401570001189' },
+    ];
+    const ids={};
+    cat.forEach(c=>{ const p=this.ajouterProduit(c); ids[c.designation]=p.id; });
+
+    // Affectations : produit → [ {depot, stock, prix_vente?, peremption?} ]
+    const A=(des, affs)=>{ const pid=ids[des]; if(!pid) return; affs.forEach(a=>this.affecterProduit(pid, a.d, { stock:a.s, prix_vente:a.pv, peremption:a.pe||'2027-06-30' })); };
+    A('Paracétamol 500mg cp.',          [{d:'pharmacie_pui',s:120},{d:'urgences',s:40,pv:2200},{d:'maternite',s:25}]);
+    A('Amoxicilline 500mg gél.',        [{d:'pharmacie_pui',s:90},{d:'urgences',s:30}]);
+    A('Artémether/Luméfantrine 20/120', [{d:'pharmacie_pui',s:60},{d:'urgences',s:35,pv:4000}]);
+    A('Ceftriaxone 1g inj.',            [{d:'pharmacie_pui',s:50},{d:'bloc_operatoire',s:20,pv:4500},{d:'urgences',s:25}]);
+    A('Métronidazole 250mg cp.',        [{d:'pharmacie_pui',s:80},{d:'maternite',s:20}]);
+    A('Oméprazole 20mg gél.',           [{d:'pharmacie_pui',s:45}]);
+    A('Morphine 10mg/mL inj.',          [{d:'pharmacie_pui',s:15},{d:'bloc_operatoire',s:8}]);
+    A('Sérum physiologique 500mL',      [{d:'pharmacie_pui',s:200},{d:'urgences',s:80},{d:'bloc_operatoire',s:60},{d:'maternite',s:50}]);
+    A('Ringer Lactate 500mL',           [{d:'pharmacie_pui',s:120},{d:'bloc_operatoire',s:40},{d:'urgences',s:50}]);
+    A('Glucosé 5% 500mL',               [{d:'pharmacie_pui',s:100},{d:'urgences',s:40},{d:'maternite',s:30}]);
+    A('Gants d\'examen nitrile (M)',    [{d:'magasin',s:50},{d:'pharmacie_pui',s:20},{d:'bloc_operatoire',s:15},{d:'urgences',s:18},{d:'laboratoire',s:12}]);
+    A('Seringue 5mL stérile',           [{d:'magasin',s:40},{d:'pharmacie_pui',s:25},{d:'urgences',s:20},{d:'bloc_operatoire',s:15}]);
+    A('Compresses stériles 10×10',      [{d:'magasin',s:30},{d:'bloc_operatoire',s:25},{d:'urgences',s:20},{d:'maternite',s:15}]);
+    A('Sutures résorbables Vicryl 2/0', [{d:'bloc_operatoire',s:30},{d:'maternite',s:10}]);
+    A('Bistouri lame n°22',             [{d:'bloc_operatoire',s:20},{d:'magasin',s:15}]);
+    A('Tube EDTA 5mL (hémato)',         [{d:'laboratoire',s:40},{d:'magasin',s:20}]);
+    A('Réactif Glucose (kit)',          [{d:'laboratoire',s:6,pv:0}]);
+    A('Film radiographique 35×43',      [{d:'imagerie',s:8,pv:0}]);
+
+    if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Données démo stock','CREATION',`${cat.length} produits affectés aux dépôts`, 'SEED');
+    return { ok:true, produits:cat.length };
+  },
+
+  chargerDemo(){
+    if(this.produits().length && !confirm('Le catalogue contient déjà des produits.\nCharger les données de démonstration par-dessus ? (les produits existants sont conservés)')) return;
+    const r=this.seedDemo(true);
+    this.renderCatalogue();
+    if(typeof toast==='function') toast((r.produits||0)+' produits démo chargés et affectés aux dépôts.','success');
+    else alert((r.produits||0)+' produits démo chargés.');
+  },
+
   // ── Familles de produits (paramétrables) ─────────────────────────────────────
   familles(){
     const custom=this._read(this.S_FAMILLES);
@@ -443,6 +505,7 @@ const MEDICORE_STOCK = {
           </select>
         </div>
         <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="MEDICORE_STOCK.chargerDemo()">🧪 Données démo</button>
           <button class="btn btn-secondary btn-sm" onclick="MEDICORE_STOCK.uiFamilles()">🗂 Familles</button>
           <button class="btn btn-primary btn-sm" onclick="MEDICORE_STOCK.uiProduit()">＋ Nouveau produit</button>
         </div>
