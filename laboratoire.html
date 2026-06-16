@@ -1614,8 +1614,7 @@ function renderExamensCheckboxes(type){
 function validerDemande(){
   const patient=document.getElementById('nd-patient').value;
   const dossier=document.getElementById('nd-dossier').value;
-  if(!patient||!dossier){toast('Remplissez les champs obligatoires.','error');
-  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('demandes_labo', demandes);return}
+  if(!patient||!dossier){toast('Remplissez les champs obligatoires.','error');return;}
   const checked=Array.from(document.querySelectorAll('#examens-checkboxes input:checked')).map(c=>c.parentElement.textContent.trim());
   if(!checked.length){toast('Sélectionnez au moins un examen.','error');return}
   const id='BIO-'+new Date().getFullYear()+'-0'+String(demandes.length+841).padStart(4,'0');
@@ -1682,6 +1681,9 @@ document.addEventListener('DOMContentLoaded', function() {
     EEQ_DATA = MEDICORE_STORE.sync('labo_eeq', EEQ_DATA);
     AUTOMATE_ETAT = MEDICORE_STORE.sync('labo_automates_etat', AUTOMATE_ETAT);
     LABO_DOCUMENTS = MEDICORE_STORE.sync('labo_documents', LABO_DOCUMENTS);
+    // Fix: re-render après sync pour afficher les données chargées depuis le store
+    renderDemandes();
+    updateKPIs();
   }
 
   if (typeof initNav === 'function') {
