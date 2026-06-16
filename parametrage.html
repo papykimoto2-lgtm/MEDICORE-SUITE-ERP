@@ -15,6 +15,11 @@
 <script src="medicore-session.js"></script>
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
+<script src="medicore-prescriptions.js"></script>
+<script src="medicore-prestations.js"></script>
+<script src="medicore-resultats.js"></script>
+<script src="medicore-bloc.js"></script>
+<script src="medicore-demo.js"></script>
 <script src="medicore-demandes-ui.js"></script>
 <script src="supabase.js"></script>
 <script src="medicore-sync.js"></script>
@@ -231,8 +236,6 @@ let FOURNISSEURS = [
 const DEFAULT_SERVICES    = JSON.parse(JSON.stringify(SERVICES));
 const DEFAULT_TARIFS      = JSON.parse(JSON.stringify(TARIFS));
 const DEFAULT_FOURNISSEURS= JSON.parse(JSON.stringify(FOURNISSEURS));
-const DEFAULT_ASSURANCES  = JSON.parse(JSON.stringify(ASSURANCES));
-const DEFAULT_BANQUES     = JSON.parse(JSON.stringify(BANQUES));
 
 const MODULES_PERM = ['Facturation','Comptabilité','Pharmacie','Laboratoire','Bloc','DPI','RH','Paramétrage'];
 const ROLES_PERM = ['Administrateur','Direction','Médecin','Infirmier','Pharmacien','Laborantin','Caissier','Comptable','RH','Archiviste'];
@@ -262,16 +265,15 @@ function loadConfig(){
       CFG = Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)), saved.cfg||{});
       if(saved.services)     SERVICES     = saved.services;
       if(saved.tarifs)       TARIFS       = saved.tarifs;
-      if(saved.assurances)   ASSURANCES   = saved.assurances;
-      if(saved.banques)      BANQUES      = saved.banques;
       if(saved.fournisseurs) FOURNISSEURS = saved.fournisseurs;
+      if(saved.banques)      BANQUES      = saved.banques;
       if(saved.permissions)  PERMISSIONS  = saved.permissions;
     }
   } catch(e){}
 }
 function persist(){
   const payload = { cfg:CFG, services:SERVICES,
-    tarifs:TARIFS, assurances:ASSURANCES, banques:BANQUES, fournisseurs:FOURNISSEURS, permissions:PERMISSIONS };
+    tarifs:TARIFS, fournisseurs:FOURNISSEURS, banques:BANQUES, permissions:PERMISSIONS };
   if(typeof MEDICORE_STORE !== 'undefined'){
     MEDICORE_STORE.save('parametrage', payload, true); // immediate = true (config critique)
   } else {
@@ -387,10 +389,9 @@ function renderBody(){
         <button class="btn btn-primary" onclick="persist();toast('Permissions enregistrées.','success')">💾 Enregistrer les droits</button></div></div></div>`;
   }
   else if(currentSection==='stock'){
-    const _canStock = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.write') : true;
     b.innerHTML = head('Stock & Catalogue','Dépôts, familles et catalogue des produits médicaux & paramédicaux')+
     `<div class="card"><div class="card-head"><div><h3>Dépôts de stock</h3><div class="sub">Magasin central, services consommateurs (laboratoire, imagerie, bloc…) — chaque dépôt est rattaché à un département</div></div>
-      ${_canStock?`<button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button>`:'<span class="badge" style="background:var(--surface-alt);color:var(--text-muted);font-size:11px;padding:4px 8px">Lecture seule</span>'}</div>
+      <button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button></div>
       <div class="card-body" style="padding:0">${renderDepotsStock()}</div></div>
 
     <div class="card"><div class="card-head"><div><h3>Catalogue produits</h3><div class="sub">Médicaments, réactifs, consommables, dispositifs — définis une fois (code-barres, DCI, forme…), puis affectés aux dépôts</div></div></div>
@@ -402,20 +403,20 @@ function renderBody(){
     b.innerHTML = head('Services & lits','Unités de soins, pôles et capacité d\'accueil')+
     `<div class="info-strip">🛏 Capacité totale : <strong>&nbsp;${totLits} lits</strong>&nbsp;— ${SERVICES.length} services</div>
     <div class="card"><div class="card-head"><div><h3>Services</h3></div><button class="btn btn-secondary btn-sm" onclick="addService()">＋ Ajouter</button></div>
-      <div class="card-body" style="padding:0"><table><thead><tr><th>Service</th><th>Code</th><th>Pôle</th><th>Responsable</th><th>Lits</th><th style="text-align:right">Actions</th></tr></thead>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Service</th><th>Code</th><th>Pôle</th><th>Responsable</th><th>Lits</th><th></th></tr></thead>
       <tbody>${SERVICES.map((s,i)=>`<tr><td><strong>${s.nom}</strong></td><td><span class="mono">${s.code}</span></td><td>${s.pole}</td><td>${s.responsable}</td><td>${s.lits}</td>
-      <td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editService(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeService(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
+      <td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editService(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeService(${i})" title="Supprimer">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
   }
   else if(currentSection==='tarification'){
     b.innerHTML = head('Tarification & assurances','Grille tarifaire des actes et taux de prise en charge')+
     `<div class="card"><div class="card-head"><div><h3>Grille tarifaire</h3><div class="sub">Montants en FCFA</div></div><button class="btn btn-secondary btn-sm" onclick="addTarif()">＋ Acte</button></div>
       <div class="card-body" style="padding:0"><table><thead><tr><th>Acte / Prestation</th><th>Code</th><th style="text-align:right">Tarif (FCFA)</th><th></th></tr></thead>
       <tbody>${TARIFS.map((t,i)=>`<tr><td>${t.libelle}</td><td><span class="mono">${t.code}</span></td><td style="text-align:right"><strong>${fmt(t.tarif)}</strong></td>
-      <td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editTarif(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeTarif(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>
+      <td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editTarif(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeTarif(${i})" title="Supprimer">✕</button></td></tr>`).join('')}</tbody></table></div></div>
 
-    <div class="card"><div class="card-head"><div><h3>Assurances & mutuelles</h3><div class="sub">Taux de prise en charge</div></div><button class="btn btn-secondary btn-sm" onclick="addAssurance()">＋ Ajouter</button></div>
-      <div class="card-body" style="padding:0"><table><thead><tr><th>Organisme</th><th>Prise en charge</th><th>Conventionnement</th><th style="text-align:right">Actions</th></tr></thead>
-      <tbody>${ASSURANCES.map((a,i)=>`<tr><td><strong>${a.nom}</strong></td><td>${a.taux}%</td><td>${a.statut==='Conventionné'?'<span class="badge b-on">Conventionné</span>':'<span class="badge b-off">—</span>'}</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editAssurance(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeAssurance(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
+    <div class="card"><div class="card-head"><div><h3>Assurances & mutuelles</h3><div class="sub">Taux de prise en charge</div></div></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Organisme</th><th>Prise en charge</th><th>Conventionnement</th></tr></thead>
+      <tbody>${ASSURANCES.map(a=>`<tr><td><strong>${a.nom}</strong></td><td>${a.taux}%</td><td>${a.statut==='Conventionné'?'<span class="badge b-on">Conventionné</span>':'<span class="badge b-off">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>`;
   }
   else if(currentSection==='comptabilite'){
     const c=CFG.etablissement;
@@ -430,16 +431,18 @@ function renderBody(){
       <div class="save-bar"><button class="btn btn-secondary btn-sm" onclick="location.href='comptabilite_generale.html'">📖 Plan comptable</button>
       <button class="btn btn-primary" onclick="saveEtab()">💾 Enregistrer</button></div></div></div>
 
-    <div class="card"><div class="card-head"><div><h3>Comptes bancaires</h3><div class="sub">Comptes 51x — soldes en FCFA</div></div><button class="btn btn-secondary btn-sm" onclick="addBanque()">＋ Ajouter</button></div>
-      <div class="card-body" style="padding:0"><table><thead><tr><th>Banque</th><th>Compte</th><th>RIB / IBAN</th><th style="text-align:right">Solde</th><th style="text-align:right">Actions</th></tr></thead>
-      <tbody>${BANQUES.map((bk,i)=>`<tr><td><strong>${bk.nom}</strong></td><td><span class="mono">${bk.compte}</span></td><td style="font-family:monospace;font-size:12px">${bk.rib}</td><td style="text-align:right"><strong>${fmt(bk.solde)}</strong></td><td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editBanque(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeBanque(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
+    <div class="card"><div class="card-head"><div><h3>Comptes bancaires</h3><div class="sub">Comptes 51x — soldes en FCFA</div></div>
+      <button class="btn btn-secondary btn-sm" onclick="addBanque()">＋ Compte</button></div>
+      <div class="card-body" style="padding:0"><table><thead><tr><th>Banque</th><th>Compte</th><th>RIB / IBAN</th><th style="text-align:right">Solde</th><th></th></tr></thead>
+      <tbody>${BANQUES.map((bk,i)=>`<tr><td><strong>${bk.nom}</strong></td><td><span class="mono">${bk.compte}</span></td><td style="font-family:monospace;font-size:12px">${bk.rib}</td><td style="text-align:right"><strong>${fmt(bk.solde)}</strong></td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editBanque(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeBanque(${i})" title="Supprimer">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
   }
   else if(currentSection==='fournisseurs'){
     b.innerHTML = head('Fournisseurs','Référentiel des partenaires et délais de livraison')+
     `<div class="card"><div class="card-head"><div><h3>Fournisseurs référencés</h3><div class="sub">${FOURNISSEURS.length} actifs</div></div><button class="btn btn-secondary btn-sm" onclick="addFournisseur()">＋ Ajouter</button></div>
       <div class="card-body" style="padding:0"><table><thead><tr><th>Fournisseur</th><th>Catégorie</th><th>NCC</th><th>Délai</th><th></th></tr></thead>
       <tbody>${FOURNISSEURS.map((f,i)=>`<tr><td><strong>${f.nom}</strong></td><td>${f.categorie}</td><td><span class="mono">${f.ncc}</span></td><td>${f.delai}</td>
-      <td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editFournisseur(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeFournisseur(${i})">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
+      <td style="text-align:right;white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editFournisseur(${i})" title="Modifier">✎</button> <button class="btn btn-danger btn-sm" onclick="removeFournisseur(${i})" title="Supprimer">✕</button></td></tr>`).join('')}</tbody></table></div></div>`;
   }
   else if(currentSection==='numerotation'){
     const n=CFG.numerotation;
@@ -570,10 +573,12 @@ function renderBody(){
 
     '<div class="card"><div class="card-head"><div><h3>Actions globales</h3><div class="sub">Stockage total : <strong>'+totalKo+' Ko</strong> dans ce navigateur</div></div></div>' +
     '<div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-primary" onclick="injecterDemoInterModule()">🧪 Injecter données démo (inter-modules)</button>' +
       '<button class="btn btn-danger" onclick="supprimerTout()">🗑 Tout effacer (remise à zéro)</button>' +
       '<button class="btn" style="background:var(--orange-bg);color:var(--orange);border:1px solid #f3c87a" onclick="supprimerDemoSeulement()">🧹 Données démo uniquement</button>' +
       '<button class="btn btn-secondary" onclick="exportConfig()">⬇ Exporter la config d\'abord</button>' +
-    '</div></div></div>' +
+    '</div>' +
+    '<div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">L\'injection crée 5 patients avec un parcours complet reliant DPI, prescriptions, laboratoire, imagerie, pharmacie, facturation et bloc opératoire — pour tester les flux entre modules.</div></div></div>' +
 
     '<div class="card"><div class="card-head"><div><h3>Données par module</h3><div class="sub">Sélectionnez les modules à effacer</div></div>' +
     '<div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm" onclick="toutCocher(true)">Tout cocher</button>' +
@@ -817,41 +822,23 @@ function viderHistoConnexion(){
 function renderDepotsStock(){
   if(typeof MEDICORE_STOCK==='undefined') return '<div style="padding:20px;color:var(--text-muted)">Module stock non chargé.</div>';
   const list=MEDICORE_STOCK.depots();
-  // Contrôle RBAC : stock.write = modifier/supprimer dépôts non-builtin ; stock.admin = aussi les builtin
-  const canWrite = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.write') : true;
-  const canAdmin = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.admin') : false;
-  return `<table><thead><tr><th>Dépôt</th><th>Département</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th style="text-align:right">Articles</th><th style="text-align:right">Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
+  return `<table><thead><tr><th>Dépôt</th><th>Département</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th>Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
     list.map(d=>{
       const valeur=MEDICORE_STOCK.valeurStock(d.id);
-      // Boutons selon droits : builtin => seul canAdmin peut modifier (pas supprimer), non-builtin => canWrite suffit
-      // Bouton Articles : toujours visible (lecture ou écriture)
-      const nbArticles = MEDICORE_STOCK.items(d.id).length;
-      const btnArticles = `<button class="btn btn-secondary btn-xs" onclick="ouvrirArticlesDepot('${d.id}')" title="Voir et gérer les articles de ce dépôt">📦 Articles${nbArticles?' ('+nbArticles+')':''}</button>`;
-      let actions = btnArticles + ' ';
-      if(canWrite || canAdmin){
-        if(!d.builtin){
-          actions += `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
-          <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
-          <button class="btn btn-secondary btn-xs btn-danger-xs" onclick="supprimerDepotUI('${d.id}')">🗑</button>`;
-        } else if(canAdmin){
-          actions += `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
-          <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
-          <span title="Dépôt système — suppression impossible" style="font-size:10px;color:var(--text-muted);padding:0 4px">🔒</span>`;
-        } else {
-          actions += '<span style="font-size:10px;color:var(--text-muted)">Système</span>';
-        }
-      }
       return `<tr>
         <td><strong>${d.libelle}</strong>${d.builtin?' <span class="badge" style="background:var(--surface-alt);font-size:10px">système</span>':''}</td>
         <td>${d.departement||'—'}</td>
         <td><span class="mono" style="font-size:11.5px">${d.id}</span></td>
         <td>${d.responsable||'—'}</td>
         <td>${d.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
-        <td style="text-align:right"><span style="font-weight:600">${nbArticles}</span><span style="font-size:10.5px;color:var(--text-muted)"> réf.</span></td>
         <td style="text-align:right">${valeur.toLocaleString('fr-FR')} FCFA</td>
-        <td style="text-align:right;white-space:nowrap">${actions}</td></tr>`;
+        <td style="text-align:right;white-space:nowrap">
+          ${d.builtin?'':`<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎</button>
+          <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
+          <button class="btn btn-secondary btn-xs" onclick="supprimerDepotUI('${d.id}')">🗑</button>`}
+        </td></tr>`;
     }).join('')}</tbody></table>
-    <div style="padding:10px 16px;font-size:11.5px;color:var(--text-muted)">Les dépôts « système » (Magasin central, Pharmacie, Laboratoire, Imagerie, Bloc opératoire, Maternité, Urgences) sont prédéfinis et ne peuvent pas être supprimés. Les administrateurs peuvent modifier leur libellé et responsable.</div>`;
+    <div style="padding:10px 16px;font-size:11.5px;color:var(--text-muted)">Les dépôts « système » (Magasin central, Pharmacie, Laboratoire, Imagerie, Bloc opératoire, Maternité, Urgences) sont prédéfinis et ne peuvent pas être supprimés.</div>`;
 }
 function uiAjouterDepot(){
   formModal('Nouveau dépôt de stock',[
@@ -868,15 +855,12 @@ function uiAjouterDepot(){
 }
 function uiModifierDepot(id){
   const d=MEDICORE_STOCK.depots().find(x=>x.id===id); if(!d) return;
-  const canAdmin = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.admin') : false;
-  if(d.builtin && !canAdmin){ toast('Vous n\'avez pas les droits pour modifier un dépôt système.','error'); return; }
-  formModal('Modifier le dépôt'+(d.builtin?' (système)':''),[
+  formModal('Modifier le dépôt',[
     {key:'libelle',label:'Nom du dépôt',required:true,value:d.libelle},
     {key:'departement',label:'Département (rattachement comptable)',value:d.departement||''},
     {key:'responsable',label:'Responsable',value:d.responsable||''},
   ], (v)=>{
     MEDICORE_STOCK.modifierDepot(id,{libelle:v.libelle.trim(),departement:(v.departement||'').trim(),responsable:(v.responsable||'').trim()});
-    if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Modification dépôt de stock','MODIFICATION',v.libelle.trim(), id);
     renderBody(); toast('Dépôt modifié.','success');
   });
 }
@@ -892,159 +876,59 @@ function supprimerDepotUI(id){
   if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Suppression dépôt de stock','SUPPRESSION',d.libelle, id);
   renderBody(); toast('Dépôt supprimé.','warn');
 }
-// ══ ARTICLES D'UN DÉPÔT — modale de gestion ══════════════════════════════════
-function ouvrirArticlesDepot(depotId){
-  if(typeof MEDICORE_STOCK==='undefined'){ toast('Module stock non chargé.','error'); return; }
-  const depot=MEDICORE_STOCK.depots().find(d=>d.id===depotId);
-  if(!depot){ toast('Dépôt introuvable.','error'); return; }
-  // Créer la modale plein-écran
-  let ov=document.getElementById('depot-articles-modal');
-  if(ov) ov.remove();
-  ov=document.createElement('div');
-  ov.id='depot-articles-modal';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:stretch;justify-content:flex-end';
-  ov.onclick=e=>{ if(e.target===ov) fermerArticlesDepot(); };
-  ov.innerHTML=`
-    <div id="depot-articles-panel" style="width:min(900px,100vw);background:#f4f3ef;display:flex;flex-direction:column;height:100vh;overflow:hidden;box-shadow:-4px 0 32px rgba(0,0,0,.18)">
-      <div style="background:#1a4b6e;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-        <div>
-          <div style="font-weight:700;font-size:16px">📦 ${depot.libelle}</div>
-          <div style="font-size:11.5px;opacity:.8">${depot.departement||''}${depot.responsable?' · '+depot.responsable:''} · Gestion des articles</div>
-        </div>
-        <button onclick="fermerArticlesDepot()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px">✕ Fermer</button>
-      </div>
-      <div id="depot-articles-content" style="flex:1;overflow-y:auto;padding:20px"></div>
-    </div>`;
-  document.body.appendChild(ov);
-  // Monter le widget de gestion du stock pour ce dépôt
-  MEDICORE_STOCK.mount('depot-articles-content', depotId);
-}
-function fermerArticlesDepot(){
-  const ov=document.getElementById('depot-articles-modal'); if(ov) ov.remove();
-  // Rafraîchir le tableau des dépôts pour mettre à jour les compteurs
-  renderBody();
-}
-
 function togglePerm(r,m,v){ if(!PERMISSIONS[r])PERMISSIONS[r]={}; PERMISSIONS[r][m]=v?1:0; }
+function addBanque(){ formModal('Nouveau compte bancaire',[
+    {key:'nom',label:'Banque',required:true,placeholder:'ex : NSIA Banque CI'},
+    {key:'compte',label:'Compte SYSCOHADA',placeholder:'ex : 514'},
+    {key:'rib',label:'RIB / IBAN',placeholder:'CI.. .... .... ....'},
+    {key:'solde',label:'Solde initial',sub:'FCFA',type:'number',value:0}
+  ], v=>{ BANQUES.push({nom:v.nom,compte:v.compte||'51',rib:v.rib||'—',solde:+v.solde||0}); persist(); renderBody(); toast('Compte ajouté.','success'); }); }
+function editBanque(i){ const bk=BANQUES[i]; if(!bk) return; formModal('Modifier le compte bancaire',[
+    {key:'nom',label:'Banque',required:true,value:bk.nom},
+    {key:'compte',label:'Compte SYSCOHADA',value:bk.compte},
+    {key:'rib',label:'RIB / IBAN',value:bk.rib&&bk.rib!=='—'?bk.rib:''},
+    {key:'solde',label:'Solde',sub:'FCFA',type:'number',value:bk.solde}
+  ], v=>{ BANQUES[i]={nom:v.nom,compte:v.compte||bk.compte,rib:v.rib||'—',solde:+v.solde||0}; persist(); renderBody(); toast('Compte modifié.','success'); }); }
+function removeBanque(i){ if(confirm('Supprimer le compte '+BANQUES[i].nom+' ?')){ BANQUES.splice(i,1); persist(); renderBody(); toast('Compte supprimé.','warn'); } }
 function addService(){ formModal('Nouveau service',[
     {key:'nom',label:'Nom du service',required:true,placeholder:'Chirurgie'},
     {key:'code',label:'Code',placeholder:'CHI'},
-    {key:'pole',label:'Pôle',placeholder:'ex : Médecine'},
-    {key:'responsable',label:'Responsable',placeholder:'ex : Dr. COULIBALY'},
+    {key:'pole',label:'Pôle',placeholder:'Médico-chirurgical'},
+    {key:'responsable',label:'Responsable',placeholder:'Dr …'},
     {key:'lits',label:'Nombre de lits',type:'number',value:0}
   ], v=>{ SERVICES.push({nom:v.nom,code:v.code||v.nom.slice(0,3).toUpperCase(),pole:v.pole||'—',responsable:v.responsable||'—',lits:+v.lits||0}); persist(); renderBody(); toast('Service ajouté.','success'); }); }
+function editService(i){ const s=SERVICES[i]; if(!s) return; formModal('Modifier le service',[
+    {key:'nom',label:'Nom du service',required:true,value:s.nom},
+    {key:'code',label:'Code',value:s.code},
+    {key:'pole',label:'Pôle',value:s.pole&&s.pole!=='—'?s.pole:''},
+    {key:'responsable',label:'Responsable',value:s.responsable&&s.responsable!=='—'?s.responsable:''},
+    {key:'lits',label:'Nombre de lits',type:'number',value:s.lits}
+  ], v=>{ SERVICES[i]={nom:v.nom,code:v.code||s.code,pole:v.pole||'—',responsable:v.responsable||'—',lits:+v.lits||0}; persist(); renderBody(); toast('Service modifié.','success'); }); }
 function removeService(i){ if(confirm('Supprimer '+SERVICES[i].nom+' ?')){ SERVICES.splice(i,1); persist(); renderBody(); toast('Service supprimé.','warn'); } }
 function addTarif(){ formModal('Nouvel acte / tarif',[
     {key:'libelle',label:'Libellé de l\'acte',required:true,placeholder:'Consultation spécialiste'},
     {key:'code',label:'Code',placeholder:'CS01'},
     {key:'tarif',label:'Tarif',sub:'FCFA',type:'number',value:0}
   ], v=>{ TARIFS.push({libelle:v.libelle,code:v.code||'',tarif:+v.tarif||0}); persist(); renderBody(); toast('Acte ajouté.','success'); }); }
-function removeTarif(i){ TARIFS.splice(i,1); persist(); renderBody(); toast('Acte supprimé.','warn'); }
+function editTarif(i){ const t=TARIFS[i]; if(!t) return; formModal('Modifier l\'acte / tarif',[
+    {key:'libelle',label:'Libellé de l\'acte',required:true,value:t.libelle},
+    {key:'code',label:'Code',value:t.code},
+    {key:'tarif',label:'Tarif',sub:'FCFA',type:'number',value:t.tarif}
+  ], v=>{ TARIFS[i]={libelle:v.libelle,code:v.code||'',tarif:+v.tarif||0}; persist(); renderBody(); toast('Acte modifié.','success'); }); }
+function removeTarif(i){ if(confirm('Supprimer « '+TARIFS[i].libelle+' » ?')){ TARIFS.splice(i,1); persist(); renderBody(); toast('Acte supprimé.','warn'); } }
 function addFournisseur(){ formModal('Nouveau fournisseur',[
     {key:'nom',label:'Nom du fournisseur',required:true},
     {key:'categorie',label:'Catégorie',placeholder:'Médicaments'},
     {key:'ncc',label:'NCC',sub:'optionnel'},
     {key:'delai',label:'Délai livraison',sub:'ex 7 j'}
   ], v=>{ FOURNISSEURS.push({nom:v.nom,categorie:v.categorie||'—',ncc:v.ncc||'—',delai:v.delai||'—'}); persist(); renderBody(); toast('Fournisseur ajouté.','success'); }); }
+function editFournisseur(i){ const f=FOURNISSEURS[i]; if(!f) return; formModal('Modifier le fournisseur',[
+    {key:'nom',label:'Nom du fournisseur',required:true,value:f.nom},
+    {key:'categorie',label:'Catégorie',value:f.categorie&&f.categorie!=='—'?f.categorie:''},
+    {key:'ncc',label:'NCC',value:f.ncc&&f.ncc!=='—'?f.ncc:''},
+    {key:'delai',label:'Délai livraison',value:f.delai&&f.delai!=='—'?f.delai:''}
+  ], v=>{ FOURNISSEURS[i]={nom:v.nom,categorie:v.categorie||'—',ncc:v.ncc||'—',delai:v.delai||'—'}; persist(); renderBody(); toast('Fournisseur modifié.','success'); }); }
 function removeFournisseur(i){ if(confirm('Supprimer '+FOURNISSEURS[i].nom+' ?')){ FOURNISSEURS.splice(i,1); persist(); renderBody(); toast('Fournisseur supprimé.','warn'); } }
-// ── Fonctions EDIT — Services, Tarifs, Fournisseurs ─────────────────────────
-function editService(i){
-  const s=SERVICES[i];
-  formModal('Modifier le service',[
-    {key:'nom',      label:'Nom du service', required:true, value:s.nom},
-    {key:'code',     label:'Code',           value:s.code},
-    {key:'pole',     label:'Pôle',           value:s.pole==='—'?'':s.pole,     placeholder:'ex : Médecine'},
-    {key:'responsable',label:'Responsable',  value:s.responsable==='—'?'':s.responsable, placeholder:'ex : Dr. COULIBALY'},
-    {key:'lits',     label:'Nombre de lits', type:'number', value:s.lits}
-  ], v=>{
-    SERVICES[i]={nom:v.nom, code:v.code||s.code, pole:v.pole||'—', responsable:v.responsable||'—', lits:+v.lits||0};
-    persist(); renderBody(); toast('Service modifié.','success');
-  });
-}
-function editTarif(i){
-  const t=TARIFS[i];
-  formModal('Modifier l\'acte / tarif',[
-    {key:'libelle', label:'Libellé de l\'acte', required:true, value:t.libelle},
-    {key:'code',    label:'Code',               value:t.code},
-    {key:'tarif',   label:'Tarif', sub:'FCFA',  type:'number', value:t.tarif}
-  ], v=>{
-    TARIFS[i]={libelle:v.libelle, code:v.code||t.code, tarif:+v.tarif||0};
-    persist(); renderBody(); toast('Acte modifié.','success');
-  });
-}
-function editFournisseur(i){
-  const f=FOURNISSEURS[i];
-  formModal('Modifier le fournisseur',[
-    {key:'nom',       label:'Nom du fournisseur', required:true, value:f.nom},
-    {key:'categorie', label:'Catégorie',           value:f.categorie==='—'?'':f.categorie, placeholder:'ex : Médicaments'},
-    {key:'ncc',       label:'NCC',                sub:'optionnel', value:f.ncc==='—'?'':f.ncc},
-    {key:'delai',     label:'Délai livraison',     sub:'ex : 7 j', value:f.delai==='—'?'':f.delai}
-  ], v=>{
-    FOURNISSEURS[i]={nom:v.nom, categorie:v.categorie||'—', ncc:v.ncc||'—', delai:v.delai||'—'};
-    persist(); renderBody(); toast('Fournisseur modifié.','success');
-  });
-}
-
-// ── CRUD Assurances & mutuelles ──────────────────────────────────────────────
-function addAssurance(){
-  formModal('Nouvelle assurance / mutuelle',[
-    {key:'nom',    label:'Organisme', required:true, placeholder:'ex : MACA'},
-    {key:'taux',   label:'Taux de prise en charge (%)', type:'number', value:80},
-    {key:'statut', label:'Conventionnement', type:'select',
-     options:['Conventionné','—'], value:'Conventionné'}
-  ], v=>{
-    ASSURANCES.push({nom:v.nom, taux:+v.taux||0, statut:v.statut||'—'});
-    persist(); renderBody(); toast('Assurance ajoutée.','success');
-  });
-}
-function editAssurance(i){
-  const a=ASSURANCES[i];
-  formModal('Modifier l\'assurance',[
-    {key:'nom',    label:'Organisme', required:true, value:a.nom},
-    {key:'taux',   label:'Taux de prise en charge (%)', type:'number', value:a.taux},
-    {key:'statut', label:'Conventionnement', type:'select',
-     options:['Conventionné','—'], value:a.statut}
-  ], v=>{
-    ASSURANCES[i]={nom:v.nom, taux:+v.taux||0, statut:v.statut||'—'};
-    persist(); renderBody(); toast('Assurance modifiée.','success');
-  });
-}
-function removeAssurance(i){
-  if(confirm('Supprimer « '+ASSURANCES[i].nom+' » ?')){
-    ASSURANCES.splice(i,1); persist(); renderBody(); toast('Assurance supprimée.','warn');
-  }
-}
-
-// ── CRUD Comptes bancaires ───────────────────────────────────────────────────
-function addBanque(){
-  formModal('Nouveau compte bancaire',[
-    {key:'nom',    label:'Banque', required:true, placeholder:'ex : SGBCI'},
-    {key:'compte', label:'Compte SYSCOHADA', placeholder:'ex : 514'},
-    {key:'rib',    label:'RIB / IBAN', placeholder:'ex : CI93 XXX 0001 2345 6789'},
-    {key:'solde',  label:'Solde initial (FCFA)', type:'number', value:0}
-  ], v=>{
-    BANQUES.push({nom:v.nom, compte:v.compte||'51x', rib:v.rib||'—', solde:+v.solde||0});
-    persist(); renderBody(); toast('Compte bancaire ajouté.','success');
-  });
-}
-function editBanque(i){
-  const bk=BANQUES[i];
-  formModal('Modifier le compte bancaire',[
-    {key:'nom',    label:'Banque', required:true, value:bk.nom},
-    {key:'compte', label:'Compte SYSCOHADA', value:bk.compte},
-    {key:'rib',    label:'RIB / IBAN', value:bk.rib==='—'?'':bk.rib},
-    {key:'solde',  label:'Solde (FCFA)', type:'number', value:bk.solde}
-  ], v=>{
-    BANQUES[i]={nom:v.nom, compte:v.compte||bk.compte, rib:v.rib||'—', solde:+v.solde||0};
-    persist(); renderBody(); toast('Compte modifié.','success');
-  });
-}
-function removeBanque(i){
-  if(confirm('Supprimer le compte « '+BANQUES[i].nom+' » ?')){
-    BANQUES.splice(i,1); persist(); renderBody(); toast('Compte supprimé.','warn');
-  }
-}
-
 
 // ── Données démo : clés à conserver même après nettoyage ─────────────────────
 const CLES_PRESERVEES = ['medicore_user']; // session active
@@ -1078,6 +962,14 @@ function supprimerSelection(){
 }
 
 // Supprimer TOUTES les données MediCore (sauf session)
+function injecterDemoInterModule(){
+  if(typeof MEDICORE_DEMO==='undefined'){ toast('Module de démo non chargé.','error'); return; }
+  if(MEDICORE_DEMO.estCharge() && !confirm('Des données démo semblent déjà présentes.\nRé-injecter quand même ?')) return;
+  const r=MEDICORE_DEMO.injecter(true);
+  if(r.skip){ toast('Données démo déjà présentes.','info'); return; }
+  toast(r.patients+' patients démo + parcours inter-modules injectés.','success');
+  setTimeout(()=>renderBody(),300);
+}
 function supprimerTout(){
   if(!confirm('⚠️ REMISE À ZÉRO COMPLÈTE\n\nToutes les données MediCore seront effacées de ce navigateur.\nLa session de connexion sera préservée.\n\nConfirmer ?')) return;
   const keysToDelete = [];
@@ -1095,8 +987,6 @@ function supprimerTout(){
   CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
   SERVICES = JSON.parse(JSON.stringify(DEFAULT_SERVICES));
   TARIFS = JSON.parse(JSON.stringify(DEFAULT_TARIFS));
-  ASSURANCES = JSON.parse(JSON.stringify(DEFAULT_ASSURANCES));
-  BANQUES = JSON.parse(JSON.stringify(DEFAULT_BANQUES));
   FOURNISSEURS = JSON.parse(JSON.stringify(DEFAULT_FOURNISSEURS));
   persist();
   toast('Remise à zéro effectuée — '+keysToDelete.length+' entrée(s) supprimée(s).','success');
@@ -1111,17 +1001,21 @@ function supprimerDemoSeulement(){
   const CLE_DEMO = [
     'medicore_patients','medicore_prescriptions','medicore_timeline','medicore_constantes',
     'medicore_prescriptions_circuit',
-    'medicore_demandes_labo','medicore_resultats_labo',
-    'medicore_demandes_img','medicore_cr_imagerie',
-    'medicore_interventions','medicore_dmi',
+    'medicore_demandes','medicore_demandes_labo','medicore_resultats','medicore_resultats_labo',
+    'medicore_prestations',
+    'medicore_demandes_img','medicore_cr_imagerie','medicore_img_journal','medicore_img_maintenance',
+    'medicore_interventions','medicore_dmi','medicore_bloc_interventions','medicore_bloc_salles',
+    'medicore_labo_cqi','medicore_labo_nc','medicore_labo_eeq','medicore_labo_critiques',
+    'medicore_labo_journal','medicore_labo_documents','medicore_labo_automates_etat','medicore_patients_archives',
     'medicore_stock','medicore_mouvements_stock','medicore_stupefiants','medicore_retrocessions',
-    'medicore_factures',
+    'medicore_consommables','medicore_mouvements_consommables','medicore_produits_catalogue','medicore_familles_produits','medicore_reappro',
+    'medicore_caisse','medicore_caisse_sessions','medicore_factures',
     'medicore_ecritures','medicore_rapprochement',
     'medicore_mouvements_tresorerie','medicore_previsions',
     'medicore_bons_commande','medicore_receptions',
     'medicore_personnel','medicore_presences','medicore_paie',
     'medicore_immo','medicore_cessions',
-    'medicore_bus','medicore_patient_actif',
+    'medicore_bus','medicore_patient_actif','medicore_connexions',
   ];
   let n = 0;
   CLE_DEMO.forEach(k => {

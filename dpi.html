@@ -594,63 +594,17 @@ let patients = [
 ];
 window.patients = patients; // exposé pour le suivi "patient actif" (nav.js / QR)
 
-// Prescriptions par patient
-let prescriptions = {
-  'D205812': [
-    { id:'P001', med:'Furosémide 40mg IV',         posologie:'1 amp/j',    voie:'IV',   duree:'5 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. COULIBALY' },
-    { id:'P002', med:'Bicarbonate de Na 8.4%',     posologie:'250 mL/j',   voie:'IV',   duree:'3 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. COULIBALY' },
-    { id:'P003', med:'Paracétamol 1g perf.',       posologie:'3×/j',       voie:'IV',   duree:'7 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. COULIBALY' },
-  ],
-  'D205814': [
-    { id:'P004', med:'Ceftriaxone 1g IV',          posologie:'2×/j',       voie:'IV',   duree:'5 jours',   statut:'Validée',  date:TODAY, medecin:'Dr. TOURÉ' },
-    { id:'P005', med:'Morphine 10mg/mL',           posologie:'0,1 mg/kg/4h', voie:'IV', duree:'2 jours',   statut:'En attente validation', date:TODAY, medecin:'Dr. TOURÉ' },
-    { id:'P006', med:'Héparine BPM 0,4 mL',       posologie:'1×/j SC',    voie:'SC',   duree:'10 jours',  statut:'Validée',  date:TODAY, medecin:'Dr. TOURÉ' },
-  ],
-  'D205825': [
-    { id:'P007', med:'NaCl 0.9% 1000mL',          posologie:'Continu',    voie:'IV',   duree:'Urgence',   statut:'Validée',  date:TODAY, medecin:'Dr. DIABATÉ' },
-    { id:'P008', med:'Morphine 10mg/mL URGENCE',  posologie:'5mg IVL',    voie:'IV',   duree:'Urgence',   statut:'Validée',  date:TODAY, medecin:'Dr. DIABATÉ' },
-  ],
-};
+// Prescriptions par patient (chargées depuis le store — plus de données en dur)
+let prescriptions = {};
 
 // Résultats biologiques par patient
-const bioResultats = {
-  'D205812': [
-    { param:'Créatinine',    val:'284',  unite:'µmol/L', ref:'62–106',    anormal:true  },
-    { param:'Kaliémie K+',   val:'6.8',  unite:'mmol/L', ref:'3.5–5.0',   anormal:true  },
-    { param:'Urée',          val:'28',   unite:'mmol/L', ref:'3–8',        anormal:true  },
-    { param:'Natrémie Na+',  val:'132',  unite:'mmol/L', ref:'136–145',   anormal:true  },
-    { param:'Hémoglobine',   val:'8.4',  unite:'g/dL',   ref:'11.5–16.5', anormal:true  },
-    { param:'Protéinurie',   val:'3+',   unite:'g/24h',  ref:'<0.3',       anormal:true  },
-  ],
-  'D205814': [
-    { param:'NFS — Hb',      val:'12.8', unite:'g/dL',   ref:'13–17',     anormal:false },
-    { param:'TP',            val:'78',   unite:'%',       ref:'70–100',    anormal:false },
-    { param:'CRP',           val:'42',   unite:'mg/L',    ref:'<5',         anormal:true  },
-  ],
-};
+const bioResultats = {};
 
 // Constantes vitales par patient
-let constantes = {
-  'D205812': { ta:'145/92', fc:88,  fr:18, spo2:95, t:37.2, poids:62 },
-  'D205814': { ta:'120/75', fc:72,  fr:16, spo2:98, t:38.1, poids:78 },
-  'D205820': { ta:'110/70', fc:90,  fr:18, spo2:99, t:37.0, poids:68 },
-  'D205825': { ta:'90/60',  fc:112, fr:24, spo2:91, t:36.8, poids:74 },
-};
+let constantes = {};
 
 // Timeline clinique par patient
-let timeline = {
-  'D205812': [
-    { date:TODAY+' 08:00', type:'Admission', detail:'Admission pour IRA sur IRC — patient adressé par consultation externe', auteur:'IDE Koné M.', couleur:'#1a4b6e' },
-    { date:TODAY+' 09:15', type:'Consultation', detail:'Examen clinique — œdèmes des MI, anurie depuis 24h. Bilan biologique prescrit.', auteur:'Dr. COULIBALY', couleur:'#0f766e' },
-    { date:TODAY+' 10:30', type:'Résultats bio', detail:'K+ = 6.8 mmol/L ⚠ CRITIQUE — Créatinine = 284 µmol/L', auteur:'Labo — Dosso R.', couleur:'#b92b2b' },
-    { date:TODAY+' 11:00', type:'Prescription', detail:'Furosémide 40mg IV + Bicarbonate + Kayexalate prescrits', auteur:'Dr. COULIBALY', couleur:'#c8702a' },
-  ],
-  'D205814': [
-    { date:TODAY+' 07:30', type:'Admission', detail:'Admission pré-opératoire PTH droite — bilans OK', auteur:'IDE Soro A.', couleur:'#1a4b6e' },
-    { date:TODAY+' 09:30', type:'Opération', detail:'PTH droite — Durée 1h55 — Salle 2 — Rachianesthésie', auteur:'Dr. TOURÉ / Dr. SORO', couleur:'#6b21a8' },
-    { date:TODAY+' 11:45', type:'SSPI', detail:'Sortie SSPI — Score Aldrete 9/10 — Retour chambre 204-B', auteur:'Dr. TRAORÉ (Anesth.)', couleur:'#0f766e' },
-  ],
-};
+let timeline = {};
 
 // Lits
 const LITS = [

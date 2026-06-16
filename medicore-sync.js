@@ -19,6 +19,10 @@ const MEDICORE_SYNC = {
   STORES: [
 
     { store:'utilisateurs',          label:'Comptes utilisateurs'  },
+    { store:'bloc_interventions',    label:'Bloc — interventions (parcours, OMS)' },
+    { store:'bloc_salles',           label:'Bloc — salles' },
+    { store:'img_doses',             label:'Imagerie — doses irradiation' },
+    { store:'comptes_tiers',         label:'Comptes de tiers auxiliaires' },
     { store:'demandes',              label:'Demandes inter-modules' },
     { store:'prestations',           label:'Prestations facturables' },
     { store:'caisse',                label:'Caisse / encaissements'  },

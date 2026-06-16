@@ -210,6 +210,7 @@
 <script src="medicore-parcours.js"></script>
 <script src="medicore-parcours-ui.js"></script>
 <script src="medicore-prestations.js"></script>
+<script src="medicore-compta.js"></script>
 <script src="medicore-caisse.js"></script>
 <script src="medicore-print.js"></script>
 <script src="medicore-prescriptions.js"></script>
@@ -1070,6 +1071,13 @@ function servirOrdonnance(patientId, groupe){
   }
   // Retour au praticien prescripteur (notification + traçabilité)
   const medecin=lignes[0].medecin||'';
+  // Écriture comptable de sortie de stock (603 Variation → 311 Stock) au coût (PMP)
+  try{
+    if(typeof MEDICORE_COMPTA!=='undefined'){
+      const coutSortie=lignes.reduce((s,l)=>{ const sc=scanServies&&scanServies[l.id]; const prod=sc||(stockPour(l).prod); return s+((prod&&prod.pmp)||0); },0);
+      if(coutSortie>0) MEDICORE_COMPTA.sortieStock({ montant:Math.round(coutSortie), compteStock:'311', centre:'pharmacie_pui', ref:(txn&&txn.id)||groupe, libelle:'Dispensation — '+(lignes[0].patient_nom||patientId) });
+    }
+  }catch(e){}
   if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.publish('ORDONNANCE_SERVIE', { patientId, patient:lignes[0].patient_nom, medecin, meds:servies });
   if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Ordonnance servie','VALIDATION',`${servies.length} médicament(s) — ${lignes[0].patient_nom||patientId}${medecin?' — Dr '+medecin:''}`, patientId);
   // Audit interne

@@ -103,6 +103,15 @@ const MEDICORE_CAISSE = {
       const ids=lignes.map(l=>l.prestationId).filter(Boolean);
       if(ids.length) MEDICORE_PRESTA.marquerFacturees(ids, txn.id);
     }
+    // Écriture comptable SYSCOHADA automatique (531/521 Trésorerie → 706 Produits)
+    try{
+      if(typeof MEDICORE_COMPTA!=='undefined'){
+        // Facturation (constatation du produit) puis encaissement (règlement)
+        MEDICORE_COMPTA.facturationPatient({ patientId, patient_nom, montant:total, centre:service, ref:txn.id });
+        MEDICORE_COMPTA.encaissement({ patientId, patient_nom, montant:total, mode:txn.mode, centre:service, ref:txn.id });
+      }
+    }catch(e){}
+
     if(typeof MEDICORE_BUS!=='undefined') MEDICORE_BUS.publish('ENCAISSEMENT', { service, montant:total, patient:patient_nom });
     return txn;
   },

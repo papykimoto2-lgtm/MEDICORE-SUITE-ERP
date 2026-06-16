@@ -30,7 +30,7 @@
   .btn-primary{background:var(--accent);color:#fff}.btn-danger{background:var(--red);color:#fff}
   .btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text)}
   .btn-sm{padding:6px 11px;font-size:12px}.btn-xs{padding:4px 8px;font-size:11px}
-  .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
   .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
   .kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
   .kpi-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
@@ -111,6 +111,7 @@
 <script src="medicore-demandes-ui.js"></script>
 <script src="medicore-prestations.js"></script>
 <script src="medicore-resultats.js"></script>
+<script src="medicore-compta.js"></script>
 <script src="medicore-caisse.js"></script>
 <script>
 // ══ Niveaux de triage CIMU (5 niveaux) ══════════════════════════════════════════
@@ -191,15 +192,12 @@ function renderKPIs(){
   const surv=episodes.filter(e=>e.statut==='surveillance'||e.statut==='soins');
   const n12=enFile.filter(e=>e.niveau<=2).length;
   const att=enFile.length?Math.round(enFile.reduce((s,e)=>s+attenteMin(e),0)/enFile.length):0;
-  const avecPec=episodes.filter(e=>e.heure_pec&&e.arrivee);
-  const delaiPec=avecPec.length?Math.round(avecPec.reduce((s,e)=>s+(new Date(e.heure_pec)-new Date(e.arrivee))/60000,0)/avecPec.length):null;
   const k=[
     {l:'En file d\'attente',v:enFile.length,c:'blue'},
     {l:'Niveaux 1-2 (critiques)',v:n12,c:'red'},
     {l:'En déchocage',v:dechoc.length+' / '+NB_BOX_DECHOC,c:'red'},
     {l:'En surveillance',v:surv.length,c:'green'},
     {l:'Attente moy. (min)',v:att,c:'blue'},
-    {l:'Délai moy. PEC (min)',v:delaiPec!==null?delaiPec:'—',c:delaiPec!==null&&delaiPec>30?'red':'green'},
   ];
   document.getElementById('kpis').innerHTML=k.map(x=>`<div class="kpi-card ${x.c}"><div class="kpi-label">${x.l}</div><div class="kpi-value">${x.v}</div></div>`).join('');
 }
@@ -214,9 +212,9 @@ function renderFile(){
       <td><span class="niv-bar" style="background:${n.hex}"></span></td>
       <td><span class="niv" style="background:${n.hex}">${e.niveau}</span></td>
       <td><strong>${e.nom}</strong>${e.dossier?`<div style="font-size:11px;color:var(--text-muted)">${e.dossier}${e.ipp?' · '+e.ipp:''}</div>`:(e.ipp?`<div style="font-size:11px;color:var(--text-muted)">${e.ipp}</div>`:'')}</td>
-      <td><div>${e.motif||'—'}</div>${e.transport?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${{'autonome':'🚶 Autonome','ambulance_privee':'🚑 Ambulance privée','samu_smur':'🚨 SAMU/SMUR','pompiers':'🚒 Pompiers','helicoptere':'🚁 Hélicoptère','police':'🚔 Police','autre':'🔹 Autre'}[e.transport]||e.transport}${e.vehicule?' · <strong>'+e.vehicule+'</strong>':''}</div>`:''}</td>
+      <td>${e.motif||'—'}</td>
       <td>${e.signes?`<span style="font-size:11.5px">TA ${e.signes.ta||'—'} · FC ${e.signes.fc||'—'} · SpO₂ ${e.signes.spo2||'—'}%</span>`:'—'}</td>
-      <td><span style="color:${retard?'var(--red)':'var(--text-muted)'};font-weight:${retard?'600':'400'}">${att} min${retard?' ⚠':''}</span><div style="font-size:10.5px;color:var(--text-muted)">cible ≤ ${n.delai} min</div>${e.heure_pec?`<div style="font-size:10.5px;color:var(--green)">✓ PEC : ${Math.round((new Date(e.heure_pec)-new Date(e.arrivee))/60000)} min</div>`:''}</td>
+      <td><span style="color:${retard?'var(--red)':'var(--text-muted)'};font-weight:${retard?'600':'400'}">${att} min${retard?' ⚠':''}</span><div style="font-size:10.5px;color:var(--text-muted)">cible ≤ ${n.delai} min</div></td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-danger btn-xs" onclick="versDechocage('${e.id}')">🛏 Déchocage</button>
         <button class="btn btn-secondary btn-xs" onclick="examenUrg('${e.id}')">🔬 Examen</button>
@@ -266,8 +264,7 @@ function renderSurveillance(){
     const alerte=last && (last.spo2<92 || last.fc>130 || parseInt(last.ta)>=180 || last.t>=39.5);
     return `<div class="card" style="border-left:4px solid ${alerte?'var(--red)':'var(--green)'}">
       <div class="card-head"><div><div class="card-title">${e.nom} <span class="niv" style="background:${NIVEAUX[e.niveau].hex}">${e.niveau}</span></div>
-        <div class="card-sub">${e.motif||''} · ${e.statut}${e.transport?' · '+({'autonome':'🚶 Autonome','ambulance_privee':'🚑 Ambulance privée','samu_smur':'🚨 SAMU/SMUR','pompiers':'🚒 Pompiers','helicoptere':'🚁 Hélicoptère','police':'🚔 Police','autre':'🔹 Autre'}[e.transport]||e.transport)+(e.vehicule?' ('+e.vehicule+')':''):''}
-        ${e.heure_pec?`<span style="font-size:10.5px;color:var(--green);margin-left:4px">✓ PEC à ${new Date(e.heure_pec).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} (délai : ${Math.round((new Date(e.heure_pec)-new Date(e.arrivee))/60000)} min)</span>`:''}</div></div>
+        <div class="card-sub">${e.motif||''} · ${e.statut}</div></div>
         <div><button class="btn btn-primary btn-sm" onclick="ouvrirReeval('${e.id}')">＋ Relevé</button>
           ${alerte?'<span class="badge" style="background:var(--red-bg);color:var(--red);margin-left:6px">⚠ Dégradation</span>':''}</div></div>
       <div class="card-body" style="padding:0">
@@ -302,10 +299,10 @@ function examenUrg(id){
 function maj(id,patch){ const e=episodes.find(x=>x.id===id); if(e){ Object.assign(e,patch); save(); rerender(); } return e; }
 function versDechocage(id){
   if(episodes.filter(e=>e.statut==='dechocage').length>=NB_BOX_DECHOC){ toast('Déchocage complet ('+NB_BOX_DECHOC+' box).','error'); return; }
-  maj(id,{statut:'dechocage',heure_pec:now()}); if(typeof MEDICORE_AUDIT!=='undefined'){const e=episodes.find(x=>x.id===id);if(e)MEDICORE_AUDIT.log('PEC urgences','MODIFICATION',e.nom+' — admis déchocage',e.dossier||e.id);} toast('Patient admis en déchocage.','success');
+  maj(id,{statut:'dechocage'}); toast('Patient admis en déchocage.','success');
 }
 function libererDechoc(id){ maj(id,{statut:'surveillance'}); toast('Box libéré — patient en surveillance.','info'); }
-function prendreEnSoins(id){ maj(id,{statut:'soins',heure_pec:now()}); if(typeof MEDICORE_AUDIT!=='undefined'){const e=episodes.find(x=>x.id===id);if(e)MEDICORE_AUDIT.log('PEC urgences','MODIFICATION',e.nom+' — prise en charge',e.dossier||e.id);} toast('Patient pris en charge.','success'); }
+function prendreEnSoins(id){ maj(id,{statut:'soins'}); toast('Patient pris en charge.','success'); }
 function versSurveillance(id){ maj(id,{statut:'surveillance'}); toast('Patient en surveillance.','info'); }
 function orienter(id){
   const e=episodes.find(x=>x.id===id); if(!e) return;
@@ -338,21 +335,6 @@ function ouvrirTriage(prefill){
       <div class="grid2">
         <div class="fg"><label>Allergies connues</label><input id="t-allergies" placeholder="ex : Pénicilline"></div>
         <div class="fg"><label>Antécédents</label><input id="t-antecedents" placeholder="ex : HTA, diabète"></div>
-      </div>
-      <div class="grid2">
-        <div class="fg"><label>Mode d'arrivée</label>
-          <select id="t-transport">
-            <option value="">— Sélectionner —</option>
-            <option value="autonome">Arrivée autonome / accompagné</option>
-            <option value="ambulance_privee">Ambulance privée</option>
-            <option value="samu_smur">SAMU / SMUR</option>
-            <option value="pompiers">Pompiers / Protection civile</option>
-            <option value="helicoptere">Hélicoptère (EVASAN)</option>
-            <option value="police">Police / Gendarmerie</option>
-            <option value="autre">Autre</option>
-          </select></div>
-        <div class="fg"><label>Identifiant véhicule / équipe</label>
-          <input id="t-vehicule" placeholder="ex : SAMU-21, Amb. DIALLO, VSAV-7…"></div>
       </div>
       <div class="fg"><label>Motif de recours *</label><input id="t-motif" placeholder="ex : douleur thoracique, traumatisme…"></div>
       <div class="grid3">
@@ -390,8 +372,7 @@ function validerTriage(){
   const dossier=dossierPourUrgence({ ref:g('t-ipp'), nom, sexe:g('t-sexe'), ddn:g('t-ddn'),
     allergies:g('t-allergies'), antecedents:g('t-antecedents'), assurance:g('t-assurance'), motif });
   const ep={ id:uid(), patientId:dossier.id, dossier:dossier.id, nom:dossier.nom, ipp:dossier.ipp,
-    motif, niveau:+niveauSel, signes:signesForm(), statut:'attente', arrivee:now(), soignant:soignant(), reeval:[],
-    transport:g('t-transport')||'', vehicule:(g('t-vehicule')||'').trim() };
+    motif, niveau:+niveauSel, signes:signesForm(), statut:'attente', arrivee:now(), soignant:soignant(), reeval:[] };
   ep.reeval.push(Object.assign({ts:now(),par:ep.soignant}, ep.signes));
   episodes.unshift(ep); save(); rerender();
   // Patient actif (pour QR/bracelet, demandes, parcours)
@@ -412,14 +393,10 @@ function confirmationTriage(ep, dossier){
     <div class="modal-body" style="text-align:center">
       <div style="font-size:15px;font-weight:600">${dossier.nom}</div>
       <div style="margin:8px 0"><span class="niv" style="background:${n.hex}">${ep.niveau}</span> <span style="font-size:13px">${n.label}</span></div>
-      ${ep.transport?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">${{'autonome':'🚶 Arrivée autonome','ambulance_privee':'🚑 Ambulance privée','samu_smur':'🚨 SAMU / SMUR','pompiers':'🚒 Pompiers / Protection civile','helicoptere':'🚁 Hélicoptère (EVASAN)','police':'🚔 Police / Gendarmerie','autre':'🔹 Autre'}[ep.transport]||ep.transport}${ep.vehicule?' — <strong>'+ep.vehicule+'</strong>':''}</div>`:''}
       <div style="display:inline-block;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin:6px 0">
         <div style="font-size:11px;color:var(--text-muted)">N° DOSSIER</div>
         <div style="font-size:22px;font-weight:700;letter-spacing:1px">${dossier.id}</div>
         <div style="font-size:12px;color:var(--text-muted)">${dossier.ipp}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;border-top:1px solid var(--border);padding-top:4px">
-          ⏱ Arrivée : ${new Date(ep.arrivee).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
-        </div>
       </div>
       <div id="confirm-qr" style="margin:10px auto"></div>
     </div>
@@ -431,7 +408,7 @@ function confirmationTriage(ep, dossier){
   // QR inline
   try{
     if(typeof qrcode!=='undefined'){
-      const text='?patient='+dossier.id+' [IPP '+dossier.ipp+' - '+dossier.nom+(ep.vehicule?' | Veh:'+ep.vehicule:'')+']';
+      const text='?patient='+dossier.id+' [IPP '+dossier.ipp+' - '+dossier.nom+']';
       const qr=qrcode(0,'M'); qr.addData(text); qr.make();
       document.getElementById('confirm-qr').innerHTML=qr.createSvgTag(4,8);
     }

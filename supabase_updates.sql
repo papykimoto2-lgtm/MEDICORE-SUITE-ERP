@@ -275,3 +275,55 @@ select doc_id, payload->>'produit_id' as produit_id, payload->>'depot' as depot,
        payload->>'designation' as designation, (payload->>'stock')::numeric as stock,
        (payload->>'pmp')::numeric as pmp_cout, (payload->>'prix_vente')::numeric as prix_vente_depot, updated_at
 from public.medicore_sync_docs where store='consommables' and not deleted;
+
+-- Bloc opératoire — interventions (parcours horodaté, check-list OMS, équipe, DMI)
+drop view if exists public.v_bloc_interventions cascade;
+create view public.v_bloc_interventions as
+select doc_id, payload->>'id' as op_id, payload->>'patient' as patient, payload->>'acte' as acte,
+       payload->>'chirurgien' as chirurgien, payload->>'salle' as salle, payload->>'date' as date,
+       payload->>'heure' as heure, payload->>'priorite' as priorite, payload->>'asa' as classe_asa,
+       payload->>'anesthesie' as type_anesthesie, payload->>'anesthesiste' as anesthesiste,
+       payload->>'statut' as statut,
+       payload->'parcours'->>'incision' as debut_incision, payload->'parcours'->>'fin' as fin_intervention,
+       payload->>'cloture_le' as cloture_le, payload->>'cloture_par' as cloture_par,
+       jsonb_array_length(coalesce(payload->'equipe','[]'::jsonb)) as nb_equipe,
+       jsonb_array_length(coalesce(payload->'dmi','[]'::jsonb)) as nb_dmi, updated_at
+from public.medicore_sync_docs where store='bloc_interventions' and not deleted;
+
+-- Bloc opératoire — traçabilité DMI dépliée (rappel fabricant)
+drop view if exists public.v_bloc_dmi cascade;
+create view public.v_bloc_dmi as
+select d.doc_id, d.payload->>'patient' as patient, d.payload->>'chirurgien' as chirurgien,
+       d.payload->>'date' as date_intervention,
+       dmi->>'designation' as dmi, dmi->>'fabricant' as fabricant, dmi->>'ref' as reference,
+       dmi->>'lot' as lot, dmi->>'serie' as numero_serie, dmi->>'peremption' as peremption,
+       (dmi->>'cout')::numeric as cout, d.updated_at
+from public.medicore_sync_docs d, jsonb_array_elements(coalesce(d.payload->'dmi','[]'::jsonb)) as dmi
+where d.store='bloc_interventions' and not d.deleted;
+
+-- Imagerie — historique des doses d'irradiation (suivi cumul annuel par patient)
+drop view if exists public.v_img_doses cascade;
+create view public.v_img_doses as
+select doc_id, payload->>'patientId' as patient_id, payload->>'patient' as patient,
+       payload->>'examen' as examen, (payload->>'dose')::numeric as dose_mgy,
+       payload->>'date' as date, payload->>'par' as operateur, updated_at
+from public.medicore_sync_docs where store='img_doses' and not deleted;
+
+-- Comptabilité — écritures (vue dépliée avec analytique + tiers auxiliaires)
+drop view if exists public.v_ecritures cascade;
+create view public.v_ecritures as
+select doc_id, payload->>'piece' as piece, payload->>'journal' as journal, payload->>'date' as date,
+       payload->>'compte' as compte, payload->>'intitule' as intitule, payload->>'libelle' as libelle,
+       (payload->>'debit')::numeric as debit, (payload->>'credit')::numeric as credit,
+       payload->>'compte_aux' as compte_auxiliaire, payload->>'tiers_nom' as tiers,
+       payload->>'centre' as centre_analytique, payload->>'source' as module_source,
+       coalesce((payload->>'valide')::boolean,false) as valide,
+       payload->>'cree_par' as cree_par, payload->>'cree_le' as cree_le, updated_at
+from public.medicore_sync_docs where store='ecritures' and not deleted;
+
+-- Comptabilité — comptes de tiers auxiliaires (411 patients, 401 fournisseurs…)
+drop view if exists public.v_comptes_tiers cascade;
+create view public.v_comptes_tiers as
+select doc_id, payload->>'compte' as compte_auxiliaire, payload->>'type' as type,
+       payload->>'nom' as nom, payload->>'ref' as reference, payload->>'cree_le' as cree_le, updated_at
+from public.medicore_sync_docs where store='comptes_tiers' and not deleted;

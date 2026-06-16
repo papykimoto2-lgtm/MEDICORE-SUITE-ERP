@@ -15,9 +15,11 @@
 <script src="medicore-parcours-ui.js"></script>
 <script src="medicore-prestations.js"></script>
 <script src="medicore-resultats.js"></script>
+<script src="medicore-compta.js"></script>
 <script src="medicore-caisse.js"></script>
 <script src="medicore-stock.js"></script>
 <script src="medicore-scanner.js"></script>
+<script src="medicore-imagerie.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
 <style>
@@ -490,7 +492,7 @@
             <option value="Mammographie">Mammographie</option>
           </select></div>
         <div class="form-group"><label>Examen spécifique <span class="req">*</span></label>
-          <select id="d-examen">
+          <select id="d-examen" onchange="verifierContreIndications()">
             <option>Radiographie thorax face</option>
             <option>Radiographie abdomen sans prépa.</option>
             <option>Radiographie osseuse</option>
@@ -512,13 +514,22 @@
         <div class="form-group full"><label>Indication clinique / Renseignements <span class="req">*</span></label>
           <textarea id="d-indication" style="min-height:70px" placeholder="Symptômes, hypothèse diagnostique, antécédents pertinents, grossesse éventuelle…"></textarea></div>
         <div class="form-group"><label>Injection produit de contraste</label>
-          <select id="d-contraste">
+          <select id="d-contraste" onchange="verifierContreIndications()">
             <option value="Non">Non</option>
             <option value="Oui — IV">Oui — Intraveineux</option>
             <option value="Oui — Oral">Oui — Oral</option>
           </select></div>
         <div class="form-group"><label>Code acte CNAM-CI</label>
           <input type="text" id="d-ccam" placeholder="ex: ZBQK002"></div>
+        <div class="form-group full"><label>Contexte patient (sécurité)</label>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-top:2px">
+            <label style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="ctx-grossesse" onchange="verifierContreIndications()"> Grossesse</label>
+            <label style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="ctx-allergie" onchange="verifierContreIndications()"> Allergie produit de contraste</label>
+            <label style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="ctx-renal" onchange="verifierContreIndications()"> Insuffisance rénale</label>
+            <label style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="ctx-pacemaker" onchange="verifierContreIndications()"> Pacemaker / implant métallique</label>
+          </div></div>
+        <div class="form-group full" id="ci-alertes" style="display:none"></div>
+        <div class="form-group full" id="doublon-alerte" style="display:none"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -766,9 +777,72 @@ function renderDemandes(){
 
 function demarrerExamen(id){
   const d=demandes.find(x=>x.id===id);
-  if(d){d.statut='En cours';imgAudit('EXAMEN_DEMARRE',id,`${d.examen} — ${d.equip}`);}
+  if(d){
+    d.statut='En cours';
+    d.parcours=d.parcours||{}; d.parcours.examen=new Date().toISOString();
+    imgAudit('EXAMEN_DEMARRE',id,`${d.examen} — ${d.equip}`);
+    persistImg(); renderDemandes(); updateKPIs();
+    // Si irradiant ou avec contraste → ouvrir la saisie de traçabilité
+    const irr=(typeof MEDICORE_IMAGERIE!=='undefined')&&MEDICORE_IMAGERIE.estIrradiant(d.examen);
+    const avecContraste=(d.contraste||'').startsWith('Oui');
+    if(irr||avecContraste){ ouvrirTracabilite(id); return; }
+    toast(`Examen ${id} démarré.`,'success');
+  }
+}
+// Saisie dose d'irradiation + produit de contraste (traçabilité)
+function ouvrirTracabilite(id){
+  const d=demandes.find(x=>x.id===id); if(!d || typeof MEDICORE_IMAGERIE==='undefined') return;
+  const irr=MEDICORE_IMAGERIE.estIrradiant(d.examen);
+  const avecContraste=(d.contraste||'').startsWith('Oui');
+  const doseRef=MEDICORE_IMAGERIE.doseReference(d.examen);
+  let ov=document.getElementById('modal-trac'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='modal-trac'; ov.className='overlay open';
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  ov.innerHTML=`<div class="modal" style="width:460px"><div class="modal-header">
+    <div><div class="modal-title">Traçabilité examen</div><div class="modal-subtitle">${d.examen} · ${d.patient}</div></div>
+    <button class="modal-close" onclick="document.getElementById('modal-trac').remove()">✕</button></div>
+    <div class="modal-body">
+      ${irr?`<div class="form-group"><label>Dose d'irradiation (mGy)</label>
+        <input type="number" step="0.01" id="trac-dose" value="${doseRef}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">Dose de référence pré-remplie — ajustez selon l'acquisition réelle.</div></div>`:''}
+      ${avecContraste?`<div class="form-group"><label>Produit de contraste</label>
+        <select id="trac-prod" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">${MEDICORE_IMAGERIE.CONTRASTES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="form-group"><label>Volume injecté (mL)</label><input type="number" id="trac-vol" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></div>
+          <div class="form-group"><label>N° de lot</label><input id="trac-lot" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></div>
+          <div class="form-group"><label>Péremption</label><input type="date" id="trac-perem" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></div>
+          <div class="form-group"><label>Réaction indésirable</label><input id="trac-reac" placeholder="Aucune / décrire" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></div>
+        </div>`:''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-trac').remove()">Plus tard</button>
+      <button class="btn btn-primary" onclick="validerTracabilite('${id}')">Enregistrer</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+function validerTracabilite(id){
+  const d=demandes.find(x=>x.id===id); if(!d) return;
+  const pid=(d.patient.split('—')[1]||'').trim(), pnom=d.patient.split('—')[0].trim();
+  const irr=MEDICORE_IMAGERIE.estIrradiant(d.examen);
+  const avecContraste=(d.contraste||'').startsWith('Oui');
+  if(irr){
+    const dose=+document.getElementById('trac-dose')?.value||0;
+    d.dose=dose;
+    if(pid){ MEDICORE_IMAGERIE.enregistrerDose(pid, pnom, d.examen, dose, getRadiologue());
+      const al=MEDICORE_IMAGERIE.alerteDose(pid,0);
+      if(al.depasse) toast(`⚠ Cumul de dose annuel élevé (${al.cumul.toFixed(1)} mSv > ${al.seuil}).`,'warn');
+    }
+  }
+  if(avecContraste){
+    d.contraste_trace={ produit:document.getElementById('trac-prod')?.value, volume:+document.getElementById('trac-vol')?.value||0,
+      lot:document.getElementById('trac-lot')?.value||'', peremption:document.getElementById('trac-perem')?.value||'',
+      reaction:document.getElementById('trac-reac')?.value||'Aucune', operateur:getRadiologue(), date:new Date().toISOString() };
+    imgAudit('CONTRASTE_TRACE', id, `${d.contraste_trace.produit} ${d.contraste_trace.volume}mL — lot ${d.contraste_trace.lot}`);
+  }
+  if(irr) imgAudit('DOSE_ENREGISTREE', id, `${d.examen} — ${d.dose} mGy`);
   persistImg();
-  renderDemandes();updateKPIs();toast(`Examen ${id} démarré.`,'success');
+  document.getElementById('modal-trac').remove();
+  toast('Traçabilité enregistrée.','success');
 }
 function voirCR(id){
   for(const b of document.querySelectorAll('.tab-btn')) if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'cr'")) b.click();
@@ -1124,6 +1198,7 @@ function updateExamensList(){
   const examens=EXAMENS_MAP[type]||[];
   const sel=document.getElementById('d-examen');
   sel.innerHTML=examens.map(e=>`<option>${e}</option>`).join('');
+  if(typeof verifierContreIndications==='function') verifierContreIndications();
 }
 // ══ RENDRE COMPTE-RENDU au praticien (→ dossier patient + notification) ═════════
 // ── Raccourci "Rendre CR" : ouvre le compte-rendu de l'examen en cours du patient
@@ -1222,12 +1297,52 @@ window.onDemandePriseEnCharge=function(d){
   const sp=document.getElementById('d-priorite'); if(sp)for(let i=0;i<sp.options.length;i++){if(new RegExp(d.priorite,'i').test(sp.options[i].value+sp.options[i].text)){sp.selectedIndex=i;break;}}
   window.__demLiee=d.id;
 };
+// Contexte patient saisi dans le formulaire
+function ctxDemande(){
+  return {
+    grossesse:document.getElementById('ctx-grossesse')?.checked,
+    allergie_contraste:document.getElementById('ctx-allergie')?.checked,
+    insuffisance_renale:document.getElementById('ctx-renal')?.checked,
+    pacemaker:document.getElementById('ctx-pacemaker')?.checked,
+  };
+}
+// Vérifie en direct les contre-indications + signale les doublons d'examen
+function verifierContreIndications(){
+  if(typeof MEDICORE_IMAGERIE==='undefined') return;
+  const examen=document.getElementById('d-examen')?.value||'';
+  const contraste=(document.getElementById('d-contraste')?.value||'').startsWith('Oui');
+  const ctx=ctxDemande();
+  // L'injection compte comme "examen avec contraste"
+  const exEval=contraste?examen+' injecté':examen;
+  const alertes=MEDICORE_IMAGERIE.contreIndications(exEval, ctx);
+  const box=document.getElementById('ci-alertes');
+  if(box){
+    if(alertes.length){ box.style.display='block';
+      box.innerHTML=`<div style="background:#fde8e8;border:1px solid #f5b5b5;border-radius:6px;padding:10px 12px">
+        <div style="font-weight:600;color:#b91c1c;font-size:12.5px;margin-bottom:4px">Alertes de sécurité</div>
+        ${alertes.map(a=>`<div style="font-size:12px;color:#7a1010">${a.msg}</div>`).join('')}
+        <div style="font-size:11px;color:#999;margin-top:5px">La planification reste possible mais doit être justifiée.</div></div>`;
+    } else { box.style.display='none'; box.innerHTML=''; }
+  }
+  // Doublon : examen identique récent pour ce patient
+  const dbox=document.getElementById('doublon-alerte');
+  if(dbox){
+    const pid=(document.getElementById('d-patient')?.value.split('—')[1]||'').trim();
+    let recents=[];
+    if(pid) recents=demandes.filter(d=>(d.patient||'').includes(pid)).map(d=>({examen:d.examen,date:d.date||new Date().toISOString()}));
+    const dup=MEDICORE_IMAGERIE.doublon(examen, recents, 30);
+    if(dup){ dbox.style.display='block';
+      dbox.innerHTML=`<div style="background:#fff3cd;border:1px solid #f0c060;border-radius:6px;padding:8px 12px;font-size:12px;color:#7a5600">⚠ Doublon possible : « ${examen} » déjà demandé récemment (${new Date(dup.date).toLocaleDateString('fr-FR')}). Vérifier la pertinence.</div>`;
+    } else { dbox.style.display='none'; dbox.innerHTML=''; }
+  }
+}
 function validerDemande(){
   const patient=document.getElementById('d-patient').value;
   const indication=document.getElementById('d-indication').value;
   if(!patient||!indication){toast('Remplissez patient et indication clinique.','error');return}
   const id=document.getElementById('d-num').value;
-  const newDem={id,patient,presc:document.getElementById('d-presc').value,type:document.getElementById('d-type').value,examen:document.getElementById('d-examen').value,equip:document.getElementById('d-equip').value,priorite:document.getElementById('d-priorite').value,date:document.getElementById('d-date').value,statut:'En attente',ccam:document.getElementById('d-ccam').value||'—'};
+  const ctx=ctxDemande();
+  const newDem={id,patient,presc:document.getElementById('d-presc').value,type:document.getElementById('d-type').value,examen:document.getElementById('d-examen').value,equip:document.getElementById('d-equip').value,priorite:document.getElementById('d-priorite').value,date:document.getElementById('d-date').value,statut:'En attente',ccam:document.getElementById('d-ccam').value||'—',contraste:document.getElementById('d-contraste').value,indication,contexte:ctx,parcours:{prescription:new Date().toISOString()}};
   demandes.unshift(newDem);
   if(typeof MEDICORE_DEMANDES!=='undefined') MEDICORE_DEMANDES.finaliserLien(id,'Examen planifié (réf '+id+')');
   // Prestation facturable (acte CCAM imagerie)
@@ -1239,7 +1354,8 @@ function validerDemande(){
       montant:MEDICORE_PRESTA.TARIF_DEFAUT.imagerie, ref:id
     });
   }
-  imgAudit('DEMANDE_PLANIFIEE', id, `${patient} — ${newDem.examen} — ${newDem.priorite}`);
+  const ciCount=(typeof MEDICORE_IMAGERIE!=='undefined')?MEDICORE_IMAGERIE.contreIndications(newDem.examen,ctx).length:0;
+  imgAudit('DEMANDE_PLANIFIEE', id, `${patient} — ${newDem.examen} — ${newDem.priorite}${ciCount?' — '+ciCount+' alerte(s) CI':''}`);
   persistImg();
   closeDemande();renderDemandes();updateKPIs();
   toast(`Examen ${id} planifié.`,'success');

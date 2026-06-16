@@ -244,8 +244,10 @@
 <script src="medicore-session.js"></script>
 <script src="medicore-parcours.js"></script>
 <script src="medicore-parcours-ui.js"></script>
+<script src="medicore-bloc.js"></script>
 <script src="medicore-prestations.js"></script>
 <script src="medicore-scanner.js"></script>
+<script src="medicore-compta.js"></script>
 <script src="medicore-caisse.js"></script>
 <script src="medicore-stock.js"></script>
 <script src="medicore-demandes.js"></script>
@@ -648,7 +650,7 @@ function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
 function fmtF(v){return fmt(v)+' FCFA'}
 
 function statutBadge(s){
-  const m={Programmée:'badge-programme','En cours':'badge-en-cours',Terminée:'badge-termine',Reportée:'badge-reporte',Annulée:'badge-annule'};
+  const m={Programmée:'badge-programme','En cours':'badge-en-cours','Terminée — réveil':'badge-en-cours',Terminée:'badge-termine',Sortie:'badge-termine','Clôturée':'badge-valide',Reportée:'badge-reporte',Annulée:'badge-annule'};
   return `<span class="badge ${m[s]||''}">${s}</span>`;
 }
 function typeBadge(t){
@@ -799,47 +801,125 @@ function terminerOp(id){
 }
 
 // ── Fiche opération (timeline) ────────────────────────────────────────────────
+// Relie une intervention du tableau au moteur MEDICORE_BLOC (migration à la volée)
+function blocOpDuMoteur(op){
+  let mo=MEDICORE_BLOC.get(op.id);
+  if(!mo){
+    mo=MEDICORE_BLOC.creer({ id:op.id, patient:op.patient, patient_id:op.patient_id||'', acte:op.acte,
+      chirurgien:op.chirurgien, salle:op.salle, date:op.date, heure:op.heure, duree:op.duree,
+      priorite:op.priorite||op.type||'Programmée', anesthesie:op.anesth||op.anesthesie||'', anesthesiste:op.anesthMed||op.anesthesiste||'',
+      asa:op.asa||'', obs:op.obs||'' });
+  }
+  return mo;
+}
+let FICHE_TAB='parcours';
 function openFicheOp(id){
-  const op=interventions.find(x=>x.id===id);if(!op) return;
-  const steps=[
-  // (données démo supprimées)
-];
-
-  const modal = document.createElement('div');
-  modal.className='overlay open';
-  modal.innerHTML=`<div class="modal" style="width:580px">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">${op.id}</div>
-        <div class="modal-subtitle">${op.patient} · ${op.chirurgien} · ${new Date(op.date).toLocaleDateString('fr-FR')} ${op.heure}</div>
-      </div>
-      <button class="modal-close" onclick="this.closest('.overlay').remove()">✕</button>
+  const op=interventions.find(x=>x.id===id); if(!op) return;
+  blocOpDuMoteur(op);
+  FICHE_TAB='parcours';
+  renderFicheOp(id);
+}
+function renderFicheOp(id){
+  const op=MEDICORE_BLOC.get(id); if(!op) return;
+  let modal=document.getElementById('modal-fiche-op');
+  if(!modal){ modal=document.createElement('div'); modal.id='modal-fiche-op'; modal.className='overlay open';
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()}); document.body.appendChild(modal); }
+  const prog=MEDICORE_BLOC.checklistProgression(op);
+  const tabBtn=(k,l)=>`<button onclick="FICHE_TAB='${k}';renderFicheOp('${id}')" style="padding:7px 12px;border:none;border-bottom:2px solid ${FICHE_TAB===k?'var(--accent)':'transparent'};background:none;cursor:pointer;font-size:13px;font-weight:${FICHE_TAB===k?'600':'400'};color:${FICHE_TAB===k?'var(--accent)':'var(--text-muted)'}">${l}</button>`;
+  modal.innerHTML=`<div class="modal" style="width:640px;max-width:96vw;max-height:92vh;overflow-y:auto">
+    <div class="modal-header"><div><div class="modal-title">${op.acte||op.id}</div>
+      <div class="modal-subtitle">${op.patient} · ${op.chirurgien} · ${op.salle} · ${new Date(op.date).toLocaleDateString('fr-FR')} ${op.heure}</div></div>
+      <button class="modal-close" onclick="this.closest('.overlay').remove()">✕</button></div>
+    <div style="display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      ${tabBtn('parcours','⏱ Parcours')}${tabBtn('checklist',`✅ Check-list OMS (${prog.pct}%)`)}${tabBtn('equipe','👥 Équipe')}${tabBtn('dmi','🔖 DMI')}
     </div>
-    <div class="modal-body">
-      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-        ${statutBadge(op.statut)} ${typeBadge(op.type)}
-        <span class="badge" style="background:var(--surface-alt);color:var(--text-muted)">${op.salle}</span>
-        <span class="badge" style="background:var(--surface-alt);color:var(--text-muted)">${op.duree} min · ${op.anesth}</span>
-      </div>
-      <div class="timeline">
-        ${steps.map(s=>`<div class="tl-item">
-          <div class="tl-dot" style="background:${s.done?s.color:'var(--border)'}"></div>
-          <div class="tl-content" style="${s.done?'border-left:3px solid '+s.color:'opacity:.6'}">
-            <div class="tl-time">${s.time}</div>
-            <div class="tl-title">${s.title}</div>
-            <div class="tl-detail">${s.detail}</div>
-          </div>
-        </div>`).join('')}
-      </div>
-      ${op.obs?`<div style="margin-top:12px;background:var(--orange-bg);border:1px solid #f0c080;border-radius:6px;padding:10px 14px;font-size:13px;color:var(--orange)">📋 ${op.obs}</div>`:''}
-    </div>
+    <div class="modal-body">${
+      FICHE_TAB==='parcours'?ficheParcours(op):
+      FICHE_TAB==='checklist'?ficheChecklist(op):
+      FICHE_TAB==='equipe'?ficheEquipe(op):ficheDMI(op)
+    }</div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="this.closest('.overlay').remove()">Fermer</button>
-      ${op.statut==='Programmée'?`<button class="btn btn-primary" onclick="demarrerOp('${op.id}');this.closest('.overlay').remove()">▶ Démarrer</button>`:''}
+      ${MEDICORE_BLOC.peutCloturer(op).ok && op.statut!=='Clôturée'?`<button class="btn btn-primary" onclick="cloturerOp('${id}')">🔒 Clôturer l'intervention</button>`:
+        op.statut==='Clôturée'?`<span class="badge badge-valide">Clôturée</span>`:
+        `<span style="font-size:11.5px;color:var(--text-muted)">${MEDICORE_BLOC.peutCloturer(op).raison}</span>`}
+    </div></div>`;
+}
+function ficheParcours(op){
+  const etapes=MEDICORE_BLOC.ETAPES_PARCOURS;
+  const duree=MEDICORE_BLOC.dureeReelle(op);
+  return `<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Chaque étape est horodatée automatiquement. ${duree!=null?`<b style="color:var(--accent)">Durée opératoire : ${duree} min</b>`:''}</div>
+    ${etapes.map((e,i)=>{
+      const t=op.parcours&&op.parcours[e.key];
+      const prev=i===0||(op.parcours&&op.parcours[etapes[i-1].key]);
+      return `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:20px">${e.icon}</div>
+        <div style="flex:1"><div style="font-weight:${t?'600':'400'};color:${t?'var(--text)':'var(--text-muted)'}">${e.label}</div>
+          ${t?`<div style="font-size:11.5px;color:var(--green)">✓ ${new Date(t).toLocaleString('fr-FR')}</div>`:''}</div>
+        ${t?'':(prev?`<button class="btn btn-primary btn-sm" onclick="horodaterEtape('${op.id}','${e.key}')">Horodater</button>`:`<span style="font-size:11px;color:var(--text-muted)">en attente</span>`)}
+      </div>`;
+    }).join('')}`;
+}
+function horodaterEtape(id, key){ MEDICORE_BLOC.horodater(id, key); renderFicheOp(id); if(typeof renderInterventions==='function') renderInterventions(); if(typeof renderRessources==='function') renderRessources(); }
+function ficheChecklist(op){
+  const C=MEDICORE_BLOC.CHECKLIST_OMS;
+  return Object.keys(C).map(temps=>{
+    const complete=MEDICORE_BLOC.checklistComplete(op,temps);
+    return `<div style="margin-bottom:16px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;color:${complete?'var(--green)':'var(--accent)'}">${complete?'✓':'○'} ${C[temps].label}</div>
+      ${C[temps].items.map((it,i)=>{
+        const ch=(op.checklist&&op.checklist[temps]&&op.checklist[temps][i])===true;
+        return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;cursor:pointer">
+          <input type="checkbox" ${ch?'checked':''} onchange="MEDICORE_BLOC.cocherChecklist('${op.id}','${temps}',${i},this.checked);renderFicheOp('${op.id}')">
+          <span style="${ch?'color:var(--text)':'color:var(--text-muted)'}">${it}</span></label>`;
+      }).join('')}
+    </div>`;
+  }).join('')+`<div style="font-size:11.5px;color:var(--text-muted);border-top:1px dashed var(--border);padding-top:8px">⚠ La clôture de l'intervention est impossible tant que les 3 temps ne sont pas validés (sécurité OMS).</div>`;
+}
+function ficheEquipe(op){
+  return `<div style="margin-bottom:10px">${(op.equipe||[]).map((m,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1"><span style="font-size:11px;color:var(--text-muted)">${m.role}</span><div style="font-weight:500">${m.nom}</div></div>
+      ${m.signe?`<span class="badge badge-valide" title="Signé le ${new Date(m.signe_le).toLocaleString('fr-FR')}">✓ signé</span>`:`<button class="btn btn-secondary btn-sm" onclick="MEDICORE_BLOC.signer('${op.id}',${i});renderFicheOp('${op.id}')">✍ Signer</button>`}
+      <button class="btn btn-secondary btn-sm" onclick="MEDICORE_BLOC.retirerMembre('${op.id}',${i});renderFicheOp('${op.id}')" title="Retirer">✕</button>
+    </div>`).join('')||'<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Aucun membre.</div>'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1.3fr auto;gap:6px;align-items:end">
+      <div><label style="font-size:11px;color:var(--text-muted)">Rôle</label>
+        <select id="eq-role" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:5px">${MEDICORE_BLOC.ROLES_EQUIPE.map(r=>`<option>${r}</option>`).join('')}</select></div>
+      <div><label style="font-size:11px;color:var(--text-muted)">Nom</label>
+        <input id="eq-nom" placeholder="Nom du membre" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:5px"></div>
+      <button class="btn btn-primary btn-sm" onclick="ajouterMembreEquipe('${op.id}')">＋ Ajouter</button>
+    </div>`;
+}
+function ajouterMembreEquipe(id){ const r=document.getElementById('eq-role').value, n=document.getElementById('eq-nom').value.trim();
+  if(!n){ toast('Nom requis.','error'); return; } MEDICORE_BLOC.ajouterMembre(id,r,n); renderFicheOp(id); }
+function ficheDMI(op){
+  return `<div style="margin-bottom:10px">${(op.dmi||[]).map(d=>`
+    <div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;font-size:12.5px">
+      <div style="font-weight:600">${d.designation}</div>
+      <div style="color:var(--text-muted);font-size:11.5px;margin-top:3px">${d.fabricant||''} ${d.ref?'· réf '+d.ref:''}</div>
+      <div style="margin-top:4px">Lot : <b>${d.lot}</b>${d.serie?' · N° série : <b>'+d.serie+'</b>':''}${d.peremption?' · exp. '+d.peremption:''}</div>
+    </div>`).join('')||'<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Aucun DMI tracé pour cette intervention.</div>'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <input id="fdmi-des" placeholder="Désignation *" style="padding:7px;border:1px solid var(--border);border-radius:5px;grid-column:1/-1">
+      <input id="fdmi-fab" placeholder="Fabricant" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+      <input id="fdmi-ref" placeholder="Référence" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+      <input id="fdmi-lot" placeholder="N° lot *" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+      <input id="fdmi-serie" placeholder="N° série" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+      <input id="fdmi-perem" type="date" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+      <input id="fdmi-cout" type="number" placeholder="Coût (FCFA)" style="padding:7px;border:1px solid var(--border);border-radius:5px">
     </div>
-  </div>`;
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()});
-  document.body.appendChild(modal);
+    <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="ajouterDMIFiche('${op.id}')">＋ Tracer le DMI</button>`;
+}
+function ajouterDMIFiche(id){ const v=x=>document.getElementById('fdmi-'+x).value.trim();
+  if(!v('des')||!v('lot')){ toast('Désignation et lot requis.','error'); return; }
+  MEDICORE_BLOC.ajouterDMI(id,{ designation:v('des'),fabricant:v('fab'),ref:v('ref'),lot:v('lot'),serie:v('serie'),peremption:v('perem'),cout:+v('cout')||0 });
+  renderFicheOp(id); toast('DMI tracé.','success'); }
+function cloturerOp(id){ const r=MEDICORE_BLOC.cloturer(id);
+  if(r&&r.erreur){ toast(r.erreur,'error'); return; }
+  // Reflète sur l'intervention du tableau
+  const op=interventions.find(x=>x.id===id); if(op){ op.statut='Clôturée'; if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('interventions',interventions,true); }
+  toast('Intervention clôturée.','success'); renderFicheOp(id); if(typeof renderInterventions==='function') renderInterventions();
 }
 
 // ── Ressources ────────────────────────────────────────────────────────────────
