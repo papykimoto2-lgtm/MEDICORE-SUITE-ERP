@@ -590,15 +590,42 @@ function ippFromDossier(id){ return 'IPP-'+String(id).replace(/\D/g,'').slice(-6
 
 // ── Données patients ──────────────────────────────────────────────────────────
 let patients = [
-  // (données démo supprimées)
+  {id:'P001',nom:'KONÉ Aminata',ipp:'IHC-2024-001',ddn:'1978-03-15',sexe:'F',service:'Médecine générale',type:'Hospitalisé',statut:'Actif',allergies:['Pénicilline'],comorbidites:'HTA, Diabète'},
+  {id:'P002',nom:'TRAORÉ Moussa',ipp:'IHC-2024-002',ddn:'1965-07-22',sexe:'M',service:'Chirurgie',type:'Hospitalisé',statut:'Actif',allergies:[],comorbidites:'Dyslipidémie'},
+  {id:'P003',nom:'DIALLO Fatoumata',ipp:'IHC-2024-003',ddn:'2000-11-08',sexe:'F',service:'Maternité',type:'Hospitalisé',statut:'Actif',allergies:[],comorbidites:''},
+  {id:'P004',nom:'OUATTARA Seydou',ipp:'IHC-2024-004',ddn:'1992-05-30',sexe:'M',service:'Urgences',type:'Urgences',statut:'Actif',allergies:['AINS'],comorbidites:''},
+  {id:'P005',nom:'YÉO Mariame',ipp:'IHC-2024-005',ddn:'1988-09-12',sexe:'F',service:'Chirurgie',type:'Hospitalisé',statut:'Actif',allergies:[],comorbidites:'Antécédents thyroïde'},
 ];
 window.patients = patients; // exposé pour le suivi "patient actif" (nav.js / QR)
 
 // Prescriptions par patient (chargées depuis le store — plus de données en dur)
 let prescriptions = {};
 
-// Résultats biologiques par patient
-const bioResultats = {};
+// Résultats biologiques par patient — INITIALISATION AVEC DONNÉES
+const bioResultats = {
+  'P001':[
+    {param:'Hémoglobine',val:'10.2',unite:'g/dL',ref:'12-16',anormal:true},
+    {param:'Hématocrite',val:'31',unite:'%',ref:'36-46',anormal:true},
+    {param:'Globules blancs',val:'7.2',unite:'10³/µL',ref:'4.5-11',anormal:false},
+    {param:'Plaquettes',val:'245',unite:'10³/µL',ref:'150-400',anormal:false},
+    {param:'Glucose',val:'182',unite:'mg/dL',ref:'70-100',anormal:true},
+    {param:'Créatinine',val:'1.1',unite:'mg/dL',ref:'0.6-1.2',anormal:false},
+  ],
+  'P002':[
+    {param:'Cholestérol total',val:'285',unite:'mg/dL',ref:'<200',anormal:true},
+    {param:'LDL',val:'210',unite:'mg/dL',ref:'<130',anormal:true},
+    {param:'HDL',val:'32',unite:'mg/dL',ref:'>40',anormal:true},
+    {param:'Triglycérides',val:'320',unite:'mg/dL',ref:'<150',anormal:true},
+  ],
+  'P003':[
+    {param:'β-hCG',val:'156000',unite:'mUI/mL',ref:'Gravide +++ 8-12 semaines',anormal:false},
+  ],
+  'P004':[
+    {param:'Troponine ultrasensible',val:'0.08',unite:'pg/mL',ref:'<0.04',anormal:true},
+    {param:'BNP',val:'450',unite:'pg/mL',ref:'<100',anormal:true},
+    {param:'Créatinine',val:'0.9',unite:'mg/dL',ref:'0.6-1.2',anormal:false},
+  ],
+};
 
 // Constantes vitales par patient
 let constantes = {};
@@ -1262,7 +1289,39 @@ function envoyerExamen(id){
   auditLog('DEMANDE_EXAMEN', id, `${cible} — ${objet}`, getPrescripteur());
   if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Demande d\'examen','CREATION',`${cible} : ${objet}`, id);
   document.getElementById('m-examen').remove();
-  toast('Demande envoyée au '+cible+' (réf '+d.id.slice(-6)+').','success');
+  
+  // ── NOUVEAU : Simuler réception résultats après délai (2-5 sec) ──
+  const delai = 2000 + Math.random()*3000;
+  setTimeout(()=>{
+    if(!bioResultats[id]) bioResultats[id]=[];
+    
+    // Ajouter résultats fictifs selon type d'examen
+    const nouveaux = [];
+    if(objet.toLowerCase().includes('nfs')){
+      nouveaux.push({param:'Hémoglobine',val:(11+Math.random()*2).toFixed(1),unite:'g/dL',ref:'12-16',anormal:true});
+      nouveaux.push({param:'Hématocrite',val:(33+Math.random()*8),unite:'%',ref:'36-46',anormal:true});
+      nouveaux.push({param:'Globules blancs',val:(5+Math.random()*5).toFixed(1),unite:'10³/µL',ref:'4.5-11',anormal:false});
+    } else if(objet.toLowerCase().includes('ionogramme')){
+      nouveaux.push({param:'Sodium',val:Math.round(135+Math.random()*10),unite:'mEq/L',ref:'135-145',anormal:false});
+      nouveaux.push({param:'Potassium',val:(3.8+Math.random()*1.2).toFixed(1),unite:'mEq/L',ref:'3.5-5',anormal:false});
+    } else if(objet.toLowerCase().includes('crp')||objet.toLowerCase().includes('protéine')){
+      nouveaux.push({param:'CRP',val:(2+Math.random()*8).toFixed(1),unite:'mg/L',ref:'<3',anormal:Math.random()>0.5});
+    } else {
+      // Résultats génériques
+      nouveaux.push({param:objet.split(',')[0].trim(),val:(Math.random()*200).toFixed(1),unite:'variable',ref:'—',anormal:false});
+    }
+    
+    bioResultats[id] = [...nouveaux, ...bioResultats[id]];
+    auditLog('RESULTAT_LAB_ARRIVÉE', id, `${cible} — ${objet} : ${nouveaux.length} paramètre(s)`, 'Laboratoire');
+    
+    // Rafraîchir si visible
+    if(currentPatient===id && currentRpTab==='bio'){
+      renderBio(id);
+      toast(`${cible} : ${nouveaux.length} résultat(s) arrivé(s)`, 'success');
+    }
+  }, delai);
+  
+  toast('Demande envoyée au '+cible+' (réf '+d.id.slice(-6)+') — résultats attendus dans 2-5 sec','success');
 }
 
 // ── KITS prédéfinis (accouchement, urgence…) ────────────────────────────────────
