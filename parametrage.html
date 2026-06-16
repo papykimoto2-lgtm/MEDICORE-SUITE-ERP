@@ -820,24 +820,25 @@ function renderDepotsStock(){
   // Contrôle RBAC : stock.write = modifier/supprimer dépôts non-builtin ; stock.admin = aussi les builtin
   const canWrite = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.write') : true;
   const canAdmin = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.admin') : false;
-  return `<table><thead><tr><th>Dépôt</th><th>Département</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th>Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
+  return `<table><thead><tr><th>Dépôt</th><th>Département</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th style="text-align:right">Articles</th><th style="text-align:right">Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
     list.map(d=>{
       const valeur=MEDICORE_STOCK.valeurStock(d.id);
       // Boutons selon droits : builtin => seul canAdmin peut modifier (pas supprimer), non-builtin => canWrite suffit
-      let actions = '';
+      // Bouton Articles : toujours visible (lecture ou écriture)
+      const nbArticles = MEDICORE_STOCK.items(d.id).length;
+      const btnArticles = `<button class="btn btn-secondary btn-xs" onclick="ouvrirArticlesDepot('${d.id}')" title="Voir et gérer les articles de ce dépôt">📦 Articles${nbArticles?' ('+nbArticles+')':''}</button>`;
+      let actions = btnArticles + ' ';
       if(canWrite || canAdmin){
         if(!d.builtin){
-          actions = `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
+          actions += `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
           <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
           <button class="btn btn-secondary btn-xs btn-danger-xs" onclick="supprimerDepotUI('${d.id}')">🗑</button>`;
         } else if(canAdmin){
-          // Admins peuvent modifier le libellé/responsable des dépôts système, mais pas les supprimer
-          actions = `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
+          actions += `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
           <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
           <span title="Dépôt système — suppression impossible" style="font-size:10px;color:var(--text-muted);padding:0 4px">🔒</span>`;
         } else {
-          // canWrite mais pas canAdmin : peut voir les dépôts système mais pas les modifier
-          actions = '<span style="font-size:10px;color:var(--text-muted)">Système</span>';
+          actions += '<span style="font-size:10px;color:var(--text-muted)">Système</span>';
         }
       }
       return `<tr>
@@ -846,6 +847,7 @@ function renderDepotsStock(){
         <td><span class="mono" style="font-size:11.5px">${d.id}</span></td>
         <td>${d.responsable||'—'}</td>
         <td>${d.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
+        <td style="text-align:right"><span style="font-weight:600">${nbArticles}</span><span style="font-size:10.5px;color:var(--text-muted)"> réf.</span></td>
         <td style="text-align:right">${valeur.toLocaleString('fr-FR')} FCFA</td>
         <td style="text-align:right;white-space:nowrap">${actions}</td></tr>`;
     }).join('')}</tbody></table>
@@ -890,6 +892,39 @@ function supprimerDepotUI(id){
   if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Suppression dépôt de stock','SUPPRESSION',d.libelle, id);
   renderBody(); toast('Dépôt supprimé.','warn');
 }
+// ══ ARTICLES D'UN DÉPÔT — modale de gestion ══════════════════════════════════
+function ouvrirArticlesDepot(depotId){
+  if(typeof MEDICORE_STOCK==='undefined'){ toast('Module stock non chargé.','error'); return; }
+  const depot=MEDICORE_STOCK.depots().find(d=>d.id===depotId);
+  if(!depot){ toast('Dépôt introuvable.','error'); return; }
+  // Créer la modale plein-écran
+  let ov=document.getElementById('depot-articles-modal');
+  if(ov) ov.remove();
+  ov=document.createElement('div');
+  ov.id='depot-articles-modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:stretch;justify-content:flex-end';
+  ov.onclick=e=>{ if(e.target===ov) fermerArticlesDepot(); };
+  ov.innerHTML=`
+    <div id="depot-articles-panel" style="width:min(900px,100vw);background:#f4f3ef;display:flex;flex-direction:column;height:100vh;overflow:hidden;box-shadow:-4px 0 32px rgba(0,0,0,.18)">
+      <div style="background:#1a4b6e;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div>
+          <div style="font-weight:700;font-size:16px">📦 ${depot.libelle}</div>
+          <div style="font-size:11.5px;opacity:.8">${depot.departement||''}${depot.responsable?' · '+depot.responsable:''} · Gestion des articles</div>
+        </div>
+        <button onclick="fermerArticlesDepot()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px">✕ Fermer</button>
+      </div>
+      <div id="depot-articles-content" style="flex:1;overflow-y:auto;padding:20px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  // Monter le widget de gestion du stock pour ce dépôt
+  MEDICORE_STOCK.mount('depot-articles-content', depotId);
+}
+function fermerArticlesDepot(){
+  const ov=document.getElementById('depot-articles-modal'); if(ov) ov.remove();
+  // Rafraîchir le tableau des dépôts pour mettre à jour les compteurs
+  renderBody();
+}
+
 function togglePerm(r,m,v){ if(!PERMISSIONS[r])PERMISSIONS[r]={}; PERMISSIONS[r][m]=v?1:0; }
 function addService(){ formModal('Nouveau service',[
     {key:'nom',label:'Nom du service',required:true,placeholder:'Chirurgie'},
