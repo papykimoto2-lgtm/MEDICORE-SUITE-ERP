@@ -496,6 +496,8 @@ const MEDICORE_STOCK = {
     const prods=this.produits(), familles=this.familles();
     const fFiltre=this._catFiltre||'';
     const list=fFiltre?prods.filter(p=>p.famille===fFiltre):prods;
+    // Contrôle RBAC : stock.write requis pour ajouter/modifier/supprimer des produits
+    const canWrite = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.write') : true;
     div.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div style="display:flex;gap:8px;align-items:center">
@@ -503,11 +505,12 @@ const MEDICORE_STOCK = {
             <option value="">Toutes les familles (${prods.length})</option>
             ${familles.map(f=>`<option value="${f.id}"${fFiltre===f.id?' selected':''}>${f.libelle} (${prods.filter(p=>p.famille===f.id).length})</option>`).join('')}
           </select>
+          ${!canWrite?'<span class="badge" style="background:var(--surface-alt);color:var(--text-muted);font-size:11px;padding:4px 8px">Lecture seule</span>':''}
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-secondary btn-sm" onclick="MEDICORE_STOCK.chargerDemo()">🧪 Données démo</button>
-          <button class="btn btn-secondary btn-sm" onclick="MEDICORE_STOCK.uiFamilles()">🗂 Familles</button>
-          <button class="btn btn-primary btn-sm" onclick="MEDICORE_STOCK.uiProduit()">＋ Nouveau produit</button>
+          ${canWrite?`<button class="btn btn-secondary btn-sm" onclick="MEDICORE_STOCK.chargerDemo()">🧪 Données démo</button>`:''}
+          ${canWrite?`<button class="btn btn-secondary btn-sm" onclick="MEDICORE_STOCK.uiFamilles()">🗂 Familles</button>`:''}
+          ${canWrite?`<button class="btn btn-primary btn-sm" onclick="MEDICORE_STOCK.uiProduit()">＋ Nouveau produit</button>`:''}
         </div>
       </div>
       <div style="overflow-x:auto">
@@ -532,10 +535,10 @@ const MEDICORE_STOCK = {
             <td style="text-align:right;font-weight:600">${tot}</td>
             <td style="font-size:11.5px;color:#6b6b6b">${dep.length?dep.map(d=>d.libelle.split(' ')[0]+':'+d.stock).join(' · '):'<span style="color:#b58100">non affecté</span>'}</td>
             <td style="text-align:right;white-space:nowrap">
-              <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiProduit('${p.id}')">✎</button>
-              <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiAffecterDepuisCatalogue('${p.id}')">📦 Affecter</button>
-              <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiPrixDepots('${p.id}')">💰 Prix</button>
-              <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.supprimerProduitUI('${p.id}')">🗑</button>
+              ${canWrite?`<button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiProduit('${p.id}')">✎</button>`:''}
+              ${canWrite?`<button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiAffecterDepuisCatalogue('${p.id}')">📦 Affecter</button>`:''}
+              ${canWrite?`<button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiPrixDepots('${p.id}')">💰 Prix</button>`:''}
+              ${canWrite?`<button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.supprimerProduitUI('${p.id}')">🗑</button>`:'<span style="font-size:10px;color:var(--text-muted)">—</span>'}
             </td></tr>`;
         }).join(''):'<tr><td colspan="10" style="padding:22px;text-align:center;color:#999">Aucun produit. Cliquez « ＋ Nouveau produit ».</td></tr>'}</tbody>
       </table></div>`;

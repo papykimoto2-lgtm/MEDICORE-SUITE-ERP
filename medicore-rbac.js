@@ -23,7 +23,7 @@ const MEDICORE_RBAC = {
   // Permissions par rôle. '*' = tout. Sinon liste de clés "module" et "action".
   PERMS: {
     administrateur: ['*'],
-    direction:      ['module:*','dossier.read','rapport.read','prescription.validate','user.read','audit.read'],
+    direction:      ['module:*','dossier.read','rapport.read','prescription.validate','user.read','audit.read','stock.write','stock.admin'],
     medecin:        ['module:urgences','module:dpi','module:laboratoire','module:imagerie','module:bloc','module:pharmacie',
                      'dossier.read','dossier.write','prescription.create','prescription.validate','prescription.delete','demande.create','urgence.triage'],
     infirmier:      ['module:urgences','module:dpi','dossier.read','constante.write','urgence.triage','surveillance.write'],

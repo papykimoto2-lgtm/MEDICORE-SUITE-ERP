@@ -387,9 +387,10 @@ function renderBody(){
         <button class="btn btn-primary" onclick="persist();toast('Permissions enregistrées.','success')">💾 Enregistrer les droits</button></div></div></div>`;
   }
   else if(currentSection==='stock'){
+    const _canStock = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.write') : true;
     b.innerHTML = head('Stock & Catalogue','Dépôts, familles et catalogue des produits médicaux & paramédicaux')+
     `<div class="card"><div class="card-head"><div><h3>Dépôts de stock</h3><div class="sub">Magasin central, services consommateurs (laboratoire, imagerie, bloc…) — chaque dépôt est rattaché à un département</div></div>
-      <button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button></div>
+      ${_canStock?`<button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button>`:'<span class="badge" style="background:var(--surface-alt);color:var(--text-muted);font-size:11px;padding:4px 8px">Lecture seule</span>'}</div>
       <div class="card-body" style="padding:0">${renderDepotsStock()}</div></div>
 
     <div class="card"><div class="card-head"><div><h3>Catalogue produits</h3><div class="sub">Médicaments, réactifs, consommables, dispositifs — définis une fois (code-barres, DCI, forme…), puis affectés aux dépôts</div></div></div>
@@ -816,9 +817,29 @@ function viderHistoConnexion(){
 function renderDepotsStock(){
   if(typeof MEDICORE_STOCK==='undefined') return '<div style="padding:20px;color:var(--text-muted)">Module stock non chargé.</div>';
   const list=MEDICORE_STOCK.depots();
+  // Contrôle RBAC : stock.write = modifier/supprimer dépôts non-builtin ; stock.admin = aussi les builtin
+  const canWrite = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.write') : true;
+  const canAdmin = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.admin') : false;
   return `<table><thead><tr><th>Dépôt</th><th>Département</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th>Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
     list.map(d=>{
       const valeur=MEDICORE_STOCK.valeurStock(d.id);
+      // Boutons selon droits : builtin => seul canAdmin peut modifier (pas supprimer), non-builtin => canWrite suffit
+      let actions = '';
+      if(canWrite || canAdmin){
+        if(!d.builtin){
+          actions = `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
+          <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
+          <button class="btn btn-secondary btn-xs btn-danger-xs" onclick="supprimerDepotUI('${d.id}')">🗑</button>`;
+        } else if(canAdmin){
+          // Admins peuvent modifier le libellé/responsable des dépôts système, mais pas les supprimer
+          actions = `<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎ Modifier</button>
+          <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
+          <span title="Dépôt système — suppression impossible" style="font-size:10px;color:var(--text-muted);padding:0 4px">🔒</span>`;
+        } else {
+          // canWrite mais pas canAdmin : peut voir les dépôts système mais pas les modifier
+          actions = '<span style="font-size:10px;color:var(--text-muted)">Système</span>';
+        }
+      }
       return `<tr>
         <td><strong>${d.libelle}</strong>${d.builtin?' <span class="badge" style="background:var(--surface-alt);font-size:10px">système</span>':''}</td>
         <td>${d.departement||'—'}</td>
@@ -826,13 +847,9 @@ function renderDepotsStock(){
         <td>${d.responsable||'—'}</td>
         <td>${d.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
         <td style="text-align:right">${valeur.toLocaleString('fr-FR')} FCFA</td>
-        <td style="text-align:right;white-space:nowrap">
-          ${d.builtin?'':`<button class="btn btn-secondary btn-xs" onclick="uiModifierDepot('${d.id}')">✎</button>
-          <button class="btn btn-secondary btn-xs" onclick="toggleDepot('${d.id}')">${d.actif?'Désactiver':'Activer'}</button>
-          <button class="btn btn-secondary btn-xs" onclick="supprimerDepotUI('${d.id}')">🗑</button>`}
-        </td></tr>`;
+        <td style="text-align:right;white-space:nowrap">${actions}</td></tr>`;
     }).join('')}</tbody></table>
-    <div style="padding:10px 16px;font-size:11.5px;color:var(--text-muted)">Les dépôts « système » (Magasin central, Pharmacie, Laboratoire, Imagerie, Bloc opératoire, Maternité, Urgences) sont prédéfinis et ne peuvent pas être supprimés.</div>`;
+    <div style="padding:10px 16px;font-size:11.5px;color:var(--text-muted)">Les dépôts « système » (Magasin central, Pharmacie, Laboratoire, Imagerie, Bloc opératoire, Maternité, Urgences) sont prédéfinis et ne peuvent pas être supprimés. Les administrateurs peuvent modifier leur libellé et responsable.</div>`;
 }
 function uiAjouterDepot(){
   formModal('Nouveau dépôt de stock',[
@@ -849,12 +866,15 @@ function uiAjouterDepot(){
 }
 function uiModifierDepot(id){
   const d=MEDICORE_STOCK.depots().find(x=>x.id===id); if(!d) return;
-  formModal('Modifier le dépôt',[
+  const canAdmin = (typeof MEDICORE_RBAC!=='undefined') ? MEDICORE_RBAC.can('stock.admin') : false;
+  if(d.builtin && !canAdmin){ toast('Vous n\'avez pas les droits pour modifier un dépôt système.','error'); return; }
+  formModal('Modifier le dépôt'+(d.builtin?' (système)':''),[
     {key:'libelle',label:'Nom du dépôt',required:true,value:d.libelle},
     {key:'departement',label:'Département (rattachement comptable)',value:d.departement||''},
     {key:'responsable',label:'Responsable',value:d.responsable||''},
   ], (v)=>{
     MEDICORE_STOCK.modifierDepot(id,{libelle:v.libelle.trim(),departement:(v.departement||'').trim(),responsable:(v.responsable||'').trim()});
+    if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Modification dépôt de stock','MODIFICATION',v.libelle.trim(), id);
     renderBody(); toast('Dépôt modifié.','success');
   });
 }
