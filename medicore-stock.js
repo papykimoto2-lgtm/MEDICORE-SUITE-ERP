@@ -77,7 +77,7 @@ const MEDICORE_STOCK = {
       famille:o.famille||'consommable', categorie:o.categorie||'',
       dci:o.dci||'', forme:o.forme||'', dosage:o.dosage||'', conditionnement:o.conditionnement||'',
       unite:o.unite||'unité', code_barre:o.code_barre||'',
-      fournisseur:o.fournisseur||'', prix_achat:+o.prix_achat||0, tva:o.tva!=null?+o.tva:0,
+      fournisseur:o.fournisseur||'', prix_achat:+o.prix_achat||0, prix_vente:+o.prix_vente||0, tva:o.tva!=null?+o.tva:0,
       stupefiant:!!o.stupefiant, thermosensible:!!o.thermosensible, gere_lot:o.gere_lot!==false, gere_peremption:o.gere_peremption!==false,
       stock_min:+o.stock_min||0, stock_secu:+o.stock_secu||0, stock_max:+o.stock_max||0,
       actif:true, created_at:new Date().toISOString(), created_par:this._user().nom||'' };
@@ -105,11 +105,28 @@ const MEDICORE_STOCK = {
       designation:p.designation, categorie:p.categorie||this.familleLabel(p.famille), unite:p.unite,
       stock:+opt.stock||0, stock_min:opt.stock_min!=null?+opt.stock_min:p.stock_min,
       stock_secu:opt.stock_secu!=null?+opt.stock_secu:p.stock_secu, stock_max:opt.stock_max!=null?+opt.stock_max:p.stock_max,
-      pmp:p.prix_achat||0, lot:opt.lot||'', peremption:opt.peremption||'' });
+      pmp:p.prix_achat||0, prix_vente:opt.prix_vente!=null?+opt.prix_vente:(p.prix_vente||0),
+      lot:opt.lot||'', peremption:opt.peremption||'' });
     items.unshift(it); this._write(this.S_ITEMS, items);
     if(it.stock>0) this._mvt(depot, it, 'Entrée', it.stock, {motif:'Stock initial (affectation)'});
     if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Affectation produit','CREATION',`${p.designation} → ${this.depotLabel(depot)}`, p.code);
     return {item:it};
+  },
+  // Prix de vente applicable : surcharge du dépôt si définie, sinon prix de vente catalogue, sinon PMP
+  prixVente(produitId, depot){
+    const it=this._read(this.S_ITEMS).find(i=>i.produit_id===produitId && i.depot===depot);
+    if(it && it.prix_vente>0) return it.prix_vente;
+    const p=this.produit(produitId);
+    if(p && p.prix_vente>0) return p.prix_vente;
+    return it?(it.pmp||0):(p?p.prix_achat||0:0);
+  },
+  // Prix de vente par item (ligne de stock) — pratique pour la caisse
+  prixVenteItem(itemId){
+    const it=this._read(this.S_ITEMS).find(i=>i.id===itemId); if(!it) return 0;
+    if(it.prix_vente>0) return it.prix_vente;
+    const p=it.produit_id?this.produit(it.produit_id):null;
+    if(p && p.prix_vente>0) return p.prix_vente;
+    return it.pmp||0;
   },
   // Dépôts où un produit est présent
   depotsDuProduit(produitId){ return this._read(this.S_ITEMS).filter(i=>i.produit_id===produitId)
@@ -119,18 +136,22 @@ const MEDICORE_STOCK = {
 
   // ── Dépôts (paramétrables) ───────────────────────────────────────────────────
 
+  // Département comptable/analytique par défaut pour les dépôts système
+  DEPARTEMENTS_DEFAUT:{ magasin:'Pharmacie', pharmacie_pui:'Pharmacie', laboratoire:'Laboratoire',
+    imagerie:'Imagerie', bloc_operatoire:'Bloc opératoire', maternite:'Maternité', urgences:'Urgences' },
   depots(){
     const custom=this._read(this.S_DEPOTS), map={};
-    Object.keys(this.DEPOTS_DEFAUT).forEach(k=>map[k]={ id:k, libelle:this.DEPOTS_DEFAUT[k], actif:true, builtin:true });
-    custom.forEach(d=>{ map[d.id]={ id:d.id, libelle:d.libelle, responsable:d.responsable||'', actif:d.actif!==false, builtin:false }; });
+    Object.keys(this.DEPOTS_DEFAUT).forEach(k=>map[k]={ id:k, libelle:this.DEPOTS_DEFAUT[k], departement:this.DEPARTEMENTS_DEFAUT[k]||this.DEPOTS_DEFAUT[k], actif:true, builtin:true });
+    custom.forEach(d=>{ map[d.id]={ id:d.id, libelle:d.libelle, responsable:d.responsable||'', departement:d.departement||(map[d.id]&&map[d.id].departement)||d.libelle, actif:d.actif!==false, builtin:false }; });
     return Object.values(map);
   },
+  depotDepartement(id){ const d=this.depots().find(x=>x.id===id); return d?(d.departement||d.libelle):id; },
   depotsActifs(){ return this.depots().filter(d=>d.actif); },
   depotLabel(id){ const d=this.depots().find(x=>x.id===id); return d?d.libelle:id; },
   ajouterDepot(o){ const list=this._read(this.S_DEPOTS);
     const id=o.id||(o.libelle||'depot').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
     if(list.some(d=>d.id===id) || this.DEPOTS_DEFAUT[id]) return { erreur:'existe déjà' };
-    list.push({ id, libelle:o.libelle||id, responsable:o.responsable||'', actif:true }); this._write(this.S_DEPOTS,list); return { id }; },
+    list.push({ id, libelle:o.libelle||id, responsable:o.responsable||'', departement:o.departement||o.libelle||id, actif:true }); this._write(this.S_DEPOTS,list); return { id }; },
   modifierDepot(id,patch){ const list=this._read(this.S_DEPOTS); const d=list.find(x=>x.id===id);
     if(d){ Object.assign(d,patch); this._write(this.S_DEPOTS,list); } return d; },
   supprimerDepot(id){ if(this.DEPOTS_DEFAUT[id]) return { erreur:'dépôt système' };
@@ -386,8 +407,12 @@ const MEDICORE_STOCK = {
         <select id="af-prod" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">${opts}</select></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         ${this._fld('af-stock','Stock initial','number',0)}${this._fld('af-min','Stock mini (dépôt)','number',0)}${this._fld('af-secu','Stock sécurité','number',0)}
-        ${this._fld('af-max','Stock maxi','number',0)}${this._fld('af-lot','Lot (option)')}${this._fld('af-perem','Péremption','date')}
+        ${this._fld('af-max','Stock maxi','number',0)}${this._fld('af-pv','Prix vente (ce dépôt)','number',0)}${this._fld('af-lot','Lot (option)')}
       </div>
+      <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px">
+        ${this._fld('af-perem','Péremption','date')}
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:4px">Laissez le prix à 0 pour utiliser le prix de vente de référence du catalogue.</div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
         <button class="btn btn-secondary" onclick="MEDICORE_STOCK._close()">Annuler</button>
         <button class="btn btn-primary" onclick="MEDICORE_STOCK.saveAffecter()">Affecter</button></div>`
@@ -397,7 +422,7 @@ const MEDICORE_STOCK = {
   saveAffecter(){
     const v=id=>document.getElementById(id).value;
     const r=this.affecterProduit(v('af-prod'), this._depot, { stock:v('af-stock'), stock_min:v('af-min'),
-      stock_secu:v('af-secu'), stock_max:v('af-max'), lot:v('af-lot'), peremption:v('af-perem') });
+      stock_secu:v('af-secu'), stock_max:v('af-max'), prix_vente:v('af-pv'), lot:v('af-lot'), peremption:v('af-perem') });
     if(r.erreur==='deja_affecte'){ alert('Ce produit est déjà présent dans ce dépôt.'); return; }
     this._close(); this.render();
   },
@@ -426,9 +451,13 @@ const MEDICORE_STOCK = {
       <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:880px">
         <thead><tr style="text-align:left;border-bottom:2px solid var(--border,#eee);color:#6b6b6b;font-size:11px;text-transform:uppercase">
           <th style="padding:7px">Code</th><th>Désignation</th><th>Famille</th><th>Forme / Dosage</th>
-          <th>Unité</th><th style="text-align:right">Px achat</th><th style="text-align:right">Stock total</th><th>Dépôts</th><th></th></tr></thead>
+          <th>Unité</th><th style="text-align:right">Px achat</th><th style="text-align:right">Px vente</th><th style="text-align:right">Stock total</th><th>Dépôts</th><th></th></tr></thead>
         <tbody>${list.length?list.map(p=>{
           const dep=this.depotsDuProduit(p.id), tot=this.stockTotalProduit(p.id);
+          // Détecte si le prix de vente varie selon les dépôts
+          const prixDepots=this._read(this.S_ITEMS).filter(i=>i.produit_id===p.id).map(i=>this.prixVenteItem(i.id));
+          const prixUniques=[...new Set(prixDepots)];
+          const pvAffiche = prixUniques.length>1 ? 'variable' : (prixUniques.length===1?prixUniques[0].toLocaleString('fr-FR'):(p.prix_vente||0).toLocaleString('fr-FR'));
           return `<tr style="border-bottom:1px solid var(--border,#f0f0f0)">
             <td style="padding:7px"><span style="font-family:monospace;font-size:12px">${p.code}</span>${p.stupefiant?' <span title="Stupéfiant" style="color:#b91c1c">⚠</span>':''}${p.thermosensible?' <span title="Thermosensible">❄</span>':''}</td>
             <td><b>${p.designation}</b>${p.dci?`<div style="font-size:11px;color:#999">DCI : ${p.dci}</div>`:''}</td>
@@ -436,14 +465,16 @@ const MEDICORE_STOCK = {
             <td style="font-size:12px;color:#6b6b6b">${[p.forme,p.dosage].filter(Boolean).join(' ')||'—'}</td>
             <td style="font-size:12px">${p.unite}</td>
             <td style="text-align:right;color:#6b6b6b">${(p.prix_achat||0).toLocaleString('fr-FR')}</td>
+            <td style="text-align:right;${pvAffiche==='variable'?'color:#c2410c;font-style:italic':'color:#1a4b6e;font-weight:600'}" title="${pvAffiche==='variable'?'Prix différent selon les dépôts — cliquez 💰 Prix':''}">${pvAffiche}</td>
             <td style="text-align:right;font-weight:600">${tot}</td>
             <td style="font-size:11.5px;color:#6b6b6b">${dep.length?dep.map(d=>d.libelle.split(' ')[0]+':'+d.stock).join(' · '):'<span style="color:#b58100">non affecté</span>'}</td>
             <td style="text-align:right;white-space:nowrap">
               <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiProduit('${p.id}')">✎</button>
               <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiAffecterDepuisCatalogue('${p.id}')">📦 Affecter</button>
+              <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.uiPrixDepots('${p.id}')">💰 Prix</button>
               <button class="btn btn-xs btn-secondary" onclick="MEDICORE_STOCK.supprimerProduitUI('${p.id}')">🗑</button>
             </td></tr>`;
-        }).join(''):'<tr><td colspan="9" style="padding:22px;text-align:center;color:#999">Aucun produit. Cliquez « ＋ Nouveau produit ».</td></tr>'}</tbody>
+        }).join(''):'<tr><td colspan="10" style="padding:22px;text-align:center;color:#999">Aucun produit. Cliquez « ＋ Nouveau produit ».</td></tr>'}</tbody>
       </table></div>`;
   },
   _formProduit(p){ p=p||{}; const fam=this.familles();
@@ -463,10 +494,11 @@ const MEDICORE_STOCK = {
         ${this._fld('pr-dosage','Dosage',null,p.dosage)}
         ${this._fld('pr-cond','Conditionnement',null,p.conditionnement)}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:8px">
         <div><label style="font-size:12px;color:#6b6b6b">Unité</label>
           <select id="pr-unite" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">${this.UNITES.map(u=>`<option${(p.unite||'unité')===u?' selected':''}>${u}</option>`).join('')}</select></div>
         ${this._fld('pr-prix','Prix achat (FCFA)','number',p.prix_achat)}
+        ${this._fld('pr-pv','Prix vente réf. (FCFA)','number',p.prix_vente)}
         ${this._fld('pr-tva','TVA (%)','number',p.tva!=null?p.tva:0)}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
@@ -488,7 +520,7 @@ const MEDICORE_STOCK = {
   _produitFromForm(){ const v=id=>document.getElementById(id).value, c=id=>document.getElementById(id).checked;
     return { code:v('pr-code').trim(), designation:v('pr-des').trim(), famille:v('pr-fam'), forme:v('pr-forme'),
       dci:v('pr-dci').trim(), dosage:v('pr-dosage').trim(), conditionnement:v('pr-cond').trim(), unite:v('pr-unite'),
-      prix_achat:v('pr-prix'), tva:v('pr-tva'), fournisseur:v('pr-fourn').trim(), code_barre:v('pr-barre').trim(),
+      prix_achat:v('pr-prix'), prix_vente:v('pr-pv'), tva:v('pr-tva'), fournisseur:v('pr-fourn').trim(), code_barre:v('pr-barre').trim(),
       stock_min:v('pr-min'), stock_secu:v('pr-secu'), stock_max:v('pr-max'),
       stupefiant:c('pr-stup'), thermosensible:c('pr-thermo'), gere_lot:c('pr-lot'), gere_peremption:c('pr-perem') }; },
   uiProduit(id){ const p=id?this.produit(id):null;
@@ -514,17 +546,46 @@ const MEDICORE_STOCK = {
       <div style="margin-bottom:10px"><label style="font-size:12px;color:#6b6b6b">Dépôt</label>
         <select id="ac-depot" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">${dispo.map(d=>`<option value="${d.id}">${d.libelle}</option>`).join('')}</select></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        ${this._fld('ac-stock','Stock initial','number',0)}${this._fld('ac-perem','Péremption','date')}
+        ${this._fld('ac-stock','Stock initial','number',0)}${this._fld('ac-pv','Prix vente (ce dépôt)','number',p.prix_vente||0)}
       </div>
+      <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px">${this._fld('ac-perem','Péremption','date')}</div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
         <button class="btn btn-secondary" onclick="MEDICORE_STOCK._close()">Annuler</button>
         <button class="btn btn-primary" onclick="MEDICORE_STOCK.saveAffecterCatalogue('${id}')">Affecter</button></div>`);
   },
   saveAffecterCatalogue(id){ const depot=document.getElementById('ac-depot').value;
-    this.affecterProduit(id, depot, { stock:document.getElementById('ac-stock').value, peremption:document.getElementById('ac-perem').value });
+    this.affecterProduit(id, depot, { stock:document.getElementById('ac-stock').value, prix_vente:document.getElementById('ac-pv').value, peremption:document.getElementById('ac-perem').value });
     this._close(); this.renderCatalogue(); },
 
-  // ── Gestion des familles ──────────────────────────────────────────────────────
+  // ── Valorisation : prix de vente par dépôt ───────────────────────────────────
+  uiPrixDepots(id){ const p=this.produit(id); if(!p) return;
+    const lignes=this._read(this.S_ITEMS).filter(i=>i.produit_id===id);
+    const corps = lignes.length ? lignes.map(i=>`
+      <div style="display:grid;grid-template-columns:1.4fr .8fr 1fr;gap:8px;align-items:center;margin-bottom:7px">
+        <div style="font-size:13px"><b>${this.depotLabel(i.depot)}</b><div style="font-size:11px;color:#888">stock ${i.stock} · PMP ${(i.pmp||0).toLocaleString('fr-FR')}</div></div>
+        <div style="font-size:11px;color:#888;text-align:right">vente actuelle<br><b style="color:#1a4b6e">${this.prixVenteItem(i.id).toLocaleString('fr-FR')} F</b></div>
+        <input type="number" id="pv-${i.id}" value="${i.prix_vente||''}" placeholder="${p.prix_vente||0}" style="padding:7px;border:1px solid #ddd;border-radius:6px;text-align:right">
+      </div>`).join('')
+      : '<div style="color:#888;font-size:13px;padding:8px 0">Ce produit n\'est affecté à aucun dépôt. Utilisez « 📦 Affecter » d\'abord.</div>';
+    this._modal(`<h3 style="margin:0 0 4px">Prix de vente par dépôt</h3>
+      <div style="font-size:12.5px;color:#666;margin-bottom:12px">${p.code} — ${p.designation} · prix de référence : <b>${(p.prix_vente||0).toLocaleString('fr-FR')} FCFA</b></div>
+      ${corps}
+      <div style="font-size:11px;color:#888;margin-top:6px">Vide = applique le prix de référence du catalogue. Une valeur surcharge le prix pour ce dépôt uniquement.</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="btn btn-secondary" onclick="MEDICORE_STOCK._close()">Annuler</button>
+        ${lignes.length?`<button class="btn btn-primary" onclick="MEDICORE_STOCK.savePrixDepots('${id}')">Enregistrer</button>`:''}</div>`,520);
+  },
+  savePrixDepots(id){
+    const items=this._read(this.S_ITEMS); let n=0;
+    items.filter(i=>i.produit_id===id).forEach(i=>{
+      const el=document.getElementById('pv-'+i.id); if(!el) return;
+      const v=el.value.trim()===''?0:(+el.value||0);
+      if((i.prix_vente||0)!==v){ i.prix_vente=v; n++; }
+    });
+    if(n){ this._write(this.S_ITEMS, items);
+      if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Prix de vente par dépôt','MODIFICATION',`${this.produit(id).designation} — ${n} dépôt(s)`, id); }
+    this._close(); this.renderCatalogue();
+  },
   uiFamilles(){ const fam=this.familles();
     this._modal(`<h3 style="margin:0 0 12px">Familles de produits</h3>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px">

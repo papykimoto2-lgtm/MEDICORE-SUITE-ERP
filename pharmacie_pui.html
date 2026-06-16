@@ -766,7 +766,7 @@ function ouvrirCaisseDispensation(patientId){
       const px=prixDispensation(l); const st=stockPour(l);
       const scanne=scanServies[l.id];
       let etat, action='';
-      if(scanne){ etat=`<span style="color:#15803d;font-weight:600">✓ scanné</span>`; }
+      if(scanne){ etat=`<span style="color:#15803d;font-weight:600">✓ servi · ${scanne._departement||departementDuDepot(scanne._depotService)||'—'}</span>`; }
       else if(st.sub && st.ok){ etat=`<span style="color:#15803d">→ remplacé par ${st.prod.dci}</span>`; action=`<button class="btn btn-xs btn-secondary" onclick="choisirSubstitut('${patientId}','${l.id}','${(l.med||'').replace(/'/g,"\\'")}')">✏</button>`; }
       else if(st.ok){ etat='<span style="color:var(--text-muted);font-size:11px">à scanner</span>'; }
       else { etat=`<span style="color:#b91c1c">(rupture)</span>`; action=`<button class="btn btn-xs" style="background:#c8702a;color:#fff" onclick="choisirSubstitut('${patientId}','${l.id}','${(l.med||'').replace(/'/g,"\\'")}')">🔄 Substituer</button>`; }
@@ -791,6 +791,13 @@ function ouvrirCaisseDispensation(patientId){
       <div class="modal-subtitle">${nom} · ${Object.keys(groupes).length} ordonnance(s) à servir</div></div>
       <button class="modal-close" onclick="document.getElementById('modal-caisse').remove()">✕</button></div>
     <div class="modal-body">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text-muted);white-space:nowrap">Dépôt de service</label>
+        <select id="disp-depot" onchange="MEDICORE_DISP_DEPOT=this.value" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+          ${depotsDispensation().map(d=>`<option value="${d.id}"${d.id===MEDICORE_DISP_DEPOT?' selected':''}>${d.libelle} — dépt. ${d.departement}</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">💡 Une ordonnance peut puiser dans plusieurs dépôts : changez de dépôt avant de scanner les produits concernés. Chaque montant est affecté au département du dépôt.</div>
       <div style="display:flex;gap:8px;align-items:center;background:var(--accent-light,#e8f0f7);border-radius:8px;padding:10px 12px;margin-bottom:14px">
         <span style="font-size:18px">🔫</span>
         <input id="scan-produit" placeholder="Scanner le code-barres du produit (douchette) ou saisir…" autocomplete="off"
@@ -803,13 +810,33 @@ function ouvrirCaisseDispensation(patientId){
   document.body.appendChild(ov);
   setTimeout(()=>{ const f=document.getElementById('scan-produit'); if(f) f.focus(); },100);
   MEDICORE_DISP={ patientId, groupes };
+  if(!MEDICORE_DISP_DEPOT){ const dd=depotsDispensation(); MEDICORE_DISP_DEPOT=dd.length?dd[0].id:''; const sel=document.getElementById('disp-depot'); if(sel) sel.value=MEDICORE_DISP_DEPOT; }
 }
+// Dépôts disponibles pour la dispensation (moteur stock + dépôts présents sur les produits)
+function depotsDispensation(){
+  let list=[];
+  if(typeof MEDICORE_STOCK!=='undefined') list=MEDICORE_STOCK.depotsActifs().map(d=>({id:d.id,libelle:d.libelle,departement:d.departement||d.libelle}));
+  // Ajoute les dépôts texte présents sur les produits pharmacie s'ils ne sont pas déjà listés
+  const vus=new Set(list.map(d=>d.libelle.toLowerCase()));
+  (produits||[]).forEach(p=>{ if(p.depot && !vus.has(p.depot.toLowerCase())){ vus.add(p.depot.toLowerCase()); list.push({id:p.depot,libelle:p.depot,departement:departementDuDepot(p.depot)}); } });
+  return list;
+}
+// Mapping libellé de dépôt → département (pour les dépôts texte historiques)
+function departementDuDepot(depotLabel){
+  if(typeof MEDICORE_STOCK!=='undefined'){ const d=MEDICORE_STOCK.depots().find(x=>x.libelle===depotLabel||x.id===depotLabel); if(d) return d.departement||d.libelle; }
+  const map={'Pharmacie centrale':'Pharmacie','Unité soins — Médecine':'Médecine','Unité de soins — Médecine':'Médecine',
+    'Unité soins — Chirurgie':'Chirurgie','Unité de soins — Chirurgie':'Chirurgie','Bloc opératoire':'Bloc opératoire',
+    'Urgences':'Urgences','Armoires sécurisées':'Pharmacie','Maternité':'Maternité'};
+  return map[depotLabel]||depotLabel||'Pharmacie';
+}
+let MEDICORE_DISP_DEPOT=null;    // dépôt de service sélectionné
 
 // ── Scan d'un produit (douchette ou caméra) → coche la ligne d'ordonnance ───────
 let MEDICORE_DISP=null;          // contexte de dispensation courant
 let scanServies={};              // { lineId : produit servi }
 function scannerProduit(code){
   code=(code||'').trim(); if(!code || !MEDICORE_DISP) return;
+  const depot=MEDICORE_DISP_DEPOT||(document.getElementById('disp-depot')&&document.getElementById('disp-depot').value)||'';
   // Cherche le produit par code-barres (catalogue) puis par code article
   const prod=trouverProduitParCode(code);
   if(!prod){ toast('Code-barres inconnu : '+code,'error'); beep(false); return; }
@@ -818,10 +845,12 @@ function scannerProduit(code){
   const aServir = MEDICORE_RX.aServirPatient(MEDICORE_DISP.patientId);
   const ligne = aServir.find(l=>!scanServies[l.id] && ligneCorrespondProduit(l, prod));
   if(!ligne){ toast(prod.dci+' ne correspond à aucune ligne non servie de l\'ordonnance.','warn'); beep(false); return; }
+  // Mémorise le produit + le dépôt de service + son département
+  prod._depotService=depot;
+  prod._departement=departementDuDepot(depot);
   scanServies[ligne.id]=prod;
   beep(true);
-  toast('✓ '+prod.dci+' scanné','success');
-  // Re-render en surlignant les lignes scannées
+  toast('✓ '+prod.dci+' ('+departementDuDepot(depot)+')','success');
   rafraichirDispensation();
 }
 function scannerProduitCamera(){
@@ -833,10 +862,12 @@ function trouverProduitParCode(code){
   const cat=(typeof MEDICORE_STOCK!=='undefined')?MEDICORE_STOCK.produits():[];
   const pc=cat.find(p=>p.code_barre&&p.code_barre===code) || cat.find(p=>p.code===code);
   if(pc){ // relie au stock pharmacie par désignation/dci
+    const depotSel=MEDICORE_DISP_DEPOT||'';
+    const pv=(typeof MEDICORE_STOCK!=='undefined')?MEDICORE_STOCK.prixVente(pc.id, depotSel):0;   // prix selon le dépôt
     const local=produits.find(p=>(p.dci||'').toLowerCase()===(pc.designation||'').toLowerCase() || p.code===pc.code);
-    if(local) return local;
+    if(local){ if(pv>0) local._prixVente=pv; return local; }
     // sinon renvoie une vue compatible
-    return { dci:pc.designation, code:pc.code, stock:MEDICORE_STOCK.stockTotalProduit(pc.id), pmp:pc.prix_achat, _cat:pc };
+    return { dci:pc.designation, code:pc.code, stock:MEDICORE_STOCK.stockTotalProduit(pc.id), pmp:pc.prix_achat, _prixVente:pv||pc.prix_vente||pc.prix_achat, _cat:pc };
   }
   // Fallback : code-barres/code stocké directement sur le produit pharmacie
   return produits.find(p=>p.code_barre===code) || produits.find(p=>p.code===code);
@@ -897,31 +928,70 @@ function servirExterne(){
   ov=document.createElement('div'); ov.id='modal-ext';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
   ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
-  ov.innerHTML=`<div class="modal" style="width:540px;max-width:96vw"><div class="modal-header">
+  const depotsOpt=depotsDispensation().map(d=>`<option value="${d.id}">${d.libelle} — dépt. ${d.departement}</option>`).join('');
+  ov.innerHTML=`<div class="modal" style="width:640px;max-width:96vw;max-height:90vh;overflow-y:auto"><div class="modal-header">
     <div><div class="modal-title">Vente externe / Rétrocession</div><div class="modal-subtitle">Patient externe (non hospitalisé) — vente directe + sortie de stock</div></div>
     <button class="modal-close" onclick="document.getElementById('modal-ext').remove()">✕</button></div>
     <div class="modal-body">
       <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--text-muted)">Patient / client</label>
         <input id="ext-nom" placeholder="Nom (ou « comptant »)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <label style="font-size:12px;color:var(--text-muted);white-space:nowrap">Dépôt par défaut</label>
+        <select id="ext-depot-def" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">${depotsOpt}</select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;background:var(--accent-light,#e8f0f7);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <span style="font-size:18px">🔫</span>
+        <input id="ext-scan" placeholder="Scanner le code-barres (douchette) — ajoute la ligne automatiquement…" autocomplete="off"
+          onkeydown="if(event.key==='Enter'){scannerProduitExterne(this.value);this.value='';event.preventDefault();}"
+          style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:13.5px">
+        <button class="btn btn-secondary btn-sm" onclick="scannerProduitExterneCamera()">📷</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr .8fr .5fr 26px;gap:6px;font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding:0 2px 2px">
+        <div>Produit</div><div>Dépôt</div><div style="text-align:right">Prix</div><div style="text-align:right">Qté</div><div></div></div>
       <div id="ext-lignes"></div>
-      <button class="btn btn-secondary btn-sm" onclick="ajLigneExterne()">＋ Ajouter un médicament</button>
+      <button class="btn btn-secondary btn-sm" onclick="ajLigneExterne()">＋ Ajouter une ligne</button>
       <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:8px;border-top:1px solid var(--border)">
         <strong>Total</strong><strong id="ext-total" style="color:var(--accent)">0 FCFA</strong></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById('modal-ext').remove()">Annuler</button>
       <button class="btn btn-primary" onclick="servirExterneValider()">💰 Servir & encaisser</button></div></div>`;
   document.body.appendChild(ov);
-  ajLigneExterne();
+  setTimeout(()=>{ const f=document.getElementById('ext-scan'); if(f) f.focus(); },100);
 }
-function ajLigneExterne(){
+function depotsOptionsHTML(sel){
+  return depotsDispensation().map(d=>`<option value="${d.id}"${d.id===sel?' selected':''}>${d.libelle.split(' ')[0]} (${d.departement})</option>`).join('');
+}
+function ajLigneExterne(prefill){
   const w=document.getElementById('ext-lignes'); const row=document.createElement('div');
-  row.className='ext-row'; row.style.cssText='display:grid;grid-template-columns:1.6fr .9fr .6fr 26px;gap:6px;margin-bottom:6px';
-  const opts=produits.filter(p=>p.stock>0).map(p=>`<option value="${p.dci}" data-px="${p.pmp||0}">${p.dci} (${p.stock})</option>`).join('');
+  const depotDef=(document.getElementById('ext-depot-def')||{}).value||'';
+  row.className='ext-row'; row.style.cssText='display:grid;grid-template-columns:1.5fr 1fr .8fr .5fr 26px;gap:6px;margin-bottom:6px';
+  const opts=produits.filter(p=>p.stock>0).map(p=>`<option value="${p.dci}" data-px="${p.pmp||0}"${prefill&&prefill.dci===p.dci?' selected':''}>${p.dci} (${p.stock})</option>`).join('');
   row.innerHTML=`<select class="ext-med" onchange="extPxAuto(this);majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px"><option value="">— produit —</option>${opts}</select>
-    <input class="ext-px" type="number" placeholder="Prix" oninput="majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px">
-    <input class="ext-qte" type="number" value="1" min="1" oninput="majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px">
+    <select class="ext-depot" style="padding:7px;border:1px solid var(--border);border-radius:5px">${depotsOptionsHTML(prefill&&prefill.depot||depotDef)}</select>
+    <input class="ext-px" type="number" placeholder="Prix" value="${prefill&&prefill.px!=null?prefill.px:''}" oninput="majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px;text-align:right">
+    <input class="ext-qte" type="number" value="1" min="1" oninput="majExtTotal()" style="padding:7px;border:1px solid var(--border);border-radius:5px;text-align:right">
     <button onclick="this.parentElement.remove();majExtTotal()" style="border:1px solid var(--border);background:var(--surface);border-radius:5px;cursor:pointer">✕</button>`;
   w.appendChild(row);
+  majExtTotal();
+  return row;
+}
+// Scan code-barres en vente externe → ajoute/incrémente la ligne du produit
+function scannerProduitExterne(code){
+  code=(code||'').trim(); if(!code) return;
+  const prod=trouverProduitParCode(code);
+  if(!prod){ toast('Code-barres inconnu : '+code,'error'); beep(false); return; }
+  if((prod.stock||0)<=0){ toast(prod.dci+' — rupture.','error'); beep(false); return; }
+  // Ligne existante pour ce produit ? → incrémente la quantité
+  let found=null;
+  document.querySelectorAll('#ext-lignes .ext-row').forEach(r=>{ if(r.querySelector('.ext-med').value===prod.dci) found=r; });
+  if(found){ const q=found.querySelector('.ext-qte'); q.value=(+q.value||0)+1; }
+  else { ajLigneExterne({ dci:prod.dci, px:prod.pmp||0 }); }
+  beep(true); majExtTotal();
+  toast('✓ '+prod.dci,'success');
+}
+function scannerProduitExterneCamera(){
+  if(typeof MEDICORE_SCAN==='undefined'){ toast('Caméra non disponible — utilisez la douchette.','info'); return; }
+  MEDICORE_SCAN.open(res=>{ if(res&&res.raw) scannerProduitExterne(res.raw); });
 }
 function extPxAuto(sel){ const px=sel.options[sel.selectedIndex].dataset.px; const inp=sel.parentElement.querySelector('.ext-px'); if(px&&!inp.value) inp.value=px; }
 function majExtTotal(){ let t=0; document.querySelectorAll('#ext-lignes .ext-row').forEach(r=>{ t+=(+r.querySelector('.ext-px').value||0)*(+r.querySelector('.ext-qte').value||1); });
@@ -932,10 +1002,11 @@ function servirExterneValider(){
   document.querySelectorAll('#ext-lignes .ext-row').forEach(r=>{
     const dci=r.querySelector('.ext-med').value; if(!dci) return;
     const qte=+r.querySelector('.ext-qte').value||1; const px=(+r.querySelector('.ext-px').value||0)*qte;
+    const depotServ=r.querySelector('.ext-depot').value||''; const departement=departementDuDepot(depotServ);
     const prod=produits.find(p=>p.dci===dci);
     if(prod && prod.stock>=qte){ prod.stock-=qte;
-      mouvements_stock.unshift({ date:new Date().toISOString(), produit:dci, lot:prod.lot||'—', mvt:'Sortie', qte, motif:'Dispensation externe', patient:nom, ref:'EXT' });
-      lignesCaisse.push({ libelle:dci+(qte>1?' ×'+qte:''), montant:px }); total+=px; servies.push(dci);
+      mouvements_stock.unshift({ date:new Date().toISOString(), produit:dci, lot:prod.lot||'—', mvt:'Sortie', qte, motif:'Dispensation externe', depot:depotServ, departement, patient:nom, ref:'EXT' });
+      lignesCaisse.push({ libelle:dci+(qte>1?' ×'+qte:''), montant:px, depot:depotServ, departement }); total+=px; servies.push(dci);
     } else ruptures.push(dci);
   });
   if(!servies.length){ toast('Aucun produit disponible.','error'); return; }
@@ -956,7 +1027,12 @@ function stockPour(l){
 }
 function prixDispensation(l){
   if(l.montant) return +l.montant;
-  const s=stockPour(l); return s.prod?(s.prod.pmp||0):0;   // à défaut, PMP
+  // Si la ligne a été scannée, privilégie le prix de vente du dépôt
+  const scanne = (typeof scanServies!=='undefined') ? scanServies[l.id] : null;
+  if(scanne && scanne._prixVente>0) return scanne._prixVente;
+  const s=stockPour(l);
+  if(s.prod && s.prod._prixVente>0) return s.prod._prixVente;
+  return s.prod?(s.prod.pmp||0):0;   // à défaut, PMP
 }
 
 function servirOrdonnance(patientId, groupe){
@@ -968,12 +1044,15 @@ function servirOrdonnance(patientId, groupe){
     const scanne=scanServies[l.id];
     const s = scanne ? { prod:scanne, sub:false } : stockPour(l);
     if(s.prod && s.prod.stock>0){
+      const depotServ = (scanne&&scanne._depotService) || s.prod.depot || (MEDICORE_DISP_DEPOT||'');
+      const departement = (scanne&&scanne._departement) || departementDuDepot(depotServ);
       s.prod.stock-=1;                                   // mouvement de stock (sortie)
       mouvements_stock.unshift({ date:new Date().toISOString(), produit:s.prod.dci, lot:s.prod.lot||'—',
-        mvt:'Sortie', qte:1, motif:scanne?'Dispensation (scan)':'Dispensation', patient:l.patient_nom||patientId, ref:l.id });
+        mvt:'Sortie', qte:1, motif:scanne?'Dispensation (scan)':'Dispensation', depot:depotServ, departement,
+        patient:l.patient_nom||patientId, ref:l.id });
       const px=prixDispensation(l); total+=px;
       const lib=s.sub?`${s.prod.dci} (générique de ${l.med})`:l.med;
-      lignesCaisse.push({ libelle:lib, montant:px, ref:l.id });
+      lignesCaisse.push({ libelle:lib, montant:px, ref:l.id, depot:depotServ, departement });
       MEDICORE_RX.delivrer(l.id, getPharmacien());        // ordonnance servie
       servies.push(lib);
       delete subsDispensation[l.id];
@@ -1474,9 +1553,15 @@ function majEcart(attendu){
 function validerCloture(){
   const compte=+document.getElementById('clot-compte').value||0;
   const versement=+document.getElementById('clot-versement').value||0;
+  // Synthèse par dépôt et par département (calculée AVANT clôture — la session sera vidée)
+  const synth=syntheseSessionPharma();
   const clos=MEDICORE_CAISSE.cloturerSession('pharmacie_pui', { compteEspeces:compte, versement });
   document.getElementById('modal-clot').remove();
   if(clos && typeof MEDICORE_PRINT!=='undefined'){
+    const ligneDepts=Object.entries(synth.parDepartement).sort((a,b)=>b[1]-a[1])
+      .map(([d,m])=>`<tr><td>&nbsp;&nbsp;${d}</td><td class="right">${m.toLocaleString('fr-FR')} FCFA</td></tr>`).join('');
+    const ligneDepots=Object.entries(synth.parDepot).sort((a,b)=>b[1].montant-a[1].montant)
+      .map(([d,o])=>`<tr><td>&nbsp;&nbsp;${d} <span style="color:#888">(${o.departement})</span></td><td class="right">${o.montant.toLocaleString('fr-FR')} FCFA</td></tr>`).join('');
     MEDICORE_PRINT.open({ titre:'Clôture de caisse (Z) — Pharmacie', sousTitre:clos.caissier+' · '+new Date(clos.cloturee_le).toLocaleString('fr-FR'),
       corpsHTML:`<table><tbody>
         <tr><td>Caissier</td><td class="right"><b>${clos.caissier}</b></td></tr>
@@ -1488,10 +1573,30 @@ function validerCloture(){
         <tr><td>Espèces comptées (état final)</td><td class="right">${clos.compte_especes.toLocaleString('fr-FR')} FCFA</td></tr>
         <tr><td>Versement</td><td class="right">${clos.versement.toLocaleString('fr-FR')} FCFA</td></tr>
         <tr><td class="tot">ÉCART</td><td class="right tot" style="color:${clos.ecart===0?'#15803d':'#b91c1c'}">${(clos.ecart>0?'+':'')+clos.ecart.toLocaleString('fr-FR')} FCFA</td></tr>
-      </tbody></table>` });
+      </tbody></table>
+      ${ligneDepts?`<div style="margin-top:10px;font-weight:700;font-size:12px;border-top:1px dashed #999;padding-top:6px">RECETTE PAR DÉPARTEMENT</div>
+      <table><tbody>${ligneDepts}</tbody></table>`:''}
+      ${ligneDepots?`<div style="margin-top:8px;font-weight:700;font-size:12px;border-top:1px dashed #999;padding-top:6px">DÉTAIL PAR DÉPÔT</div>
+      <table><tbody>${ligneDepots}</tbody></table>`:''}` });
   }
   toast('Caisse clôturée. Écart : '+(clos?clos.ecart.toLocaleString('fr-FR'):'0')+' FCFA.', clos&&clos.ecart===0?'success':'warn');
   renderCaissePharma();
+}
+// Agrège la recette de la session courante par dépôt et par département
+function syntheseSessionPharma(){
+  const parDepot={}, parDepartement={};
+  if(typeof MEDICORE_CAISSE==='undefined') return {parDepot,parDepartement};
+  MEDICORE_CAISSE.txnSession('pharmacie_pui').forEach(txn=>{
+    (txn.lignes||[]).forEach(l=>{
+      const dep=l.depot||'Pharmacie centrale';
+      const dept=l.departement||departementDuDepot(dep);
+      const m=+l.montant||0;
+      if(!parDepot[dep]) parDepot[dep]={montant:0,departement:dept};
+      parDepot[dep].montant+=m;
+      parDepartement[dept]=(parDepartement[dept]||0)+m;
+    });
+  });
+  return {parDepot,parDepartement};
 }
 function dispenserDepuisCaisse(){
   const ap=(typeof MEDICORE_PATIENT!=='undefined')?MEDICORE_PATIENT.get():null;

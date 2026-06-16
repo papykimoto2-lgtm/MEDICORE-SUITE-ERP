@@ -283,6 +283,7 @@ const SECTIONS = [
   { id:'tarification',  ic:'💳', label:'Tarification & assurances', groupe:'Organisation' },
   { id:'comptabilite',  ic:'📊', label:'Comptabilité & banques', groupe:'Organisation' },
   { id:'fournisseurs',  ic:'🚚', label:'Fournisseurs', groupe:'Organisation' },
+  { id:'stock',         ic:'📦', label:'Stock & Catalogue', groupe:'Organisation' },
   { id:'numerotation',  ic:'🔢', label:'Numérotation', groupe:'Système' },
   { id:'seuils',        ic:'🔔', label:'Alertes & seuils', groupe:'Système' },
   { id:'integrations',  ic:'🔌', label:'Intégrations', groupe:'Système' },
@@ -370,13 +371,6 @@ function renderBody(){
       <button class="btn btn-secondary btn-sm" onclick="viderHistoConnexion()">Purger</button></div>
       <div class="card-body" style="padding:0">${renderHistoConnexion()}</div></div>
 
-    <div class="card"><div class="card-head"><div><h3>Dépôts de stock</h3><div class="sub">Magasin central, services consommateurs (laboratoire, imagerie, bloc…)</div></div>
-      <button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button></div>
-      <div class="card-body" style="padding:0">${renderDepotsStock()}</div></div>
-
-    <div class="card"><div class="card-head"><div><h3>Catalogue produits</h3><div class="sub">Médicaments, réactifs, consommables, dispositifs — définis une fois, affectés aux dépôts</div></div></div>
-      <div class="card-body" style="padding:16px"><div id="catalogue-produits"></div></div></div>
-
     <div class="card"><div class="card-head"><div><h3>Journal d'audit</h3><div class="sub">Connexions · consultations · modifications · suppressions</div></div></div>
       <div class="card-body" style="padding:0">${typeof MEDICORE_AUDIT!=='undefined'?MEDICORE_AUDIT.renderTable(200):'<div style="padding:20px;color:var(--text-muted)">Module audit non chargé.</div>'}</div></div>
 
@@ -387,6 +381,15 @@ function renderBody(){
       </tbody></table></div>
       <div class="card-body" style="border-top:1px solid var(--border)"><div class="save-bar">
         <button class="btn btn-primary" onclick="persist();toast('Permissions enregistrées.','success')">💾 Enregistrer les droits</button></div></div></div>`;
+  }
+  else if(currentSection==='stock'){
+    b.innerHTML = head('Stock & Catalogue','Dépôts, familles et catalogue des produits médicaux & paramédicaux')+
+    `<div class="card"><div class="card-head"><div><h3>Dépôts de stock</h3><div class="sub">Magasin central, services consommateurs (laboratoire, imagerie, bloc…) — chaque dépôt est rattaché à un département</div></div>
+      <button class="btn btn-primary btn-sm" onclick="uiAjouterDepot()">＋ Nouveau dépôt</button></div>
+      <div class="card-body" style="padding:0">${renderDepotsStock()}</div></div>
+
+    <div class="card"><div class="card-head"><div><h3>Catalogue produits</h3><div class="sub">Médicaments, réactifs, consommables, dispositifs — définis une fois (code-barres, DCI, forme…), puis affectés aux dépôts</div></div></div>
+      <div class="card-body" style="padding:16px"><div id="catalogue-produits"></div></div></div>`;
     if(typeof MEDICORE_STOCK!=='undefined' && document.getElementById('catalogue-produits')) MEDICORE_STOCK.mountCatalogue('catalogue-produits');
   }
   else if(currentSection==='services'){
@@ -809,11 +812,12 @@ function viderHistoConnexion(){
 function renderDepotsStock(){
   if(typeof MEDICORE_STOCK==='undefined') return '<div style="padding:20px;color:var(--text-muted)">Module stock non chargé.</div>';
   const list=MEDICORE_STOCK.depots();
-  return `<table><thead><tr><th>Dépôt</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th>Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
+  return `<table><thead><tr><th>Dépôt</th><th>Département</th><th>Identifiant</th><th>Responsable</th><th>Statut</th><th>Valeur stock</th><th style="text-align:right">Actions</th></tr></thead><tbody>${
     list.map(d=>{
       const valeur=MEDICORE_STOCK.valeurStock(d.id);
       return `<tr>
         <td><strong>${d.libelle}</strong>${d.builtin?' <span class="badge" style="background:var(--surface-alt);font-size:10px">système</span>':''}</td>
+        <td>${d.departement||'—'}</td>
         <td><span class="mono" style="font-size:11.5px">${d.id}</span></td>
         <td>${d.responsable||'—'}</td>
         <td>${d.actif?'<span class="badge b-on">actif</span>':'<span class="badge b-off">inactif</span>'}</td>
@@ -829,10 +833,11 @@ function renderDepotsStock(){
 function uiAjouterDepot(){
   formModal('Nouveau dépôt de stock',[
     {key:'libelle',label:'Nom du dépôt',required:true,placeholder:'ex : Maternité — Bloc B'},
+    {key:'departement',label:'Département (rattachement comptable)',placeholder:'ex : Maternité'},
     {key:'responsable',label:'Responsable',placeholder:'ex : Sage-femme major'},
   ], (v)=>{
     if(!v.libelle||!v.libelle.trim()){ toast('Nom requis.','error'); return; }
-    const r=MEDICORE_STOCK.ajouterDepot({libelle:v.libelle.trim(),responsable:(v.responsable||'').trim()});
+    const r=MEDICORE_STOCK.ajouterDepot({libelle:v.libelle.trim(),departement:(v.departement||'').trim(),responsable:(v.responsable||'').trim()});
     if(r.erreur){ toast('Dépôt déjà existant.','error'); return; }
     if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Création dépôt de stock','CREATION',v.libelle.trim(), r.id);
     renderBody(); toast('Dépôt créé : '+v.libelle,'success');
@@ -842,9 +847,10 @@ function uiModifierDepot(id){
   const d=MEDICORE_STOCK.depots().find(x=>x.id===id); if(!d) return;
   formModal('Modifier le dépôt',[
     {key:'libelle',label:'Nom du dépôt',required:true,value:d.libelle},
+    {key:'departement',label:'Département (rattachement comptable)',value:d.departement||''},
     {key:'responsable',label:'Responsable',value:d.responsable||''},
   ], (v)=>{
-    MEDICORE_STOCK.modifierDepot(id,{libelle:v.libelle.trim(),responsable:(v.responsable||'').trim()});
+    MEDICORE_STOCK.modifierDepot(id,{libelle:v.libelle.trim(),departement:(v.departement||'').trim(),responsable:(v.responsable||'').trim()});
     renderBody(); toast('Dépôt modifié.','success');
   });
 }

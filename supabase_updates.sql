@@ -251,3 +251,27 @@ select doc_id, payload->>'login' as login, payload->>'nom' as nom,
        coalesce((payload->>'must_change')::boolean,false) as doit_changer_mdp,
        payload->>'created_at' as cree_le, payload->>'created_par' as cree_par, updated_at
 from public.medicore_sync_docs where store='utilisateurs' and not deleted;
+
+-- (MAJ) Catalogue : ajout prix_vente de référence
+drop view if exists public.v_produits_catalogue cascade;
+create view public.v_produits_catalogue as
+select doc_id, payload->>'code' as code, payload->>'designation' as designation,
+       payload->>'famille' as famille, payload->>'dci' as dci, payload->>'forme' as forme,
+       payload->>'dosage' as dosage, payload->>'conditionnement' as conditionnement,
+       payload->>'unite' as unite, payload->>'fournisseur' as fournisseur,
+       (payload->>'prix_achat')::numeric as prix_achat, (payload->>'prix_vente')::numeric as prix_vente,
+       (payload->>'tva')::numeric as tva,
+       coalesce((payload->>'stupefiant')::boolean,false) as stupefiant,
+       coalesce((payload->>'thermosensible')::boolean,false) as thermosensible,
+       (payload->>'stock_min')::numeric as stock_min, (payload->>'stock_secu')::numeric as stock_secu,
+       (payload->>'stock_max')::numeric as stock_max,
+       coalesce((payload->>'actif')::boolean,true) as actif, updated_at
+from public.medicore_sync_docs where store='produits_catalogue' and not deleted;
+
+-- (MAJ) Consommables : prix_vente par dépôt (valorisation différenciée)
+drop view if exists public.v_consommables_prix cascade;
+create view public.v_consommables_prix as
+select doc_id, payload->>'produit_id' as produit_id, payload->>'depot' as depot,
+       payload->>'designation' as designation, (payload->>'stock')::numeric as stock,
+       (payload->>'pmp')::numeric as pmp_cout, (payload->>'prix_vente')::numeric as prix_vente_depot, updated_at
+from public.medicore_sync_docs where store='consommables' and not deleted;
