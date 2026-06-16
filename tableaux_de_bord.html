@@ -195,9 +195,11 @@
       </div>
       <div class="topbar-actions">
         <select id="periode-dash" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);outline:none;color:var(--text)" onchange="renderAll()">
-          <option value="T2-2025">T2 2025 (Avr–Juin)</option>
-          <option value="T1-2025">T1 2025 (Jan–Mar)</option>
-          <option value="AN-2025">Annuel 2025</option>
+          <option value="AN">Exercice courant (année)</option>
+          <option value="T1">T1 (Jan–Mar)</option>
+          <option value="T2">T2 (Avr–Juin)</option>
+          <option value="T3">T3 (Juil–Sep)</option>
+          <option value="T4">T4 (Oct–Déc)</option>
         </select>
         <button class="btn btn-secondary btn-sm" onclick="toast('Rapport PDF généré.','success')">📄 Rapport PDF</button>
         <button class="btn btn-primary btn-sm" onclick="toast('Export Excel en cours…','success')">⬇ Export BI</button>
@@ -294,12 +296,12 @@
         <div class="chart-grid">
           <!-- Produits vs Charges par pôle -->
           <div class="card">
-            <div class="card-header"><div class="card-title">Produits vs Charges par pôle</div><div class="card-subtitle">FCFA — T2 2025</div></div>
+            <div class="card-header"><div class="card-title">Produits vs Charges par pôle</div><div class="card-subtitle">FCFA — <span id="periode-label-1">période</span></div></div>
             <div class="chart-body" id="chart-poles"></div>
           </div>
           <!-- Évolution mensuelle -->
           <div class="card">
-            <div class="card-header"><div class="card-title">Évolution résultat mensuel</div><div class="card-subtitle">Résultat cumulé 2025 — FCFA</div></div>
+            <div class="card-header"><div class="card-title">Évolution résultat mensuel</div><div class="card-subtitle">Résultat cumulé — <span id="periode-label-2">période</span> — FCFA</div></div>
             <div class="chart-body" id="chart-resultat-mois"></div>
           </div>
         </div>
@@ -334,23 +336,23 @@
           <div class="kpi-card" style="border-left:4px solid var(--green)">
             <div class="kpi-label">Consultations externes</div>
             <div class="kpi-value" id="act-consul">—</div>
-            <div class="kpi-trend trend-up">▲ +8% vs T1</div>
+            <div class="kpi-trend trend-flat" id="act-consul-trend">—</div>
           </div>
           <div class="kpi-card" style="border-left:4px solid var(--orange)">
             <div class="kpi-label">Passages urgences</div>
             <div class="kpi-value" id="act-urg">—</div>
-            <div class="kpi-trend trend-flat">→ stable vs T1</div>
+            <div class="kpi-trend trend-flat" id="act-urg-trend">—</div>
           </div>
           <div class="kpi-card" style="border-left:4px solid var(--teal)">
             <div class="kpi-label">Taux d'occupation lits</div>
             <div class="kpi-value" id="act-tol">—</div>
-            <div class="kpi-trend trend-up">▲ +3pts vs T1</div>
+            <div class="kpi-trend trend-flat" id="act-tol-trend">—</div>
           </div>
         </div>
 
         <div class="chart-grid">
           <div class="card">
-            <div class="card-header"><div class="card-title">Activité par pôle</div><div class="card-subtitle">Entrées, DMS, taux occupation — T2 2025</div></div>
+            <div class="card-header"><div class="card-title">Activité par pôle</div><div class="card-subtitle">Entrées, DMS, taux occupation — <span id="periode-label-3">période</span></div></div>
             <div style="padding:16px;overflow-x:auto">
               <table>
                 <thead><tr>
@@ -362,7 +364,7 @@
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">Répartition des entrées</div><div class="card-subtitle">Par pôle clinique — T2 2025</div></div>
+            <div class="card-header"><div class="card-title">Répartition des entrées</div><div class="card-subtitle">Par pôle clinique — <span id="periode-label-4">période</span></div></div>
             <div class="chart-body" id="chart-entrees-poles"></div>
           </div>
         </div>
@@ -394,7 +396,7 @@
 
         <div class="chart-grid">
           <div class="card">
-            <div class="card-header"><div class="card-title">Top 10 Actes / Diagnostics</div><div class="card-subtitle">Volume et valorisation CNAM-CI — T2 2025</div></div>
+            <div class="card-header"><div class="card-title">Top 10 Actes / Diagnostics</div><div class="card-subtitle">Volume et valorisation CNAM-CI — <span id="periode-label-5">période</span></div></div>
             <div style="padding:16px;overflow-x:auto">
               <table>
                 <thead><tr>
@@ -454,7 +456,7 @@
             <div class="chart-body" id="bi-labo"></div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">Analyse des dépenses</div><div class="card-subtitle">Top 5 postes de charges — T2 2025</div></div>
+            <div class="card-header"><div class="card-title">Analyse des dépenses</div><div class="card-subtitle">Top 5 postes de charges — <span id="periode-label-6">période</span></div></div>
             <div class="chart-body" id="bi-depenses"></div>
           </div>
         </div>
@@ -503,18 +505,8 @@
 
 <script>
 // ── Données ────────────────────────────────────────────────────────────────────
-// Structure vide — à alimenter depuis les modules opérationnels
-const DATA_VIDE = {
-  produits:0, charges:0, tresorerie:0,
-  sejours:0, consul:0, urgences:0, tol:0, dms:0, satisf:0,
-  poles:[], moisData:[],
-};
-const DATA = {
-  'T2-2025': {...DATA_VIDE},
-  'T1-2025': {...DATA_VIDE},
-  'AN-2025': {...DATA_VIDE},
-};
-
+// Toutes les valeurs sont calculées en direct depuis les stores opérationnels
+// (caisse, prestations, comptabilité, patients…). Aucune donnée fictive.
 const ACTES_DATA = [
   // (données démo supprimées)
 ];
@@ -528,54 +520,71 @@ function fmt(v){return Math.round(v||0).toLocaleString('fr-FR')}
 function fmtF(v){return fmt(v)+' FCFA'}
 function fmtM(v){return (v/1000000).toFixed(1)+' M FCFA'}
 function getPeriode(){return document.getElementById('periode-dash').value}
+function _dashLabelPeriode(){
+  const {annee}=_dashBornes(); const per=getPeriode();
+  const lbl={AN:'Exercice',T1:'T1',T2:'T2',T3:'T3',T4:'T4'}[per]||per;
+  return lbl+' '+annee;
+}
+function _majLabelsPeriode(){
+  const lbl=_dashLabelPeriode();
+  for(let i=1;i<=6;i++){ const el=document.getElementById('periode-label-'+i); if(el) el.textContent=lbl; }
+}
 function _dashLoad(s){ try{ return (typeof MEDICORE_STORE!=='undefined')?(MEDICORE_STORE.load(s,[])||[]):[]; }catch(e){ return []; } }
+// Bornes de dates [début, fin] pour la période sélectionnée — toujours relatives à l'année en cours
+function _dashBornes(){
+  const an=(typeof MEDICORE_COMPTA!=='undefined')?MEDICORE_COMPTA.exerciceCourant():new Date().getFullYear();
+  const per=getPeriode();
+  const Q={ T1:[0,2], T2:[3,5], T3:[6,8], T4:[9,11] };
+  if(Q[per]){ const [m0,m1]=Q[per]; return { debut:new Date(an,m0,1).toISOString().slice(0,10),
+    fin:new Date(an,m1+1,0).toISOString().slice(0,10), annee:an }; }
+  return { debut:an+'-01-01', fin:an+'-12-31', annee:an };
+}
 function _dashPeriode(dateStr){
-  // Filtre simple par période sélectionnée (T1/T2/Année) — sinon tout
-  const per=getPeriode(); if(!dateStr) return true;
+  const {debut,fin}=_dashBornes(); if(!dateStr) return true;
   const d=new Date(dateStr); if(isNaN(d)) return true;
-  const y=d.getFullYear(), m=d.getMonth();
-  if(per==='T1-2025') return y===2025 && m<=2;
-  if(per==='T2-2025') return y===2025 && m>=3 && m<=5;
-  if(per==='AN-2025') return y===2025;
-  return true;
+  return d>=new Date(debut) && d<=new Date(fin+'T23:59:59');
 }
 // Calcule l'ensemble des indicateurs à partir des données réelles des stores
 function getData(){
   const patients=_dashLoad('patients'), prestations=_dashLoad('prestations'),
-        caisse=_dashLoad('caisse'), urgences=_dashLoad('urgences'),
-        prescriptions=_dashLoad('prescriptions'), treso=_dashLoad('mouvements_tresorerie');
-  const cP=caisse.filter(t=>_dashPeriode(t.date));
-  const tP=treso.filter(m=>_dashPeriode(m.date));
+        urgences=_dashLoad('urgences'), prescriptions=_dashLoad('prescriptions');
+  const {debut,fin}=_dashBornes();
   const prP=prestations.filter(p=>_dashPeriode(p.date));
+  const hasCompta=(typeof MEDICORE_COMPTA!=='undefined');
 
-  const produits=cP.reduce((s,t)=>s+(+t.total||0),0);
-  const charges=tP.filter(m=>/sortie|décaiss|charge/i.test((m.sens||m.type||'')+'')).reduce((s,m)=>s+(+m.montant||0),0);
+  // Produits / charges réels : somme de TOUTES les écritures de la période (grand livre)
+  const totaux = hasCompta ? MEDICORE_COMPTA.totauxPeriode(debut, fin) : {produits:0, charges:0};
+  const produits=totaux.produits, charges=totaux.charges;
+  // Trésorerie réelle : solde des comptes caisse/banque (position, pas un flux de la période)
+  const tresorerie = hasCompta ? MEDICORE_COMPTA.positionTresorerie() : 0;
 
-  const LAB={laboratoire:'Laboratoire',imagerie:'Imagerie',pharmacie_pui:'Pharmacie',pharmacie:'Pharmacie',
-    bloc_operatoire:'Bloc opératoire',consultation:'Consultations',facturation:'Consultations',urgences:'Urgences'};
-  const COUL={Laboratoire:'#0891b2',Imagerie:'#7c3aed',Pharmacie:'#15803d',
-    'Bloc opératoire':'#b91c1c',Consultations:'#1a4b6e',Urgences:'#c2410c'};
-  const byPole={};
-  prP.forEach(p=>{ const lab=LAB[p.module]||'Autre';
-    (byPole[lab]=byPole[lab]||{pole:lab,produits:0,charges:0,pts:new Set()});
-    byPole[lab].produits+=(+p.montant||0); if(p.patientId) byPole[lab].pts.add(p.patientId); });
-  const poles=Object.values(byPole).map(p=>({ pole:p.pole, produits:p.produits, charges:0,
-    sejours:p.pts.size, dms:null, lits:null, couleur:COUL[p.pole]||'#1a4b6e' }));
+  // ── Ventilation des recettes générées par service (centre analytique réel) ──
+  const COUL={Urgences:'#c2410c','Bloc opératoire':'#b91c1c',Imagerie:'#7c3aed',Laboratoire:'#0891b2',
+    Pharmacie:'#15803d',Hospitalisation:'#1a4b6e','Consultations externes':'#0e7490',
+    'Maternité':'#a21caf',Administration:'#6b6b6b','Service social':'#0d9488'};
+  // Séjours (patients distincts) par service — dérivés des prestations réelles
+  const sejoursParCentre={};
+  prP.forEach(p=>{ if(p.patientId){ (sejoursParCentre[p.module]=sejoursParCentre[p.module]||new Set()).add(p.patientId); } });
+  const analytique = hasCompta ? MEDICORE_COMPTA.analytiqueParCentrePeriode(debut, fin) : [];
+  const poles = analytique.filter(c=>c.produits || c.charges).map(c=>({
+    pole:c.label, produits:c.produits, charges:c.charges,
+    sejours: sejoursParCentre[c.centre]?sejoursParCentre[c.centre].size:0,
+    dms:null, lits:null, couleur:COUL[c.label]||'#1a4b6e'
+  }));
 
   // DMS réelle (patients avec entrée + sortie)
   const durs=patients.filter(p=>p.entree&&p.sortie).map(p=>(new Date(p.sortie)-new Date(p.entree))/86400000).filter(x=>x>=0);
   const dms=durs.length?+(durs.reduce((a,b)=>a+b,0)/durs.length).toFixed(1):null;
 
-  // Recette / charges des 6 derniers mois
+  // Recette / charges des 6 derniers mois (grand livre, mois calendaires réels)
   const MN=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
   const now=new Date(), moisData=[];
   for(let i=5;i>=0;i--){ const dt=new Date(now.getFullYear(),now.getMonth()-i,1), y=dt.getFullYear(), mo=dt.getMonth();
-    const inM=arr=>arr.filter(x=>{const d=new Date(x.date);return d.getFullYear()===y&&d.getMonth()===mo;});
-    moisData.push({ m:MN[mo],
-      prod:inM(caisse).reduce((s,t)=>s+(+t.total||0),0),
-      ch:inM(treso.filter(m=>/sortie/i.test((m.sens||'')+''))).reduce((s,m)=>s+(+m.montant||0),0) });
+    const d0=new Date(y,mo,1).toISOString().slice(0,10), d1=new Date(y,mo+1,0).toISOString().slice(0,10);
+    const t=hasCompta?MEDICORE_COMPTA.totauxPeriode(d0,d1):{produits:0,charges:0};
+    moisData.push({ m:MN[mo], prod:t.produits, ch:t.charges });
   }
-  return { produits, charges, tresorerie:produits-charges,
+  return { produits, charges, tresorerie,
     sejours:patients.length, consul:prescriptions.length, urgences:urgences.length,
     tol:null, dms, satisf:null, poles, moisData };
 }
@@ -650,7 +659,7 @@ function renderFinancier(){
   document.getElementById('fin-tresorerie').textContent=fmtM(d.tresorerie);
 
   // Poles chart
-  const maxProd=Math.max(...d.poles.map(p=>p.produits));
+  const maxProd=Math.max(1,...d.poles.map(p=>p.produits));
   document.getElementById('chart-poles').innerHTML=d.poles.map(p=>{
     const pctP=Math.round(p.produits/maxProd*100);
     const pctC=Math.round(p.charges/maxProd*100);
@@ -697,21 +706,27 @@ function renderFinancier(){
       <span><span style="display:inline-block;width:12px;height:3px;background:var(--red);vertical-align:middle;border-radius:1px;margin-right:4px"></span>Charges</span>
     </div>`;
 
-  // Donut charges
-  const charges_repartition=[
-  // (données démo supprimées)
-];
+  // Donut charges — ventilation des charges par service (centre analytique réel)
+  const totCharges=d.poles.reduce((s,p)=>s+p.charges,0);
+  const charges_repartition = totCharges>0 ? d.poles.filter(p=>p.charges>0).map(p=>({
+    label:p.pole, pct:Math.round(p.charges/totCharges*100), color:p.couleur })) : [];
   renderDonut('chart-charges-repartition', charges_repartition);
+  if(!charges_repartition.length) document.getElementById('chart-charges-repartition').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Aucune charge comptabilisée sur la période.</div>';
 
-  const produits_repartition=[
-  // (données démo supprimées)
-];
+  // Donut produits — ventilation des recettes générées par service (centre analytique réel)
+  const totProduits=d.poles.reduce((s,p)=>s+p.produits,0);
+  const produits_repartition = totProduits>0 ? d.poles.filter(p=>p.produits>0).map(p=>({
+    label:p.pole, pct:Math.round(p.produits/totProduits*100), color:p.couleur })) : [];
   renderDonut('chart-produits-repartition', produits_repartition);
+  if(!produits_repartition.length) document.getElementById('chart-produits-repartition').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">Aucune recette comptabilisée sur la période.</div>';
 
   // Ratios
+  const marge = d.produits>0 ? Math.round((d.produits-d.charges)/d.produits*100) : null;
+  const txCharges = d.produits>0 ? Math.round(d.charges/d.produits*100) : null;
   const ratios=[
-  // (données démo supprimées)
-];
+    { label:'Marge nette (résultat / produits)', cible:'≥ 10 %', val:marge==null?'—':marge+' %', ok:marge!=null&&marge>=10 },
+    { label:'Taux de charges (charges / produits)', cible:'≤ 85 %', val:txCharges==null?'—':txCharges+' %', ok:txCharges!=null&&txCharges<=85 },
+  ];
   document.getElementById('ratios-fin').innerHTML=ratios.map(r=>`
     <div class="indic-row" style="padding:10px 20px">
       <div class="indic-label">${r.label}</div>
@@ -753,40 +768,45 @@ function renderDonut(containerId, data){
 // ── Activité médicale ─────────────────────────────────────────────────────────
 function renderActivite(){
   const d=getData();
+  const patients=_dashLoad('patients');
   document.getElementById('act-sejours').textContent=fmt(d.sejours);
-  document.getElementById('act-sejours-trend').textContent='▲ +8,7% vs T1';
+  document.getElementById('act-sejours-trend').innerHTML='<span class="trend-flat">'+fmt(d.poles.reduce((s,p)=>s+p.sejours,0))+' séjours ventilés sur la période</span>';
   document.getElementById('act-consul').textContent=fmt(d.consul);
   document.getElementById('act-urg').textContent=fmt(d.urgences);
-  document.getElementById('act-tol').textContent=d.tol+'%';
+  document.getElementById('act-tol').textContent=_kpiOrDash(d.tol,'%');
 
   // Table pôles activité
   document.getElementById('activite-poles-tbody').innerHTML=d.poles.filter(p=>p.sejours>0).map(p=>{
-    const journees=Math.round(p.sejours*p.dms);
+    const journees=p.dms?Math.round(p.sejours*p.dms):0;
     const to=p.lits>0?Math.round(journees/(p.lits*91)*100):0;
     return `<tr>
       <td style="font-weight:500"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.couleur};margin-right:8px"></span>${p.pole}</td>
       <td class="text-right amount">${fmt(p.sejours)}</td>
-      <td class="text-right text-muted">${p.dms.toFixed(1)}</td>
-      <td class="text-right">${fmt(journees)}</td>
-      <td class="text-right text-muted">${p.lits}</td>
-      <td class="text-right"><span style="font-weight:700;color:${to>75?'var(--green)':to>50?'var(--orange)':'var(--red)'}">${to}%</span></td>
+      <td class="text-right text-muted">${p.dms?p.dms.toFixed(1):'—'}</td>
+      <td class="text-right">${journees||'—'}</td>
+      <td class="text-right text-muted">${p.lits||'—'}</td>
+      <td class="text-right">${to>0?`<span style="font-weight:700;color:${to>75?'var(--green)':to>50?'var(--orange)':'var(--red)'}">${to}%</span>`:'—'}</td>
     </tr>`;
-  }).join('');
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:18px">Aucune activité sur la période sélectionnée.</td></tr>';
 
   // Barres entrées par pôle
-  const maxS=Math.max(...d.poles.map(p=>p.sejours));
+  const maxS=Math.max(1,...d.poles.map(p=>p.sejours));
   document.getElementById('chart-entrees-poles').innerHTML=d.poles.filter(p=>p.sejours>0).map(p=>`
     <div class="bar-row">
       <div class="bar-label sm">${p.pole}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(p.sejours/maxS*100)}%;background:${p.couleur}">${p.sejours>maxS*0.2?p.sejours:''}</div></div>
       <div class="bar-val" style="color:${p.couleur}">${fmt(p.sejours)}</div>
-    </div>`).join('');
+    </div>`).join('') || '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12.5px">Aucune donnée.</div>';
 
-  // Line chart mensuel entrées
-  const moisE=[
-  // (données démo supprimées)
-];
-  const maxE=Math.max(...moisE.map(m=>m.v));
+  // Line chart mensuel entrées — admissions réelles des 6 derniers mois
+  const MNe=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+  const nowE=new Date(); const moisE=[];
+  for(let i=5;i>=0;i--){ const dt=new Date(nowE.getFullYear(),nowE.getMonth()-i,1), y=dt.getFullYear(), mo=dt.getMonth();
+    const n=patients.filter(p=>{ const ad=p.entree||p.admission; if(!ad) return false; const da=new Date(ad);
+      return da.getFullYear()===y && da.getMonth()===mo; }).length;
+    moisE.push({ m:MNe[mo], v:n });
+  }
+  const maxE=Math.max(1,...moisE.map(m=>m.v));
   const W=460,H=90;
   const pts=moisE.map((m,i)=>({x:i/(moisE.length-1)*W,y:H-(m.v/maxE*(H-16))-8}));
   document.getElementById('chart-entrees-mois').innerHTML=`
@@ -877,7 +897,7 @@ function renderBI(){
   const d=getData();
   // Coût par séjour
   const polesAvecSejours=d.poles.filter(p=>p.sejours>0);
-  const maxCPS=Math.max(...polesAvecSejours.map(p=>p.charges/p.sejours));
+  const maxCPS=Math.max(1,...polesAvecSejours.map(p=>p.charges/p.sejours));
   document.getElementById('bi-cout-sejour').innerHTML=polesAvecSejours.map(p=>{
     const cps=Math.round(p.charges/p.sejours);
     const pct=Math.round(cps/maxCPS*100);
@@ -889,7 +909,7 @@ function renderBI(){
   }).join('');
 
   // Marge par pôle
-  const maxMarge=Math.max(...d.poles.map(p=>Math.abs(p.produits-p.charges)));
+  const maxMarge=Math.max(1,...d.poles.map(p=>Math.abs(p.produits-p.charges)));
   document.getElementById('bi-marge').innerHTML=d.poles.map(p=>{
     const m=p.produits-p.charges;
     const pct=Math.round(Math.abs(m)/maxMarge*100);
@@ -901,41 +921,44 @@ function renderBI(){
     </div>`;
   }).join('');
 
-  // Stock pharmacie rotation
+  // Stock pharmacie rotation — non encore relié à un calcul de rotation réel (à venir)
   const stockRot=[
   // (données démo supprimées)
 ];
-  const maxRot=Math.max(...stockRot.map(s=>s.rot));
-  document.getElementById('bi-stock').innerHTML=stockRot.map(s=>`
+  const maxRot=Math.max(1,...stockRot.map(s=>s.rot));
+  document.getElementById('bi-stock').innerHTML=stockRot.length ? stockRot.map(s=>`
     <div class="bar-row">
       <div class="bar-label sm" style="font-size:11.5px">${s.prod}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(s.rot/maxRot*100)}%;background:${s.rot>5?'var(--green)':s.rot>3?'var(--orange)':'var(--red)'}">${s.rot>3?s.rot+'x':''}</div></div>
       <div class="bar-val" style="font-size:12px;color:${s.rot>5?'var(--green)':s.rot>3?'var(--orange)':'var(--red)'}">${s.rot}×</div>
-    </div>`).join('');
+    </div>`).join('') : '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12.5px">Indicateur non encore relié — calcul de rotation à implémenter.</div>';
 
-  // Labo performance
+  // Labo performance — non encore relié à un suivi par spécialité (à venir)
   const laboPerf=[
   // (données démo supprimées)
 ];
-  const maxNb=Math.max(...laboPerf.map(l=>l.nb));
-  document.getElementById('bi-labo').innerHTML=laboPerf.map(l=>`
+  const maxNb=Math.max(1,...laboPerf.map(l=>l.nb));
+  document.getElementById('bi-labo').innerHTML=laboPerf.length ? laboPerf.map(l=>`
     <div class="bar-row">
       <div class="bar-label">${l.spec}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(l.nb/maxNb*100)}%;background:var(--teal)">${l.nb>50?l.nb:''}</div></div>
       <div class="bar-val">${l.nb} — ${l.delai}</div>
-    </div>`).join('');
+    </div>`).join('') : '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12.5px">Indicateur non encore relié — suivi par spécialité à implémenter.</div>';
 
-  // Top 5 dépenses
-  const depenses=[
-  // (données démo supprimées)
-];
-  const maxDep=Math.max(...depenses.map(x=>x.m));
-  document.getElementById('bi-depenses').innerHTML=depenses.map(x=>`
+  // Top 5 dépenses — postes de charges réels (grand livre, comptes classe 6)
+  const COLD=['#b91c1c','#c2410c','#a16207','#0891b2','#6b21a8'];
+  const depenses = (typeof MEDICORE_COMPTA!=='undefined')
+    ? MEDICORE_COMPTA.balance().filter(b=>b.compte.startsWith('6') && b.debit>0)
+        .sort((a,b)=>b.debit-a.debit).slice(0,5)
+        .map((b,i)=>({ l:b.intitule||b.compte, m:b.debit, c:COLD[i]||'#6b6b6b' }))
+    : [];
+  const maxDep=Math.max(1,...depenses.map(x=>x.m));
+  document.getElementById('bi-depenses').innerHTML=depenses.length ? depenses.map(x=>`
     <div class="bar-row">
       <div class="bar-label">${x.l}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.m/maxDep*100)}%;background:${x.c}">${Math.round(x.m/maxDep*100)>20?fmtM(x.m):''}</div></div>
       <div class="bar-val" style="color:${x.c};font-size:12px">${fmtM(x.m)}</div>
-    </div>`).join('');
+    </div>`).join('') : '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12.5px">Aucune charge comptabilisée.</div>';
 
   // Cube BI
   let totSej=0,totCA=0,totCh=0;
@@ -980,6 +1003,7 @@ function switchTab(name,btn){
     if(map[name]!==undefined) btns[map[name]]?.classList.add('active');
   }
   document.getElementById('tab-'+name).classList.add('active');
+  _majLabelsPeriode();
   if(name==='financier') renderFinancier();
   if(name==='activite') renderActivite();
   if(name==='pmsi') renderActiviteMedicale();
@@ -987,6 +1011,7 @@ function switchTab(name,btn){
 }
 
 function renderAll(){
+  _majLabelsPeriode();
   renderAlertes();renderSynthese();
 }
 

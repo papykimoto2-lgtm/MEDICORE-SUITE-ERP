@@ -16,6 +16,7 @@
 <script src="medicore-scanner.js"></script>
 <script src="medicore-demandes.js"></script>
 <script src="medicore-demandes-ui.js"></script>
+<script src="medicore-planning.js"></script>
 <link rel="stylesheet" href="mobile.css">
 <style>
   :root {
@@ -264,6 +265,7 @@
         <button class="tab-btn" onclick="switchTab('paie',this)">Paie & Bulletins</button>
         <button class="tab-btn" onclick="switchTab('conges',this)">Congés & Absences</button>
         <button class="tab-btn" onclick="switchTab('gta',this)">GTA — Pointage</button>
+        <button class="tab-btn" onclick="switchTab('planning',this)">📅 Planning & Permanence</button>
         <button class="tab-btn" onclick="switchTab('competences',this)">Compétences & Formations</button>
         <button class="tab-btn" onclick="switchTab('cnps',this)">CNPS & Déclarations</button>
       </div>
@@ -411,6 +413,35 @@
               Sélectionnez un agent pour afficher son pointage
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- ── PLANNING & PERMANENCE ── -->
+      <div id="tab-planning" class="tab-panel">
+        <div class="alert-box info" style="margin-bottom:18px">
+          <span class="alert-icon">📅</span>
+          <span>Programme de travail et permanence par service — qui est affecté, qui est de garde maintenant, et transmission des consignes à la relève (prise/fin de service).</span>
+        </div>
+
+        <div id="planning-alertes" style="margin-bottom:16px"></div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><div class="card-title">🟢 Permanence du jour</div>
+            <div class="card-subtitle" id="planning-date-label">—</div></div>
+          <div style="padding:14px 16px" id="planning-permanence"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+            <div><div class="card-title">Planning hebdomadaire</div><div class="card-subtitle">Affectations par service — semaine en cours</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-secondary btn-sm" onclick="planningSemPrec()">◀</button>
+              <span id="planning-sem-label" style="font-size:12.5px;font-weight:600;min-width:160px;text-align:center"></span>
+              <button class="btn btn-secondary btn-sm" onclick="planningSemSuiv()">▶</button>
+              <button class="btn btn-primary btn-sm" onclick="ouvrirAffectation()">＋ Affecter un agent</button>
+            </div>
+          </div>
+          <div style="padding:14px 16px;overflow-x:auto" id="planning-grille"></div>
         </div>
       </div>
 
@@ -890,6 +921,7 @@ function validerDemandeConge(id,statut){
   const c=congesDemandes.find(x=>x.id===id);if(!c) return;
   c.statut=statut;
   if(statut==='Validé'){const p=personnel.find(x=>x.mat===c.agent);if(p) p.statut=c.type==='Maladie'?'Maladie':'Congé';}
+  if(typeof MEDICORE_STORE!=='undefined'){ MEDICORE_STORE.save('conges_demandes', congesDemandes, true); MEDICORE_STORE.save('personnel', personnel, true); }
   renderConges();updateKPIs();
   toast(`Congé ${c.id} — ${statut}.`,statut==='Validé'?'success':'error');
 }
@@ -898,8 +930,14 @@ function validerDemandeConge(id,statut){
 function renderGTA(){
   document.getElementById('gta-pres').textContent='—';
   document.getElementById('gta-hsup').textContent='—';
-  document.getElementById('gta-gardes').textContent='—';
-  document.getElementById('gta-astreintes').textContent='—';
+  if(typeof MEDICORE_PLANNING!=='undefined'){
+    const cpt=MEDICORE_PLANNING.compteursMois(new Date().toISOString().slice(0,7));
+    document.getElementById('gta-gardes').textContent=cpt.gardes||'0';
+    document.getElementById('gta-astreintes').textContent=cpt.astreintes||'0';
+  } else {
+    document.getElementById('gta-gardes').textContent='—';
+    document.getElementById('gta-astreintes').textContent='—';
+  }
 
   document.getElementById('gta-agent-liste').innerHTML=personnel.filter(p=>p.statut==='Actif').map(p=>`
     <div onclick="showGTADetail('${p.mat}')" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;margin-bottom:6px;cursor:pointer;background:var(--surface);transition:all .15s;display:flex;align-items:center;gap:10px"
@@ -946,6 +984,196 @@ function showGTADetail(mat){
           <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:12px;border-radius:3px" class="${t}"></div>${l}</div>`).join('')}
       </div>
     </div>`;
+}
+
+// ── Planning & Permanence ────────────────────────────────────────────────────
+let _planningSemDebut = (function(){ const d=new Date(); const jour=(d.getDay()+6)%7; d.setDate(d.getDate()-jour); return d; })();
+
+function renderPlanning(){
+  if(typeof MEDICORE_PLANNING==='undefined'){
+    document.getElementById('planning-permanence').innerHTML='<div style="padding:20px;color:var(--text-muted)">Moteur planning non chargé.</div>'; return;
+  }
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('planning-date-label').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Alertes de rupture de couverture (sécurité)
+  const ruptures=MEDICORE_PLANNING.rupturesCouverture(today).filter(s=>{
+    const svc=MEDICORE_PLANNING.permanenceDuJour(today).find(x=>x.service===s.service);
+    return svc.postes.length===0; // vraie alerte = aucun agent du tout (pas seulement astreinte)
+  });
+  const astreinteSeule=MEDICORE_PLANNING.permanenceDuJour(today).filter(s=>!s.couverture && s.postes.length>0);
+  let alHtml='';
+  if(ruptures.length) alHtml+=`<div class="alert-box red" style="margin-bottom:8px"><span class="alert-icon">🚨</span><span><strong>Aucune présence affectée :</strong> ${ruptures.map(r=>r.service).join(', ')} — risque de rupture de permanence.</span></div>`;
+  if(astreinteSeule.length) alHtml+=`<div class="alert-box warn"><span class="alert-icon">⚠️</span><span><strong>Astreinte uniquement (pas de présence physique) :</strong> ${astreinteSeule.map(r=>r.service).join(', ')}.</span></div>`;
+  document.getElementById('planning-alertes').innerHTML=alHtml;
+
+  // Permanence du jour, par service
+  const perm=MEDICORE_PLANNING.permanenceDuJour(today);
+  document.getElementById('planning-permanence').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">
+      ${perm.map(s=>{
+        const vide=s.postes.length===0;
+        const couleur=vide?'var(--danger,#b91c1c)':s.couverture?'var(--success,#1e7a4e)':'var(--orange,#c2410c)';
+        return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--surface)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong style="font-size:13px">${s.service}</strong>
+            <span style="width:9px;height:9px;border-radius:50%;background:${couleur};display:inline-block"></span>
+          </div>
+          ${vide?'<div style="font-size:12px;color:var(--text-muted)">Aucun agent affecté</div>':s.postes.map(p=>{
+            const t=MEDICORE_PLANNING.TYPES[p.type]||{};
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border)">
+              <div><div style="font-size:12.5px;font-weight:500">${p.agentNom}</div>
+                <div style="font-size:11px;color:var(--text-muted)"><span style="color:${t.couleur}">●</span> ${t.label||p.type} · ${p.statut}</div></div>
+              <div style="display:flex;gap:4px">
+                ${p.statut==='Prévu'?`<button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" onclick="ouvrirPriseService('${p.id}')">Prise</button>`:''}
+                ${p.statut==='En cours'?`<button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" onclick="ouvrirFinService('${p.id}')">Fin</button>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  renderPlanningGrille();
+}
+
+function planningSemPrec(){ _planningSemDebut.setDate(_planningSemDebut.getDate()-7); renderPlanningGrille(); }
+function planningSemSuiv(){ _planningSemDebut.setDate(_planningSemDebut.getDate()+7); renderPlanningGrille(); }
+
+function renderPlanningGrille(){
+  if(typeof MEDICORE_PLANNING==='undefined') return;
+  const d0=new Date(_planningSemDebut);
+  const { jours, postes } = MEDICORE_PLANNING.semaine(d0.toISOString().slice(0,10));
+  const JN=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const d1=new Date(d0); d1.setDate(d0.getDate()+6);
+  document.getElementById('planning-sem-label').textContent=d0.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})+' – '+d1.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+
+  document.getElementById('planning-grille').innerHTML=`
+    <table style="width:100%;border-collapse:collapse;min-width:760px">
+      <thead><tr>
+        <th style="text-align:left;padding:7px 8px;font-size:11px;color:var(--text-muted);border-bottom:2px solid var(--border)">SERVICE</th>
+        ${jours.map((j,i)=>`<th style="padding:7px 8px;font-size:11px;color:var(--text-muted);border-bottom:2px solid var(--border);text-align:center">${JN[i]}<br><span style="font-weight:400">${new Date(j).getDate()}</span></th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${MEDICORE_PLANNING.SERVICES.map(svc=>`<tr>
+          <td style="padding:6px 8px;font-weight:500;font-size:12.5px;border-bottom:1px solid var(--border)">${svc}</td>
+          ${jours.map(j=>{
+            const cell=postes.filter(p=>p.service===svc && p.date===j);
+            return `<td style="padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:top;min-width:96px">
+              ${cell.map(p=>{ const t=MEDICORE_PLANNING.TYPES[p.type]||{};
+                return `<div title="${p.agentNom} — ${t.label||p.type}" style="background:${t.couleur}18;border-left:3px solid ${t.couleur};border-radius:4px;padding:3px 6px;margin-bottom:3px;font-size:11px;cursor:pointer" onclick="supprimerAffectationConfirm('${p.id}')">
+                  <div style="font-weight:600;color:${t.couleur}">${t.label||p.type}</div>
+                  <div style="color:var(--text-muted)">${p.agentNom}</div>
+                </div>`; }).join('') || ''}
+            </td>`;
+          }).join('')}
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Clic sur une affectation pour la supprimer.</div>`;
+}
+
+function supprimerAffectationConfirm(id){
+  if(!confirm('Supprimer cette affectation ?')) return;
+  MEDICORE_PLANNING.supprimer(id); renderPlanning();
+}
+
+// ── Modale d'affectation ─────────────────────────────────────────────────────
+function ouvrirAffectation(){
+  const actifs=personnel.filter(p=>p.statut==='Actif'||p.statut==='Congé');
+  let ov=document.getElementById('modal-affectation'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.className='overlay open'; ov.id='modal-affectation';
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  ov.innerHTML=`<div class="modal" style="width:460px">
+    <div class="modal-header"><div><div class="modal-title">Affecter un agent</div><div class="modal-subtitle">Programme de travail — permanence par service</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-affectation').remove()">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px">
+      <div><label style="font-size:12px;color:var(--text-muted)">Agent</label>
+        <select id="pl-agent" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— Sélectionner —</option>
+          ${actifs.map(p=>`<option value="${p.mat}" data-nom="${p.nom}">${p.nom} — ${p.fonction||''}</option>`).join('')}
+        </select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label style="font-size:12px;color:var(--text-muted)">Service</label>
+          <select id="pl-service" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+            ${MEDICORE_PLANNING.SERVICES.map(s=>`<option>${s}</option>`).join('')}
+          </select></div>
+        <div><label style="font-size:12px;color:var(--text-muted)">Type de poste</label>
+          <select id="pl-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+            ${Object.keys(MEDICORE_PLANNING.TYPES).map(k=>`<option value="${k}">${MEDICORE_PLANNING.TYPES[k].label}</option>`).join('')}
+          </select></div>
+      </div>
+      <div><label style="font-size:12px;color:var(--text-muted)">Date</label>
+        <input type="date" id="pl-date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></div>
+      <div><label style="font-size:12px;color:var(--text-muted)">Notes (consignes particulières)</label>
+        <textarea id="pl-notes" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-affectation').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="validerAffectation()">Affecter</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+function validerAffectation(){
+  const sel=document.getElementById('pl-agent');
+  const agentMat=sel.value, agentNom=sel.options[sel.selectedIndex]?.dataset.nom;
+  if(!agentMat){ toast('Sélectionnez un agent.','error'); return; }
+  MEDICORE_PLANNING.affecter({ date:document.getElementById('pl-date').value, service:document.getElementById('pl-service').value,
+    type:document.getElementById('pl-type').value, agentMat, agentNom, notes:document.getElementById('pl-notes').value });
+  document.getElementById('modal-affectation').remove();
+  renderPlanning(); toast('Agent affecté au planning.','success');
+}
+
+// ── Prise / fin de service (relève) ──────────────────────────────────────────
+function ouvrirPriseService(posteId){
+  const p=MEDICORE_PLANNING.postes().find(x=>x.id===posteId); if(!p) return;
+  const consigne=MEDICORE_PLANNING.derniereConsigne(p.service);
+  let ov=document.getElementById('modal-releve'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.className='overlay open'; ov.id='modal-releve';
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  ov.innerHTML=`<div class="modal" style="width:460px">
+    <div class="modal-header"><div><div class="modal-title">Prise de service</div><div class="modal-subtitle">${p.agentNom} — ${p.service}</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-releve').remove()">✕</button></div>
+    <div class="modal-body">
+      ${consigne?`<div class="alert-box info" style="margin-bottom:10px"><span class="alert-icon">📋</span><span><strong>Consignes de la relève précédente</strong> (${consigne.agentNom}, ${new Date(consigne.date).toLocaleString('fr-FR')}) : ${consigne.consignes}</span></div>`:''}
+      <label style="font-size:12px;color:var(--text-muted)">Consignes reçues / observations à la prise de service</label>
+      <textarea id="rel-consignes" rows="3" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;margin-top:4px"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-releve').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmerPriseService('${posteId}')">✓ Confirmer la prise de service</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+function confirmerPriseService(posteId){
+  MEDICORE_PLANNING.prendreService(posteId, document.getElementById('rel-consignes').value);
+  document.getElementById('modal-releve').remove();
+  renderPlanning(); toast('Prise de service confirmée.','success');
+}
+function ouvrirFinService(posteId){
+  const p=MEDICORE_PLANNING.postes().find(x=>x.id===posteId); if(!p) return;
+  let ov=document.getElementById('modal-releve'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.className='overlay open'; ov.id='modal-releve';
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  ov.innerHTML=`<div class="modal" style="width:460px">
+    <div class="modal-header"><div><div class="modal-title">Fin de service</div><div class="modal-subtitle">${p.agentNom} — ${p.service}</div></div>
+      <button class="modal-close" onclick="document.getElementById('modal-releve').remove()">✕</button></div>
+    <div class="modal-body">
+      <label style="font-size:12px;color:var(--text-muted)">Consignes à transmettre à l'équipe suivante *</label>
+      <textarea id="rel-consignes-fin" rows="3" placeholder="Patients à surveiller, examens en attente, incidents…" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;margin-top:4px"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-releve').remove()">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmerFinService('${posteId}')">✓ Clôturer et transmettre</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+function confirmerFinService(posteId){
+  const txt=document.getElementById('rel-consignes-fin').value.trim();
+  if(!txt){ toast('Indiquez les consignes à transmettre.','error'); return; }
+  MEDICORE_PLANNING.finirService(posteId, txt);
+  document.getElementById('modal-releve').remove();
+  renderPlanning(); toast('Fin de service enregistrée — consignes transmises.','success');
 }
 
 // ── Compétences ────────────────────────────────────────────────────────────────
@@ -1061,6 +1289,7 @@ function validerAgent(){
     salaire,indem:parseFloat(document.getElementById('a-indem').value)||0,
     cnps:document.getElementById('a-cnps').value||'—',statut:'Actif',
   });
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('personnel', personnel, true);
   closeAgent();renderPersonnel();updateKPIs();
   toast(`Agent ${nom.toUpperCase()} ${prenom} enregistré avec succès.`,'success');
 }
@@ -1086,6 +1315,7 @@ function validerConge(){
   const p=personnel.find(x=>x.mat===agent);
   const jours=Math.round((new Date(fin)-new Date(debut))/86400000)+1;
   congesDemandes.push({id:'CG-00'+(congesDemandes.length+6),agent,nom:p?.nom||'—',service:p?.service||'—',type:document.getElementById('cg-type').value,debut,fin,jours,soldeAvant:18,statut:'En attente'});
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('conges_demandes', congesDemandes, true);
   closeConge();renderConges();updateKPIs();toast('Demande de congé soumise pour validation.','success');
 }
 function openFormation(){toast('Formulaire planification formation — bientôt disponible.','success')}
@@ -1098,6 +1328,7 @@ function switchTab(name,btn){
   if(name==='paie') renderPaie();
   if(name==='conges') renderConges();
   if(name==='gta') renderGTA();
+  if(name==='planning') renderPlanning();
   if(name==='competences') renderCompetences();
   if(name==='cnps') renderCNPS();
 }
@@ -1117,6 +1348,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAgent();closeC
 
 // ── Init nav ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',function(){
+  if(typeof MEDICORE_STORE!=='undefined'){
+    personnel = MEDICORE_STORE.sync('personnel', personnel);
+    congesDemandes = MEDICORE_STORE.sync('conges_demandes', congesDemandes);
+  }
   if(typeof initNav==='function'){
     initNav('rh_paie','RH & Paie','Personnel · Contrats · Congés · GTA · Paie CNPS',
       [{label:'Module 1 — Finance',file:'#'},{label:'RH & Paie',file:''}]);
