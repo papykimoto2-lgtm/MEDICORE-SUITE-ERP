@@ -908,8 +908,8 @@ function editService(i){
 }
 function editTarif(i){
   const t=TARIFS[i];
-  formModal('Modifier l'acte / tarif',[
-    {key:'libelle', label:'Libellé de l'acte', required:true, value:t.libelle},
+  formModal('Modifier l\'acte / tarif',[
+    {key:'libelle', label:'Libellé de l\'acte', required:true, value:t.libelle},
     {key:'code',    label:'Code',               value:t.code},
     {key:'tarif',   label:'Tarif', sub:'FCFA',  type:'number', value:t.tarif}
   ], v=>{
@@ -944,7 +944,7 @@ function addAssurance(){
 }
 function editAssurance(i){
   const a=ASSURANCES[i];
-  formModal('Modifier l'assurance',[
+  formModal('Modifier l\'assurance',[
     {key:'nom',    label:'Organisme', required:true, value:a.nom},
     {key:'taux',   label:'Taux de prise en charge (%)', type:'number', value:a.taux},
     {key:'statut', label:'Conventionnement', type:'select',
