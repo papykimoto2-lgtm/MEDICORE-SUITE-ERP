@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediCore — Vider localStorage</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#f4f3ef;color:#1c1c1c;max-width:680px;margin:40px auto;padding:0 20px}
+  h1{color:#1a4b6e;font-size:24px}
+  .card{background:#fff;border:1px solid #e2dfd8;border-radius:10px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .danger{border-left:4px solid #b92b2b}
+  button{padding:12px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin:6px 4px}
+  .btn-danger{background:#b92b2b;color:#fff}
+  .btn-danger:hover{background:#9a2020}
+  .btn-warn{background:#b05b00;color:#fff}
+  .btn-warn:hover{background:#8f4900}
+  .btn-secondary{background:#e8e6e0;color:#333}
+  pre{background:#f9f8f5;border:1px solid #e2dfd8;border-radius:6px;padding:12px;font-size:12px;max-height:280px;overflow:auto;white-space:pre-wrap}
+  .count{font-size:32px;font-weight:700;color:#1a4b6e}
+  .ok{color:#1e7a4e;font-weight:600}
+  .warn-text{color:#b05b00;font-size:13px}
+</style>
+</head>
+<body>
+  <h1>🗑 MediCore — Nettoyage du stockage local</h1>
+
+  <div class="card">
+    <div>Clés MediCore détectées : <span class="count" id="count">—</span></div>
+    <button class="btn-secondary" onclick="scanner()">🔍 Scanner</button>
+    <pre id="liste">Cliquez sur Scanner…</pre>
+  </div>
+
+  <div class="card danger">
+    <h3>⚠ Vider uniquement les données MediCore</h3>
+    <p class="warn-text">Supprime toutes les clés préfixées <code>medicore_</code> (patients, prescriptions, résultats, sync, etc). Conserve les autres sites.</p>
+    <button class="btn-warn" onclick="viderMedicore()">🧹 Vider données MediCore</button>
+  </div>
+
+  <div class="card danger">
+    <h3>⛔ Tout effacer (localStorage + sessionStorage)</h3>
+    <p class="warn-text">Efface TOUT le stockage de ce domaine. Irréversible.</p>
+    <button class="btn-danger" onclick="viderTout()">💥 Tout effacer</button>
+  </div>
+
+  <div class="card" id="resultat" style="display:none">
+    <h3 class="ok">✓ Terminé</h3>
+    <pre id="log"></pre>
+  </div>
+
+<script>
+const PREFIX='medicore_';
+
+function scanner(){
+  const cles=Object.keys(localStorage).filter(k=>k.startsWith(PREFIX));
+  document.getElementById('count').textContent=cles.length;
+  if(!cles.length){ document.getElementById('liste').textContent='Aucune clé MediCore trouvée.'; return; }
+  document.getElementById('liste').textContent=cles.map(k=>{
+    const taille=(localStorage.getItem(k)||'').length;
+    return `${k}  (${(taille/1024).toFixed(1)} Ko)`;
+  }).join('\n');
+}
+
+function viderMedicore(){
+  const cles=Object.keys(localStorage).filter(k=>k.startsWith(PREFIX));
+  if(!cles.length){ alert('Aucune donnée MediCore à supprimer.'); return; }
+  if(!confirm(`Supprimer ${cles.length} clé(s) MediCore ?\n\nIRRÉVERSIBLE.`)) return;
+  cles.forEach(k=>localStorage.removeItem(k));
+  // Sync state aussi
+  ['medicore_sb_creds','medicore_device_id'].forEach(k=>localStorage.removeItem(k));
+  afficherResultat(`${cles.length} clé(s) MediCore supprimée(s).`, cles);
+  scanner();
+}
+
+function viderTout(){
+  const total=localStorage.length;
+  if(!confirm(`TOUT EFFACER ?\n\n${total} clé(s) localStorage + sessionStorage.\n\nIRRÉVERSIBLE.`)) return;
+  if(!confirm('Dernière confirmation — êtes-vous certain ?')) return;
+  const cles=Object.keys(localStorage);
+  localStorage.clear();
+  sessionStorage.clear();
+  afficherResultat(`Tout effacé : ${total} clé(s) localStorage + sessionStorage vidés.`, cles);
+  scanner();
+}
+
+function afficherResultat(msg, cles){
+  document.getElementById('resultat').style.display='block';
+  document.getElementById('log').textContent=msg+'\n\nClés supprimées :\n'+(cles||[]).join('\n');
+}
+
+// Scan auto au chargement
+scanner();
+</script>
+</body>
+</html>
