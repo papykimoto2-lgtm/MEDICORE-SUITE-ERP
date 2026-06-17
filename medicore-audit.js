@@ -16,8 +16,8 @@ const MEDICORE_AUDIT = {
     if(Array.isArray(raw)) return raw;
     if(raw && Array.isArray(raw.d)) return raw.d;
     return [];
-  }
   },
+
   _write(rows){
     if(rows.length>this.MAX) rows.length=this.MAX;
     if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save(this.STORE,rows,true);

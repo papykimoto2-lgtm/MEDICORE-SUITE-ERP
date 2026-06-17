@@ -53,9 +53,8 @@ const MEDICORE_DEMANDES = {
     if(Array.isArray(raw)) return raw;
     if(raw && Array.isArray(raw.d)) return raw.d;
     return [];
-  }
-    catch(e){ return []; }
   },
+
   _write(rows){
     if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save(this.STORE, rows, true);
     else localStorage.setItem('medicore_'+this.STORE, JSON.stringify({_v:1,_ts:Date.now(),d:rows}));
