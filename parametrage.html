@@ -295,6 +295,7 @@ const SECTIONS = [
   { id:'integrations',  ic:'🔌', label:'Intégrations', groupe:'Système' },
   { id:'securite',      ic:'🔒', label:'Sécurité & sauvegardes', groupe:'Système' },
   { id:'cloud',         ic:'☁️',  label:'Cloud & Synchro',            groupe:'Système' },
+  { id:'import',        ic:'📥', label:'Import CSV',                 groupe:'Système' },
   { id:'donnees',       ic:'🗑', label:'Données & réinitialisation', groupe:'Système' },
 ];
 
@@ -532,6 +533,9 @@ function renderBody(){
       window._syncUIHook = true;
       MEDICORE_SYNC.on((ev)=>{ if(currentSection==='cloud') refreshSyncMeta(); });
     }
+  }
+  else if(currentSection==='import'){
+    b.innerHTML = renderImportCSV();
   }
   else if(currentSection==='donnees'){
     // ── Barre d'utilisation du stockage ──────────────────────────────────────────
@@ -1003,6 +1007,195 @@ function supprimerTout(){
 
 // Supprimer uniquement les données démo (patients, prescriptions, examens, mouvements…)
 // Conserve : config établissement, utilisateurs, services, tarifs, fournisseurs
+// ══════════════════════════════════════════════════════════════════════════════
+// ── MODULE IMPORT CSV UNIVERSEL ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// Définition des modules importables : clé localStorage + colonnes attendues
+const IMPORT_MODULES = [
+  { id:'patients', lsKey:'medicore_patients', icon:'📋', label:'Patients (DPI)',
+    champs:['id','nom','ddn','sexe','service','type','statut','allergies','tel','assurance','motif'],
+    requis:['nom'], exemple:'P100,KONÉ Aminata,1980-05-12,F,Médecine générale,Hospitalisé,Actif,Pénicilline,+22501020304,CNAM,Fièvre' },
+  { id:'personnel', lsKey:'medicore_personnel', icon:'👥', label:'Personnel (RH)',
+    champs:['id','nom','prenom','poste','service','telephone','email','salaire_base','date_embauche'],
+    requis:['nom'], exemple:'EMP01,DIALLO,Fatou,Infirmière,Maternité,+22507080910,f.diallo@hopital.ci,180000,2023-01-15' },
+  { id:'produits', lsKey:'medicore_stock', icon:'💊', label:'Stock / Pharmacie',
+    champs:['id','designation','famille','unite','quantite','seuil_alerte','prix_achat','prix_vente','dci'],
+    requis:['designation'], exemple:'MED01,Paracétamol 500mg,Antalgique,Boîte,150,30,500,800,Paracétamol' },
+  { id:'fournisseurs', lsKey:'medicore_fournisseurs_data', icon:'🚚', label:'Fournisseurs',
+    champs:['id','nom','contact','telephone','email','adresse','rccm','compte'],
+    requis:['nom'], exemple:'FRN01,PharmaCI,M. Touré,+22520304050,contact@pharmaci.ci,Abidjan Plateau,CI-ABJ-2020,401001' },
+  { id:'tarifs', lsKey:'medicore_tarifs', icon:'💰', label:'Tarifs / Prestations',
+    champs:['code','libelle','service','montant','compte'],
+    requis:['libelle','montant'], exemple:'CONS01,Consultation générale,Médecine générale,5000,706001' },
+  { id:'immo', lsKey:'medicore_immo', icon:'🏢', label:'Immobilisations',
+    champs:['id','designation','categorie','valeur_acquisition','date_acquisition','duree_amortissement','compte'],
+    requis:['designation','valeur_acquisition'], exemple:'IMM01,Échographe,Matériel médical,4500000,2024-03-10,5,241001' },
+  { id:'factures', lsKey:'medicore_factures', icon:'🧾', label:'Factures',
+    champs:['id','patient_id','patient_nom','date','montant_total','montant_paye','statut'],
+    requis:['montant_total'], exemple:'FAC001,P100,KONÉ Aminata,2026-06-15,45000,45000,Payée' },
+  { id:'ecritures', lsKey:'medicore_ecritures', icon:'📊', label:'Écritures comptables',
+    champs:['id','date','journal','compte','libelle','debit','credit'],
+    requis:['compte'], exemple:'EC001,2026-06-15,VT,706001,Consultation,0,5000' },
+];
+
+function renderImportCSV(){
+  let html = head('Import CSV','Importez vos données dans n\'importe quel module via fichier CSV');
+  html += '<div style="background:var(--accent-light,#e8f0f7);border:1px solid #b8d4ea;border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:12.5px">' +
+    '<strong>📋 Format attendu :</strong> fichier CSV (séparateur virgule), avec une <strong>ligne d\'en-tête</strong> reprenant les noms de colonnes. ' +
+    'Encodage UTF-8. Première ligne = noms des champs. Téléchargez un modèle pour chaque module ci-dessous.</div>';
+
+  html += '<div class="card"><div class="card-head"><div><h3>Modules importables</h3><div class="sub">'+IMPORT_MODULES.length+' modules disponibles</div></div></div>' +
+    '<div class="card-body" style="padding:0"><table><thead><tr>' +
+    '<th>Module</th><th>Champs</th><th style="text-align:center">Existant</th><th style="text-align:right">Actions</th>' +
+    '</tr></thead><tbody>';
+
+  IMPORT_MODULES.forEach(m=>{
+    let existant=0;
+    try{ const d=JSON.parse(localStorage.getItem(m.lsKey)||'[]'); existant=Array.isArray(d)?d.length:0; }catch(e){}
+    html += '<tr>' +
+      '<td><span style="margin-right:6px">'+m.icon+'</span><strong>'+m.label+'</strong></td>' +
+      '<td style="font-size:11px;color:var(--text-muted)">'+m.champs.slice(0,5).join(', ')+(m.champs.length>5?'…':'')+'</td>' +
+      '<td style="text-align:center;font-family:monospace">'+(existant||'—')+'</td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+        '<button class="btn btn-secondary btn-sm" onclick="telechargerModeleCSV(\''+m.id+'\')" title="Télécharger un modèle">⬇ Modèle</button> ' +
+        '<button class="btn btn-primary btn-sm" onclick="declencherImportCSV(\''+m.id+'\')">📥 Importer</button>' +
+      '</td></tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  html += '<input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none">';
+  html += '<div id="import-preview"></div>';
+  return html;
+}
+
+// Télécharge un modèle CSV pré-rempli
+function telechargerModeleCSV(moduleId){
+  const m = IMPORT_MODULES.find(x=>x.id===moduleId); if(!m) return;
+  const contenu = m.champs.join(',') + '\n' + m.exemple;
+  const blob = new Blob(['\ufeff'+contenu], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'modele_'+moduleId+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  toast('Modèle '+m.label+' téléchargé.','success');
+}
+
+let _importModuleEnCours = null;
+function declencherImportCSV(moduleId){
+  _importModuleEnCours = moduleId;
+  const input = document.getElementById('csv-file-input');
+  input.value=''; // reset
+  input.onchange = function(){ if(this.files && this.files[0]) lireFichierCSV(this.files[0]); };
+  input.click();
+}
+
+function lireFichierCSV(file){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{ parserEtPrevisualiser(e.target.result, _importModuleEnCours); }
+    catch(err){ toast('Erreur lecture CSV : '+err.message,'error'); }
+  };
+  reader.onerror = function(){ toast('Impossible de lire le fichier.','error'); };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Parser CSV robuste (gère guillemets, virgules dans champs)
+function parserCSV(texte){
+  const lignes = texte.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim()!=='');
+  return lignes.map(ligne=>{
+    const champs=[]; let cur=''; let dansGuillemets=false;
+    for(let i=0;i<ligne.length;i++){
+      const c=ligne[i];
+      if(c==='"'){
+        if(dansGuillemets && ligne[i+1]==='"'){ cur+='"'; i++; }
+        else dansGuillemets=!dansGuillemets;
+      } else if(c===',' && !dansGuillemets){ champs.push(cur); cur=''; }
+      else cur+=c;
+    }
+    champs.push(cur);
+    return champs.map(x=>x.trim());
+  });
+}
+
+function parserEtPrevisualiser(texte, moduleId){
+  const m = IMPORT_MODULES.find(x=>x.id===moduleId); if(!m) return;
+  const rows = parserCSV(texte);
+  if(rows.length<2){ toast('Fichier vide ou sans données.','error'); return; }
+
+  const entetes = rows[0].map(h=>h.toLowerCase().replace(/^\ufeff/,''));
+  const donnees = rows.slice(1);
+
+  // Vérifier colonnes requises présentes
+  const manquants = m.requis.filter(r=>!entetes.includes(r.toLowerCase()));
+  if(manquants.length){
+    toast('Colonnes requises manquantes : '+manquants.join(', '),'error');
+    return;
+  }
+
+  // Mapper chaque ligne en objet
+  const objets = donnees.map(ligne=>{
+    const obj={};
+    entetes.forEach((h,i)=>{ if(m.champs.includes(h)) obj[h]=ligne[i]||''; });
+    return obj;
+  }).filter(o=>m.requis.every(r=>o[r] && o[r].trim()!==''));
+
+  const rejetes = donnees.length - objets.length;
+
+  // Aperçu HTML
+  const apercu = objets.slice(0,5);
+  let html = '<div class="card" style="margin-top:18px;border:2px solid var(--accent,#1a4b6e)"><div class="card-head"><div>' +
+    '<h3>📥 Aperçu import — '+m.label+'</h3>' +
+    '<div class="sub">'+objets.length+' ligne(s) valide(s)'+(rejetes>0?' · '+rejetes+' rejetée(s) (champ requis vide)':'')+'</div></div></div>' +
+    '<div class="card-body" style="padding:0;overflow-x:auto"><table><thead><tr>' +
+    Object.keys(apercu[0]||{}).map(k=>'<th>'+k+'</th>').join('') +
+    '</tr></thead><tbody>' +
+    apercu.map(o=>'<tr>'+Object.values(o).map(v=>'<td style="font-size:12px">'+(v||'—')+'</td>').join('')+'</tr>').join('') +
+    '</tbody></table>' +
+    (objets.length>5?'<div style="padding:8px 12px;font-size:11.5px;color:var(--text-muted)">… et '+(objets.length-5)+' autre(s) ligne(s)</div>':'') +
+    '</div>' +
+    '<div class="card-body" style="border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
+    '<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-right:auto">' +
+    '<input type="checkbox" id="import-remplacer"> Remplacer les données existantes (sinon ajout)</label>' +
+    '<button class="btn btn-secondary" onclick="document.getElementById(\'import-preview\').innerHTML=\'\'">Annuler</button>' +
+    '<button class="btn btn-primary" onclick=\'confirmerImport("'+moduleId+'")\'>✓ Confirmer l\'import ('+objets.length+')</button>' +
+    '</div></div>';
+
+  document.getElementById('import-preview').innerHTML = html;
+  window._importDonnees = objets;
+  // Scroll vers aperçu
+  setTimeout(()=>document.getElementById('import-preview').scrollIntoView({behavior:'smooth'}),100);
+}
+
+function confirmerImport(moduleId){
+  const m = IMPORT_MODULES.find(x=>x.id===moduleId); if(!m) return;
+  const objets = window._importDonnees||[];
+  if(!objets.length){ toast('Aucune donnée à importer.','error'); return; }
+  const remplacer = document.getElementById('import-remplacer').checked;
+
+  // Générer ID auto si absent
+  objets.forEach((o,i)=>{ if(!o.id) o.id = m.id.toUpperCase().slice(0,3)+Date.now().toString(36)+i; });
+
+  let existant=[];
+  try{ existant = JSON.parse(localStorage.getItem(m.lsKey)||'[]'); if(!Array.isArray(existant)) existant=[]; }catch(e){}
+
+  const final = remplacer ? objets : existant.concat(objets);
+
+  // Sauvegarde via MEDICORE_STORE si dispo (respecte sync), sinon localStorage direct
+  const storeKey = m.lsKey.replace(/^medicore_/,'');
+  if(typeof MEDICORE_STORE!=='undefined' && MEDICORE_STORE.save){
+    MEDICORE_STORE.save(storeKey, final, true);
+  } else {
+    localStorage.setItem(m.lsKey, JSON.stringify(final));
+  }
+
+  if(typeof MEDICORE_AUDIT!=='undefined') MEDICORE_AUDIT.log('Import CSV','IMPORT',m.label+' : '+objets.length+' ligne(s)'+(remplacer?' (remplacement)':' (ajout)'));
+
+  toast(objets.length+' ligne(s) importée(s) dans '+m.label+(remplacer?' (remplacées)':' (ajoutées)')+'.','success');
+  document.getElementById('import-preview').innerHTML='';
+  window._importDonnees=null;
+  setTimeout(()=>renderBody(),400);
+}
+
 // ── PURGE SUPABASE : vide toutes les tables cloud ─────────────────────────────
 async function viderSupabase(){
   const creds = getSBCreds();
