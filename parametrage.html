@@ -984,6 +984,11 @@ function injecterDemoInterModule(){
 }
 function supprimerTout(){
   if(!confirm('⚠️ REMISE À ZÉRO COMPLÈTE\n\nToutes les données MediCore seront effacées de ce navigateur.\nLa session de connexion sera préservée.\n\nConfirmer ?')) return;
+  // ── Arrêter la sync auto pour éviter un re-pull depuis Supabase ──
+  let syncReprise=false;
+  if(typeof MEDICORE_SYNC!=='undefined' && MEDICORE_SYNC.isAuto && MEDICORE_SYNC.isAuto()){
+    syncReprise=true; MEDICORE_SYNC.stopAuto();
+  }
   const keysToDelete = [];
   for(let i=0; i<localStorage.length; i++){
     const k = localStorage.key(i);
@@ -995,13 +1000,17 @@ function supprimerTout(){
   // Invalider le cache mémoire MEDICORE_STORE
   if(typeof MEDICORE_STORE !== 'undefined'){ MEDICORE_STORE._mem = {}; MEDICORE_STORE._kpiCache = null; }
   if(typeof MEDICORE_BUS   !== 'undefined'){ MEDICORE_BUS._cache = null; MEDICORE_BUS._counts = null; }
+  // ── Reset des deltas de sync (sinon le prochain pull ré-importe le cloud) ──
+  if(typeof MEDICORE_SYNC!=='undefined' && MEDICORE_SYNC.resetDeltas) MEDICORE_SYNC.resetDeltas();
   // Réinitialiser les tableaux en mémoire avec les valeurs par défaut
   CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
   SERVICES = JSON.parse(JSON.stringify(DEFAULT_SERVICES));
   TARIFS = JSON.parse(JSON.stringify(DEFAULT_TARIFS));
   FOURNISSEURS = JSON.parse(JSON.stringify(DEFAULT_FOURNISSEURS));
   persist();
-  toast('Remise à zéro effectuée — '+keysToDelete.length+' entrée(s) supprimée(s).','success');
+  const avis = syncReprise ? '\n\n⚠ La sync cloud a été suspendue. Videz aussi Supabase (bouton ☁) sinon les données reviendront.' : '';
+  toast('Remise à zéro effectuée — '+keysToDelete.length+' entrée(s) supprimée(s).'+(syncReprise?' Sync suspendue.':''),'success');
+  if(syncReprise) alert('Remise à zéro locale effectuée.'+avis);
   setTimeout(()=>renderBody(), 300);
 }
 
@@ -1239,6 +1248,8 @@ async function viderSupabase(){
 async function reinitialisationTotale(){
   if(!confirm('🔥 RÉINITIALISATION TOTALE DE L\'ERP\n\nVide À LA FOIS :\n• La base Supabase (cloud, tous postes)\n• Le stockage local de ce navigateur\n\nIRRÉVERSIBLE.\n\nConfirmer ?')) return;
   if(!confirm('Êtes-vous absolument certain ? Cette action efface TOUT.')) return;
+  // Suspendre la sync pendant l'opération
+  if(typeof MEDICORE_SYNC!=='undefined' && MEDICORE_SYNC.stopAuto) MEDICORE_SYNC.stopAuto();
   await viderSupabase();
   // Puis localStorage (sans reconfirmation)
   const keysToDelete = [];
@@ -1249,11 +1260,17 @@ async function reinitialisationTotale(){
   keysToDelete.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
   if(typeof MEDICORE_STORE !== 'undefined'){ MEDICORE_STORE._mem = {}; MEDICORE_STORE._kpiCache = null; }
   if(typeof MEDICORE_BUS   !== 'undefined'){ MEDICORE_BUS._cache = null; MEDICORE_BUS._counts = null; }
+  // Reset deltas : le prochain pull ne ré-importe rien (cloud désormais vide)
+  if(typeof MEDICORE_SYNC!=='undefined' && MEDICORE_SYNC.resetDeltas) MEDICORE_SYNC.resetDeltas();
   CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
   SERVICES = JSON.parse(JSON.stringify(DEFAULT_SERVICES));
   TARIFS = JSON.parse(JSON.stringify(DEFAULT_TARIFS));
   FOURNISSEURS = JSON.parse(JSON.stringify(DEFAULT_FOURNISSEURS));
   persist();
+  // Reprendre la sync (cloud vide → rien ne revient)
+  if(typeof MEDICORE_SYNC!=='undefined' && MEDICORE_SYNC.startAuto && localStorage.getItem('medicore_sync_auto')!=='0'){
+    setTimeout(()=>{ try{ MEDICORE_SYNC.startAuto(); }catch(e){} }, 1000);
+  }
   toast('Réinitialisation totale terminée (cloud + local).','success');
   setTimeout(()=>renderBody(), 400);
 }
