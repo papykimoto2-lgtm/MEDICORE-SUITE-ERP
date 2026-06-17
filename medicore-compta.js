@@ -126,12 +126,14 @@ const MEDICORE_COMPTA = {
     }
   },
 
-  _read(){ if(typeof MEDICORE_STORE!=='undefined') return MEDICORE_STORE.load(this.S,[]);
-    try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.S)||'[]'); return Array.isArray(p)?p:(p.d||[]); }catch(e){ return []; } },
+  _read(){ let raw; if(typeof MEDICORE_STORE!=='undefined') raw=MEDICORE_STORE.load(this.S,[]);
+    else { try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.S)||'[]'); raw=Array.isArray(p)?p:(p.d||[]); }catch(e){ raw=[]; } }
+    if(Array.isArray(raw)) return raw; if(raw&&Array.isArray(raw.d)) return raw.d; return []; },
   _write(rows){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save(this.S,rows,true);
     else localStorage.setItem('medicore_'+this.S,JSON.stringify({_v:1,_ts:Date.now(),d:rows})); },
-  _tiers(){ if(typeof MEDICORE_STORE!=='undefined') return MEDICORE_STORE.load(this.S_TIERS,[]);
-    try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.S_TIERS)||'[]'); return Array.isArray(p)?p:(p.d||[]); }catch(e){ return []; } },
+  _tiers(){ let raw; if(typeof MEDICORE_STORE!=='undefined') raw=MEDICORE_STORE.load(this.S_TIERS,[]);
+    else { try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.S_TIERS)||'[]'); raw=Array.isArray(p)?p:(p.d||[]); }catch(e){ raw=[]; } }
+    if(Array.isArray(raw)) return raw; if(raw&&Array.isArray(raw.d)) return raw.d; return []; },
   _saveTiers(rows){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save(this.S_TIERS,rows,true);
     else localStorage.setItem('medicore_'+this.S_TIERS,JSON.stringify({_v:1,_ts:Date.now(),d:rows})); },
   _user(){ try{ return JSON.parse(sessionStorage.getItem('medicore_user')||'{}'); }catch(e){ return {}; } },

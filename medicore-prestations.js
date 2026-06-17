@@ -29,8 +29,13 @@ const MEDICORE_PRESTA = {
   },
 
   _read(){
-    if(typeof MEDICORE_STORE!=='undefined') return MEDICORE_STORE.load(this.STORE, []);
-    try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.STORE)||'[]'); return Array.isArray(p)?p:(p.d||[]); }
+    let raw;
+    if(typeof MEDICORE_STORE!=='undefined') raw=MEDICORE_STORE.load(this.STORE, []);
+    else { try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.STORE)||'[]'); raw=Array.isArray(p)?p:(p.d||[]); }catch(e){ raw=[]; } }
+    if(Array.isArray(raw)) return raw;
+    if(raw && Array.isArray(raw.d)) return raw.d;
+    return [];
+  }
     catch(e){ return []; }
   },
   _write(rows){

@@ -11,8 +11,14 @@
 const MEDICORE_USERS = {
   S:'utilisateurs',
 
-  _read(){ if(typeof MEDICORE_STORE!=='undefined') return MEDICORE_STORE.load(this.S,[]);
-    try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.S)||'[]'); return Array.isArray(p)?p:(p.d||[]); }catch(e){ return []; } },
+  _read(){
+    let raw;
+    if(typeof MEDICORE_STORE!=='undefined') raw=MEDICORE_STORE.load(this.S, []);
+    else { try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.S)||'[]'); raw=Array.isArray(p)?p:(p.d||[]); }catch(e){ raw=[]; } }
+    if(Array.isArray(raw)) return raw;
+    if(raw && Array.isArray(raw.d)) return raw.d;
+    return [];
+  },
   _write(rows){ if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save(this.S,rows,true);
     else localStorage.setItem('medicore_'+this.S, JSON.stringify({_v:1,_ts:Date.now(),d:rows})); },
 

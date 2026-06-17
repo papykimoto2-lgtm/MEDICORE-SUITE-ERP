@@ -15,9 +15,17 @@ const MEDICORE_RX = {
   S: { ATTENTE:'En attente validation', VALIDEE:'Validée', REFUSEE:'Refusée', DELIVREE:'Délivrée' },
 
   _read(){
-    if(typeof MEDICORE_STORE!=='undefined') return MEDICORE_STORE.load(this.STORE, []);
-    try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.STORE)||'[]'); return Array.isArray(p)?p:(p.d||[]); }
-    catch(e){ return []; }
+    let raw;
+    if(typeof MEDICORE_STORE!=='undefined') raw=MEDICORE_STORE.load(this.STORE, []);
+    else {
+      try{ const p=JSON.parse(localStorage.getItem('medicore_'+this.STORE)||'[]'); raw=Array.isArray(p)?p:(p.d||[]); }
+      catch(e){ raw=[]; }
+    }
+    // Garantit toujours un tableau — MEDICORE_STORE.load() peut renvoyer
+    // null, undefined ou un objet wrappé {d:[]} selon la version du store
+    if(Array.isArray(raw)) return raw;
+    if(raw && Array.isArray(raw.d)) return raw.d;
+    return [];
   },
   _write(rows){
     if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save(this.STORE, rows, true);
