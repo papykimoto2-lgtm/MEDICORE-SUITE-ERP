@@ -29,6 +29,7 @@ const MEDICORE_RX = {
   pourPatient(patientId){ return this._read().filter(r=>r.patientId===patientId); },
   enAttente(){ return this._read().filter(r=>r.statut===this.S.ATTENTE); },
   enAttentePatient(patientId){ return this.enAttente().filter(r=>r.patientId===patientId); },
+  purgerPatient(patientId){ this._write(this._read().filter(r=>r.patientId!==patientId)); },
 
   // ── DPI : ajouter une prescription ───────────────────────────────────────────
   ajouter(rec){
