@@ -1401,13 +1401,32 @@ function _identiteHTML(p){
     <div class="kv">Entrée : <b>${fmtDate(p.entree)}</b></div>${p.sortie?`<div class="kv">Sortie : <b>${fmtDate(p.sortie)}</b></div>`:''}
   </div>`;
 }
+
+// ── QR code pour documents imprimés ────────────────────────────────────────────
+function _qrCodeHTML(patientId, patientNom){
+  // Générer QR code SVG via MEDICORE_PATIENT si disponible, sinon fallback API
+  let qrSvg = '';
+  if(typeof MEDICORE_PATIENT!=='undefined'){
+    const payload = MEDICORE_PATIENT.payload({id:patientId, nom:patientNom});
+    qrSvg = MEDICORE_PATIENT.qrSVG(payload, 1.5);
+  } else {
+    // Fallback: utiliser API QR code en ligne
+    qrSvg = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(patientId)}" alt="QR ${patientId}" style="border:1px solid #ccc;padding:2px;background:#fff"/>`;
+  }
+  return `<div style="float:right;margin:0 0 16px 16px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:8px;background:#fafafa">
+    ${qrSvg}
+    <div style="font-size:10px;color:#666;margin-top:4px">${patientId}</div>
+  </div>`;
+}
 function imprimerDossier(id){
   const p=patients.find(x=>x.id===id); if(!p) return;
   const tl=(timeline[id]||[]);
   const presc=_prescriptionsPatient(id);
   const bio=(bioResultats[id]||[]);
   const cst=Array.isArray(constantes[id])?constantes[id]:(constantes[id]?[constantes[id]]:[]);
+  const qr = _qrCodeHTML(p.id, p.nom);
   const corps=`
+    ${qr}
     <h3>Identité du patient</h3>${_identiteHTML(p)}
     <h3>Antécédents & terrain</h3>
     <div class="kv">Antécédents : <b>${p.antecedents||'Aucun renseigné'}</b></div>
@@ -1442,7 +1461,8 @@ function docCRAdmission(id){
 function docResultatsBio(id){
   const p=patients.find(x=>x.id===id); if(!p) return;
   const bio=(bioResultats[id]||[]);
-  const corps=`<h3>Résultats de biologie</h3>${_identiteHTML(p)}
+  const qr = _qrCodeHTML(p.id, p.nom);
+  const corps=`${qr}<h3>Résultats de biologie</h3>${_identiteHTML(p)}
     ${bio.length?`<table><thead><tr><th>Paramètre</th><th>Résultat</th><th>Valeurs de référence</th><th>Interprétation</th></tr></thead><tbody>
       ${bio.map(r=>`<tr><td>${r.param}</td><td class="${r.anormal?'du':'paye'}">${r.val} ${r.unite}</td><td>${r.ref} ${r.unite}</td><td>${r.anormal?'⚠ Hors norme':'Normal'}</td></tr>`).join('')}</tbody></table>`
       :'<div>Aucun résultat biologique disponible.</div>'}
@@ -1451,7 +1471,8 @@ function docResultatsBio(id){
 }
 function docConsentement(id){
   const p=patients.find(x=>x.id===id); if(!p) return;
-  const corps=`<h3>Consentement éclairé — acte opératoire</h3>${_identiteHTML(p)}
+  const qr = _qrCodeHTML(p.id, p.nom);
+  const corps=`${qr}<h3>Consentement éclairé — acte opératoire</h3>${_identiteHTML(p)}
     <p style="margin-top:14px">Je soussigné(e) <b>${p.nom}</b> (ou son représentant légal), reconnais avoir reçu une information claire,
     loyale et appropriée concernant l'acte / l'intervention proposé(e), ses bénéfices attendus, ses risques éventuels
     et les alternatives thérapeutiques. J'ai pu poser toutes mes questions et obtenir des réponses satisfaisantes.</p>
@@ -1482,6 +1503,7 @@ function factureSortie(id){
   const totalDu=groupes.reduce((s,g)=>s+g.du,0);
   const total=totalPaye+totalDu;
   const numero='FS-'+new Date().getFullYear()+'-'+String(id).replace(/\D/g,'').slice(-5);
+  const qr = _qrCodeHTML(p.id, p.nom);
   const lignes=groupes.map(g=>`
     <tr><td colspan="4" style="background:#f8f7f2;font-weight:700">${g.label} — compte SYSCOHADA 531 / ${g.compte}</td></tr>
     ${g.lignes.map(l=>`<tr><td>${l.libelle}</td><td>${l.code||''}</td><td class="right">${(+l.montant||0).toLocaleString('fr-FR')}</td>
@@ -1489,7 +1511,7 @@ function factureSortie(id){
     <tr><td colspan="2" class="right" style="font-size:11px;color:#666">Sous-total ${g.label}</td>
       <td class="right tot">${(g.paye+g.du).toLocaleString('fr-FR')}</td>
       <td class="right" style="font-size:11px"><span class="paye">${g.paye.toLocaleString('fr-FR')} payé</span> · <span class="du">${g.du.toLocaleString('fr-FR')} dû</span></td></tr>`).join('');
-  const corps=`<h3>Facture de séjour ${numero}</h3>${_identiteHTML(p)}
+  const corps=`${qr}<h3>Facture de séjour ${numero}</h3>${_identiteHTML(p)}
     <h3>Détail des prestations (ventilation par service)</h3>
     ${groupes.length?`<table><thead><tr><th>Prestation</th><th>Code</th><th class="right">Montant (FCFA)</th><th class="right">État</th></tr></thead><tbody>${lignes}</tbody></table>`:'<div>Aucune prestation.</div>'}
     <h3>Récapitulatif</h3>
