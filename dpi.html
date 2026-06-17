@@ -590,64 +590,15 @@ function ippFromDossier(id){ return 'IPP-'+String(id).replace(/\D/g,'').slice(-6
 
 // ── Données patients ──────────────────────────────────────────────────────────
 let patients = [
-  {id:'P001',nom:'KONÉ Aminata',ipp:'IHC-2024-001',ddn:'1978-03-15',sexe:'F',service:'Médecine générale',type:'Hospitalisé',statut:'Actif',allergies:['Pénicilline'],comorbidites:'HTA, Diabète'},
-  {id:'P002',nom:'TRAORÉ Moussa',ipp:'IHC-2024-002',ddn:'1965-07-22',sexe:'M',service:'Chirurgie',type:'Hospitalisé',statut:'Actif',allergies:[],comorbidites:'Dyslipidémie'},
-  {id:'P003',nom:'DIALLO Fatoumata',ipp:'IHC-2024-003',ddn:'2000-11-08',sexe:'F',service:'Maternité',type:'Hospitalisé',statut:'Actif',allergies:[],comorbidites:''},
-  {id:'P004',nom:'OUATTARA Seydou',ipp:'IHC-2024-004',ddn:'1992-05-30',sexe:'M',service:'Urgences',type:'Urgences',statut:'Actif',allergies:['AINS'],comorbidites:''},
-  {id:'P005',nom:'YÉO Mariame',ipp:'IHC-2024-005',ddn:'1988-09-12',sexe:'F',service:'Chirurgie',type:'Hospitalisé',statut:'Actif',allergies:[],comorbidites:'Antécédents thyroïde'},
-  {id:'P006',nom:'CAMARA Aïssatou',ipp:'IHC-2024-006',ddn:'1995-02-18',sexe:'F',service:'Médecine générale',type:'Consultation',statut:'Actif',allergies:[],comorbidites:''},
-  {id:'P007',nom:'SANOGO Ibrahim',ipp:'IHC-2024-007',ddn:'1980-08-25',sexe:'M',service:'Chirurgie',type:'Consultation',statut:'Actif',allergies:['Amoxicilline'],comorbidites:'Asthme'},
-  {id:'P008',nom:'FOFANA Mariam',ipp:'IHC-2024-008',ddn:'2010-06-12',sexe:'F',service:'Maternité',type:'Ambulatoire',statut:'Actif',allergies:[],comorbidites:''},
-  {id:'P009',nom:'CISSÉ Moustapha',ipp:'IHC-2024-009',ddn:'1970-11-03',sexe:'M',service:'Médecine générale',type:'Ambulatoire',statut:'Actif',allergies:[],comorbidites:'Obésité'},
-  {id:'P010',nom:'TOURE Ndeye',ipp:'IHC-2024-010',ddn:'1985-04-20',sexe:'F',service:'Chirurgie',type:'Sorti',statut:'Sorti',allergies:[],comorbidites:''},
-  {id:'P011',nom:'DIOP Mamadou',ipp:'IHC-2024-011',ddn:'1975-09-11',sexe:'M',service:'Urgences',type:'Sorti',statut:'Sorti',allergies:['AINS'],comorbidites:''},
+  // Vide — les données proviennent du store (admission, import CSV ou injection démo)
 ];
 window.patients = patients; // exposé pour le suivi "patient actif" (nav.js / QR)
 
 // Prescriptions par patient (chargées depuis le store — plus de données en dur)
 let prescriptions = {};
 
-// Résultats biologiques par patient — INITIALISATION AVEC DONNÉES
-const bioResultats = {
-  'P001':[
-    {param:'Hémoglobine',val:'10.2',unite:'g/dL',ref:'12-16',anormal:true},
-    {param:'Hématocrite',val:'31',unite:'%',ref:'36-46',anormal:true},
-    {param:'Globules blancs',val:'7.2',unite:'10³/µL',ref:'4.5-11',anormal:false},
-    {param:'Plaquettes',val:'245',unite:'10³/µL',ref:'150-400',anormal:false},
-    {param:'Glucose',val:'182',unite:'mg/dL',ref:'70-100',anormal:true},
-    {param:'Créatinine',val:'1.1',unite:'mg/dL',ref:'0.6-1.2',anormal:false},
-  ],
-  'P002':[
-    {param:'Cholestérol total',val:'285',unite:'mg/dL',ref:'<200',anormal:true},
-    {param:'LDL',val:'210',unite:'mg/dL',ref:'<130',anormal:true},
-    {param:'HDL',val:'32',unite:'mg/dL',ref:'>40',anormal:true},
-    {param:'Triglycérides',val:'320',unite:'mg/dL',ref:'<150',anormal:true},
-  ],
-  'P003':[
-    {param:'β-hCG',val:'156000',unite:'mUI/mL',ref:'Gravide +++ 8-12 semaines',anormal:false},
-  ],
-  'P004':[
-    {param:'Troponine ultrasensible',val:'0.08',unite:'pg/mL',ref:'<0.04',anormal:true},
-    {param:'BNP',val:'450',unite:'pg/mL',ref:'<100',anormal:true},
-    {param:'Créatinine',val:'0.9',unite:'mg/dL',ref:'0.6-1.2',anormal:false},
-  ],
-  'P006':[
-    {param:'Hémoglobine',val:'13.5',unite:'g/dL',ref:'12-16',anormal:false},
-    {param:'Globules blancs',val:'6.8',unite:'10³/µL',ref:'4.5-11',anormal:false},
-  ],
-  'P007':[
-    {param:'PSA',val:'2.5',unite:'ng/mL',ref:'<4',anormal:false},
-  ],
-  'P008':[],
-  'P009':[
-    {param:'HbA1c',val:'8.2',unite:'%',ref:'<5.7',anormal:true},
-    {param:'Glycémie à jeun',val:'156',unite:'mg/dL',ref:'70-100',anormal:true},
-  ],
-  'P010':[],
-  'P011':[
-    {param:'Hémoglobine',val:'14.1',unite:'g/dL',ref:'12-18',anormal:false},
-  ],
-};
+// Résultats biologiques par patient (chargés depuis le store — plus de données en dur)
+const bioResultats = {};
 
 // Constantes vitales par patient
 let constantes = {};
@@ -1695,9 +1646,25 @@ function enregistrerConstantes(id){
 }
 
 // ── Modals ─────────────────────────────────────────────────────────────────────
+function genererNumeroDossier(){
+  // ID unique basé sur le max existant + timestamp pour éviter collisions
+  let maxNum = 205856;  // base
+  patients.forEach(p=>{
+    const n = parseInt(String(p.id).replace(/\D/g,''));
+    if(!isNaN(n) && n>maxNum) maxNum=n;
+  });
+  // Vérifier aussi les archives
+  if(typeof MEDICORE_ARCHIVE!=='undefined' && MEDICORE_ARCHIVE.liste){
+    (MEDICORE_ARCHIVE.liste()||[]).forEach(p=>{
+      const n=parseInt(String(p.id).replace(/\D/g,''));
+      if(!isNaN(n) && n>maxNum) maxNum=n;
+    });
+  }
+  return 'D'+(maxNum+1);
+}
 function openAdmission(){
   document.getElementById('adm-date').value=TODAY;
-  document.getElementById('adm-dossier').value='D2058'+String(patients.length+56).padStart(2,'0');
+  document.getElementById('adm-dossier').value=genererNumeroDossier();
   document.getElementById('modal-admission').classList.add('open');
 }
 function closeAdmission(){document.getElementById('modal-admission').classList.remove('open')}
@@ -1740,16 +1707,27 @@ function validerAdmission(){
   const nouveau={
     id,ipp,nom:nom+' '+prenom,ddn,
     sexe,
+    tel:document.getElementById('adm-tel').value||'',
+    nss:document.getElementById('adm-nss').value||'',
     service:document.getElementById('adm-service').value,
     type:document.getElementById('adm-type').value,
     lit:document.getElementById('adm-lit').value||'—',
     medecin:document.getElementById('adm-medecin').value,
-    entree:TODAY,sortie:'',
+    entree:document.getElementById('adm-date').value||TODAY,sortie:'',
     assurance:document.getElementById('adm-assurance').value,
-    allergies:document.getElementById('adm-allergies').value,
+    allergies:document.getElementById('adm-allergies').value||'',
     motif:document.getElementById('adm-motif').value||'À préciser',
+    antecedents:'',  // Vide par défaut — saisi via note clinique
+    comorbidites:'',
+    groupe:'',
     statut:'Actif',
   };
+  // ── Nettoyer tout résidu d'un dossier précédent portant le même ID ──
+  delete prescriptions[id];
+  delete bioResultats[id];
+  delete constantes[id];
+  delete timeline[id];
+  if(typeof MEDICORE_RX!=='undefined' && MEDICORE_RX.purgerPatient) MEDICORE_RX.purgerPatient(id);
   patients.unshift(nouveau);
   window.patients = patients; // resynchronise la référence globale
   if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('patients', patients, true); // immediate=true
