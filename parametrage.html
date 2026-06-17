@@ -574,11 +574,19 @@ function renderBody(){
     '<div class="card"><div class="card-head"><div><h3>Actions globales</h3><div class="sub">Stockage total : <strong>'+totalKo+' Ko</strong> dans ce navigateur</div></div></div>' +
     '<div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn btn-primary" onclick="injecterDemoInterModule()">🧪 Injecter données démo (inter-modules)</button>' +
-      '<button class="btn btn-danger" onclick="supprimerTout()">🗑 Tout effacer (remise à zéro)</button>' +
+      '<button class="btn btn-danger" onclick="supprimerTout()">🗑 Tout effacer (local)</button>' +
       '<button class="btn" style="background:var(--orange-bg);color:var(--orange);border:1px solid #f3c87a" onclick="supprimerDemoSeulement()">🧹 Données démo uniquement</button>' +
       '<button class="btn btn-secondary" onclick="exportConfig()">⬇ Exporter la config d\'abord</button>' +
     '</div>' +
     '<div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">L\'injection crée 5 patients avec un parcours complet reliant DPI, prescriptions, laboratoire, imagerie, pharmacie, facturation et bloc opératoire — pour tester les flux entre modules.</div></div></div>' +
+
+    // ── NOUVEAU : Section purge Cloud Supabase ──
+    '<div class="card" style="border:1px solid #f3c87a"><div class="card-head"><div><h3>☁ Base de données Cloud (Supabase)</h3><div class="sub">Affecte TOUS les postes connectés — pas seulement ce navigateur</div></div></div>' +
+    '<div class="card-body"><div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn btn-danger" onclick="viderSupabase()">☁🗑 Vider la base Supabase (cloud)</button>' +
+      '<button class="btn btn-danger" style="background:#7a1010" onclick="reinitialisationTotale()">🔥 Réinitialisation TOTALE (cloud + local)</button>' +
+    '</div>' +
+    '<div style="font-size:11.5px;color:var(--orange);margin-top:8px;font-weight:600">⚠ La purge cloud efface les données sur le serveur pour tous les utilisateurs. Vérifiez la configuration Supabase dans l\'onglet « Synchronisation Cloud ».</div></div></div>' +
 
     '<div class="card"><div class="card-head"><div><h3>Données par module</h3><div class="sub">Sélectionnez les modules à effacer</div></div>' +
     '<div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm" onclick="toutCocher(true)">Tout cocher</button>' +
@@ -995,6 +1003,68 @@ function supprimerTout(){
 
 // Supprimer uniquement les données démo (patients, prescriptions, examens, mouvements…)
 // Conserve : config établissement, utilisateurs, services, tarifs, fournisseurs
+// ── PURGE SUPABASE : vide toutes les tables cloud ─────────────────────────────
+async function viderSupabase(){
+  const creds = getSBCreds();
+  if(!creds.url || !creds.key){ toast('Supabase non configuré. Onglet « Synchronisation Cloud ».','error'); return; }
+  if(!confirm('⛔ VIDER LA BASE SUPABASE (CLOUD)\n\nToutes les tables seront effacées sur le serveur :\n• Patients, prescriptions, résultats\n• Factures, écritures, trésorerie\n• Stock, RH, immobilisations, audit\n\nIRRÉVERSIBLE — affecte TOUS les postes connectés.\n\nConfirmer ?')) return;
+  if(!confirm('Dernière confirmation — vider la base CLOUD pour de bon ?')) return;
+
+  const TABLES = [
+    // Ordre : enfants avant parents (FK)
+    'resultats_labo','demandes_labo','demandes_imagerie','interventions','prescriptions','sejours','patients',
+    'mouvements_stock','produits',
+    'lignes_facture','factures',
+    'ecritures_analytiques','ecritures','centres_cout',
+    'mouvements_tresorerie','comptes_tresorerie',
+    'dotations_amortissement','immobilisations',
+    'lignes_commande','commandes_achat','fournisseurs',
+    'bulletins_paie','conges','personnel',
+    'audit_log','bus_evenements','medicore_sync_docs',
+  ];
+
+  const headers = { 'apikey':creds.key, 'Authorization':'Bearer '+creds.key, 'Content-Type':'application/json', 'Prefer':'return=minimal' };
+  let ok=0, ko=0; const log=[];
+  toast('Purge Supabase en cours…','info');
+
+  for(const t of TABLES){
+    try{
+      // DELETE avec filtre toujours-vrai (id non null) pour purge totale
+      const r = await fetch(`${creds.url}/rest/v1/${t}?id=not.is.null`, { method:'DELETE', headers });
+      if(r.ok || r.status===404){ ok++; log.push('✓ '+t); }
+      else { ko++; log.push('✕ '+t+' ('+r.status+')'); }
+    }catch(e){ ko++; log.push('✕ '+t+' — '+e.message); }
+  }
+
+  const msg = `Purge Supabase : ${ok} table(s) vidée(s)`+(ko?`, ${ko} échec(s)`:'');
+  toast(msg, ko?'warn':'success');
+  console.log('[PURGE SUPABASE]\n'+log.join('\n'));
+  alert(msg+'\n\nDétail :\n'+log.join('\n'));
+}
+
+// ── PURGE TOTALE : Supabase + localStorage en une action ──────────────────────
+async function reinitialisationTotale(){
+  if(!confirm('🔥 RÉINITIALISATION TOTALE DE L\'ERP\n\nVide À LA FOIS :\n• La base Supabase (cloud, tous postes)\n• Le stockage local de ce navigateur\n\nIRRÉVERSIBLE.\n\nConfirmer ?')) return;
+  if(!confirm('Êtes-vous absolument certain ? Cette action efface TOUT.')) return;
+  await viderSupabase();
+  // Puis localStorage (sans reconfirmation)
+  const keysToDelete = [];
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith('medicore_') && !CLES_PRESERVEES.includes(k)) keysToDelete.push(k);
+  }
+  keysToDelete.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
+  if(typeof MEDICORE_STORE !== 'undefined'){ MEDICORE_STORE._mem = {}; MEDICORE_STORE._kpiCache = null; }
+  if(typeof MEDICORE_BUS   !== 'undefined'){ MEDICORE_BUS._cache = null; MEDICORE_BUS._counts = null; }
+  CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
+  SERVICES = JSON.parse(JSON.stringify(DEFAULT_SERVICES));
+  TARIFS = JSON.parse(JSON.stringify(DEFAULT_TARIFS));
+  FOURNISSEURS = JSON.parse(JSON.stringify(DEFAULT_FOURNISSEURS));
+  persist();
+  toast('Réinitialisation totale terminée (cloud + local).','success');
+  setTimeout(()=>renderBody(), 400);
+}
+
 function supprimerDemoSeulement(){
   if(!confirm('Supprimer les données de démonstration ?\n\n• Patients et dossiers\n• Prescriptions\n• Examens labo & imagerie\n• Interventions bloc\n• Mouvements stock\n• Factures\n• Écritures comptables\n• Mouvements trésorerie\n\nLa configuration (établissement, utilisateurs, services, tarifs) sera conservée.')) return;
 
