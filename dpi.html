@@ -2185,13 +2185,17 @@ document.addEventListener('DOMContentLoaded',function(){
 
   // ── NETTOYAGE : corriger les types mal formatés ──────────────────────────────
   const TYPES_VALIDES = ['Hospitalisé','Urgences','Consultation','Ambulatoire','Sorti'];
+  const TYPES_MAPPING = {  // Mappings courants de typos
+    'Sortie':'Sorti', 'Urgence':'Urgences', 'Ambulatoires':'Ambulatoire', 'Hospitalisé(e)':'Hospitalisé'
+  };
   patients.forEach(p=>{
+    if(p.type && typeof p.type==='string'){
+      p.type = p.type.trim();  // Trim espaces d'abord
+      if(TYPES_MAPPING[p.type]) p.type = TYPES_MAPPING[p.type];  // Appliquer mapping
+    }
     if(!TYPES_VALIDES.includes(p.type)){
-      console.warn(`⚠ Patient ${p.nom} (${p.id}) : type invalide "${p.type}" → type='Hospitalisé' par défaut`);
-      // Diagnostique
-      if(p.type==='Sortie') p.type='Sorti';  // Migration "Sortie" → "Sorti"
-      else if(p.type && typeof p.type==='string') p.type = p.type.trim();  // Trim espaces
-      else p.type='Hospitalisé';  // Défaut
+      console.warn(`⚠ Patient ${p.nom} (${p.id}) : type invalide "${p.type}" → type='Hospitalisé' (défaut)`);
+      p.type='Hospitalisé';  // Défaut pour types invalides
     }
   });
   // Sauvegarder les corrections
