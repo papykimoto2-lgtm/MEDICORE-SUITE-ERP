@@ -133,7 +133,7 @@ function genererDossier(){
   let n=1; const nums=patientsUrg.map(p=>parseInt(String(p.id).replace(/\D/g,''))||0);
   const base=Math.max(205800, ...(nums.length?nums:[0]));
   let id='D'+(base+1);
-  while(patientsUrg.some(p=>p.id===id)){ n++; id='D'+(base+n); }
+  let _safety=0; while(patientsUrg.some(p=>p.id===id) && _safety++<10000){ n++; id='D'+(base+n); }
   return id;
 }
 function chargerPatients(){
@@ -482,7 +482,7 @@ function switchTab(tab,el){
 document.addEventListener('DOMContentLoaded',function(){
   if(typeof initNav==='function') initNav('urgences','Urgences & Triage','Accueil & orientation',['Parcours patient','Urgences']);
   load(); chargerPatients(); rerender();
-  setInterval(renderKPIs, 30000);   // rafraîchit les compteurs d'attente
+  if(!window._kpiTimer) window._kpiTimer=setInterval(renderKPIs, 30000); // rafraîchit les compteurs d'attente
 });
 </script>
 <script src="medicore-secure.js"></script>

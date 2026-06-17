@@ -52,13 +52,19 @@ const MEDICORE_SESSION = {
   },
 
   // À appeler sur chaque page protégée
+  _guardTimer: null,
   guard(){
     const r=this.check();
     if(!r.ok){ this.logout(r.reason); return false; }
     this.touch();
     ['click','keydown','mousemove','touchstart'].forEach(ev=>document.addEventListener(ev, ()=>this.touch(), {passive:true}));
-    // Vérif périodique (expiration auto même sans action)
-    setInterval(()=>{ const c=this.check(); if(!c.ok) this.logout(c.reason); }, 30000);
+    // Vérif périodique — un seul timer actif par onglet (guard() peut être appelé plusieurs fois)
+    if(!this._guardTimer){
+      this._guardTimer = setInterval(()=>{
+        const c=this.check();
+        if(!c.ok){ clearInterval(this._guardTimer); this._guardTimer=null; this.logout(c.reason); }
+      }, 30000);
+    }
     return true;
   },
 };

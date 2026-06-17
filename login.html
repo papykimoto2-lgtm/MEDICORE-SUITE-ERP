@@ -382,7 +382,7 @@ function updateClock(){
   const now=new Date();
   document.getElementById('session-time').textContent=now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' — '+now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
 }
-updateClock();setInterval(updateClock,1000);
+updateClock(); if(!window._clockTimer) window._clockTimer=setInterval(updateClock,1000);
 
 // ── Sélection rôle ────────────────────────────────────────────────────────────
 function selectRole(role, card){

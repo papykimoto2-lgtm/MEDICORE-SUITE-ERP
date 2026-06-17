@@ -40,9 +40,13 @@
   }
 
   let _lastHTML='';
+  // Verrou anti-reentrée : empêche MutationObserver de se retriggerer
+  // sur les mutations produites par render() elle-même
+  let _rendering=false;
   function render(){
+    if(_rendering) return;
     const p=patient(); const bar=build();
-    if(!p || !p.id){ if(!bar.classList.contains('hidden')) bar.classList.add('hidden'); return; }
+    if(!p || !p.id){ if(!bar.classList.contains('hidden')) bar.classList.add('hidden'); _lastHTML=''; return; }
     // ── Masquer la barre si une modale/overlay est VISIBLE ──
     let modaleOuverte=false;
     document.querySelectorAll('.overlay, .modal-overlay').forEach(ov=>{
@@ -65,8 +69,9 @@
       : `<span class="parc-step parc-fait" style="font-weight:600">✓ Terminé</span>`;
     const newHTML=`<span class="parc-name">🧭 ${p.nom||p.id}</span>${stepsHTML}${nextBtn}`
       +`<button class="parc-close" title="Masquer" onclick="document.getElementById('parc-bar').classList.add('hidden')">✕</button>`;
-    // N'écrit dans le DOM que si le contenu a réellement changé (évite reflows)
-    if(newHTML!==_lastHTML){ bar.innerHTML=newHTML; _lastHTML=newHTML; }
+    // N'écrit dans le DOM que si le contenu a réellement changé
+    // Le verrou _rendering empêche le MutationObserver de reboucler sur cette écriture
+    if(newHTML!==_lastHTML){ _rendering=true; bar.innerHTML=newHTML; _lastHTML=newHTML; _rendering=false; }
   }
 
   // Re-render avec debounce (évite les reflows en cascade)

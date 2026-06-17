@@ -39,9 +39,16 @@
     return bar;
   }
 
+  // Cache du dernier HTML rendu — évite les écritures DOM inutiles
+  let _lastBarHTML = '';
+  // Verrou anti-reentrée : empêche MutationObserver de se retriggerer
+  // sur les mutations produites par render() elle-même
+  let _rendering = false;
+
   function render(){
+    if(_rendering) return;
     const p=patient(); const bar=build();
-    if(!p || !p.id){ bar.classList.add('hidden'); return; }
+    if(!p || !p.id){ bar.classList.add('hidden'); _lastBarHTML=''; return; }
     // ── Masquer la barre si une modale/overlay est VISIBLE (sinon elle obstrue
     //    les boutons d'enregistrement en bas des formulaires) ──
     let modaleOuverte=false;
@@ -55,7 +62,6 @@
     bar.classList.remove('hidden');
     const steps=P.statut(p.id);
     const next=P.prochaine(p.id);
-    const modCour=location.pathname.split('/').pop().replace('.html','');
     const stepsHTML=steps.map((s,i)=>{
       const cls='parc-'+(s.etat==='attente'?'optionnel':s.etat);
       const go=`location.href='${s.module}.html?patient=${encodeURIComponent(p.id)}'`;
@@ -64,22 +70,54 @@
     const nextBtn = next.url
       ? `<button class="parc-next" title="${next.hint}" onclick="location.href='${next.url}'">${next.label} →</button>`
       : `<span class="parc-step parc-fait" style="font-weight:600">✓ Terminé</span>`;
-    bar.innerHTML=`<span class="parc-name">🧭 ${p.nom||p.id}</span>${stepsHTML}${nextBtn}
-      <button class="parc-close" title="Masquer" onclick="document.getElementById('parc-bar').classList.add('hidden')">✕</button>`;
+    const newHTML=`<span class="parc-name">🧭 ${p.nom||p.id}</span>${stepsHTML}${nextBtn}`
+      +`<button class="parc-close" title="Masquer" onclick="document.getElementById('parc-bar').classList.add('hidden')">✕</button>`;
+    // N'écrit dans le DOM que si le contenu a réellement changé
+    // (évite de déclencher le MutationObserver pour rien)
+    if(newHTML !== _lastBarHTML){
+      _rendering = true;
+      bar.innerHTML = newHTML;
+      _lastBarHTML = newHTML;
+      _rendering = false;
+    }
+  }
+
+  // Debounce pour absorber les rafales de mutations DOM
+  let _debounceTimer = null;
+  function renderDebounced(){
+    if(_debounceTimer) return;
+    _debounceTimer = setTimeout(()=>{ _debounceTimer=null; render(); }, 120);
   }
 
   function init(){
     render();
-    // Re-render quand le patient actif change ou que des données bougent
+    // Re-render quand le patient actif change
     document.addEventListener('medicore-patient-change', render);
+    // Rafraîchissement périodique (garde-fou si événements manqués)
     setInterval(render, 8000);
-    // ── Re-render immédiat à l'ouverture/fermeture d'une modale (classe/style) ──
+    // ── Détection ouverture/fermeture modale SANS boucle de rétroaction ──
+    // On n'observe PAS subtree:true sur tout le body (déclencherait render
+    // sur les mutations de bar.innerHTML → boucle infinie).
+    // On surveille uniquement les overlays connus + les ajouts d'enfants directs du body.
     try{
-      const obs=new MutationObserver(()=>render());
-      obs.observe(document.body, { attributes:true, attributeFilter:['class','style'], subtree:true });
+      const obs=new MutationObserver(renderDebounced);
+      document.querySelectorAll('.overlay, .modal-overlay').forEach(ov=>{
+        obs.observe(ov, { attributes:true, attributeFilter:['class','style'] });
+      });
+      // Overlays créés dynamiquement
+      const bodyObs=new MutationObserver((muts)=>{
+        const pertinent=muts.some(m=>
+          [...m.addedNodes,...m.removedNodes].some(n=>
+            n.nodeType===1 && n.classList &&
+            (n.classList.contains('overlay')||n.classList.contains('modal-overlay'))
+          )
+        );
+        if(pertinent) renderDebounced();
+      });
+      bodyObs.observe(document.body, { childList:true });
     }catch(e){}
     // Filet de sécurité : tout clic peut ouvrir/fermer une modale
-    document.addEventListener('click', ()=>setTimeout(render, 50), true);
+    document.addEventListener('click', ()=>setTimeout(renderDebounced, 50), true);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
   else init();
