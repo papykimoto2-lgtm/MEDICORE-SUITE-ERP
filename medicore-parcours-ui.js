@@ -42,6 +42,16 @@
   function render(){
     const p=patient(); const bar=build();
     if(!p || !p.id){ bar.classList.add('hidden'); return; }
+    // ── Masquer la barre si une modale/overlay est VISIBLE (sinon elle obstrue
+    //    les boutons d'enregistrement en bas des formulaires) ──
+    let modaleOuverte=false;
+    document.querySelectorAll('.overlay, .modal-overlay').forEach(ov=>{
+      if(modaleOuverte) return;
+      const vis = ov.classList.contains('open') ||
+        (getComputedStyle(ov).display!=='none' && ov.offsetParent!==null);
+      if(vis) modaleOuverte=true;
+    });
+    if(modaleOuverte){ bar.classList.add('hidden'); return; }
     bar.classList.remove('hidden');
     const steps=P.statut(p.id);
     const next=P.prochaine(p.id);
@@ -63,6 +73,13 @@
     // Re-render quand le patient actif change ou que des données bougent
     document.addEventListener('medicore-patient-change', render);
     setInterval(render, 8000);
+    // ── Re-render immédiat à l'ouverture/fermeture d'une modale (classe/style) ──
+    try{
+      const obs=new MutationObserver(()=>render());
+      obs.observe(document.body, { attributes:true, attributeFilter:['class','style'], subtree:true });
+    }catch(e){}
+    // Filet de sécurité : tout clic peut ouvrir/fermer une modale
+    document.addEventListener('click', ()=>setTimeout(render, 50), true);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
   else init();
