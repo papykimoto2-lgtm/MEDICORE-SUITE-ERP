@@ -550,7 +550,7 @@
             <option value="Consultation">Consultation / Visite</option>
             <option value="Évolution">Note d'évolution</option>
             <option value="Opératoire">Compte rendu opératoire</option>
-            <option value="Sortie">Résumé de sortie</option>
+            <option value="Sorti">Résumé de sortie</option>
             <option value="Infirmier">Note infirmière</option>
           </select></div>
         <div class="form-group"><label>Médecin rédacteur</label>
@@ -2160,6 +2160,20 @@ document.addEventListener('DOMContentLoaded',function(){
     window.patients = patients; // expose la bonne référence aux autres modules
     try{ const cst = MEDICORE_STORE.load('constantes', null); if(cst && typeof cst==='object') constantes = Object.assign({}, constantes, cst); }catch(e){}
   }
+
+  // ── NETTOYAGE : corriger les types mal formatés ──────────────────────────────
+  const TYPES_VALIDES = ['Hospitalisé','Urgences','Consultation','Ambulatoire','Sorti'];
+  patients.forEach(p=>{
+    if(!TYPES_VALIDES.includes(p.type)){
+      console.warn(`⚠ Patient ${p.nom} (${p.id}) : type invalide "${p.type}" → type='Hospitalisé' par défaut`);
+      // Diagnostique
+      if(p.type==='Sortie') p.type='Sorti';  // Migration "Sortie" → "Sorti"
+      else if(p.type && typeof p.type==='string') p.type = p.type.trim();  // Trim espaces
+      else p.type='Hospitalisé';  // Défaut
+    }
+  });
+  // Sauvegarder les corrections
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('patients', patients, true);
 
   if(typeof initNav==='function'){
     initNav('dpi','Dossier Patient (DPI)','Admissions · Séjours · Prescriptions · Résultats',
