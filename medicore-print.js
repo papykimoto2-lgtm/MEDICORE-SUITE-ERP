@@ -10,8 +10,14 @@ const MEDICORE_PRINT = {
     try{
       const par=(typeof MEDICORE_STORE!=='undefined')?MEDICORE_STORE.load('parametrage',null):null;
       const c=(par&&par.cfg)||{};
-      return { nom:c.etablissement||'MediCore — Centre Hospitalier', adresse:c.adresse||'Abidjan, Côte d\'Ivoire',
-               tel:c.tel||'', rccm:c.rccm||'', ncc:c.ncc||'' };
+      // c.etablissement peut être une chaîne OU un objet {nom, adresse, ...}
+      const et=c.etablissement;
+      const nom = (et && typeof et==='object') ? (et.nom||'MediCore — Centre Hospitalier')
+                : (typeof et==='string' && et) ? et
+                : 'MediCore — Centre Hospitalier';
+      const src = (et && typeof et==='object') ? et : c;
+      return { nom, adresse:src.adresse||'Abidjan, Côte d\'Ivoire',
+               tel:src.tel||'', rccm:src.rccm||'', ncc:src.ncc||'' };
     }catch(e){ return { nom:'MediCore — Centre Hospitalier', adresse:'Abidjan, Côte d\'Ivoire' }; }
   },
 
