@@ -463,10 +463,6 @@
         <div class="form-group"><label>Lit / Chambre</label>
           <select id="adm-lit">
             <option value="">— Assigner un lit —</option>
-            <option value="101-A">101-A (Médecine — libre)</option>
-            <option value="102-B">102-B (Chirurgie — libre)</option>
-            <option value="103-C">103-C (Maternité — libre)</option>
-            <option value="URG-04">URG-04 (Urgences — libre)</option>
           </select></div>
         <div class="form-group full"><label>Motif d'admission / Diagnostic provisoire</label>
           <textarea id="adm-motif" style="min-height:60px" placeholder="Symptômes, antécédents, motif d'hospitalisation…"></textarea></div>
@@ -606,25 +602,49 @@ let constantes = {};
 // Timeline clinique par patient
 let timeline = {};
 
-// Lits
-const LITS = [
-  {num:'101-A', service:'Médecine générale', statut:'occupe',   patient:'KONÉ Aminata'},
-  {num:'101-B', service:'Médecine générale', statut:'libre',    patient:''},
-  {num:'102-A', service:'Médecine générale', statut:'libre',    patient:''},
-  {num:'102-B', service:'Médecine générale', statut:'nettoyage',patient:''},
-  {num:'201-A', service:'Chirurgie',         statut:'libre',    patient:''},
-  {num:'201-B', service:'Chirurgie',         statut:'libre',    patient:''},
-  {num:'204-B', service:'Chirurgie',         statut:'occupe',   patient:'TRAORÉ Moussa'},
-  {num:'205-A', service:'Chirurgie',         statut:'reserve',  patient:'YÉO Mariame (après BO)'},
-  {num:'301-A', service:'Maternité',         statut:'libre',    patient:''},
-  {num:'301-C', service:'Maternité',         statut:'occupe',   patient:'DIALLO Fatoumata'},
-  {num:'302-A', service:'Maternité',         statut:'libre',    patient:''},
-  {num:'302-B', service:'Maternité',         statut:'nettoyage',patient:''},
-  {num:'URG-01',service:'Urgences',          statut:'libre',    patient:''},
-  {num:'URG-02',service:'Urgences',          statut:'occupe',   patient:'OUATTARA Seydou'},
-  {num:'URG-03',service:'Urgences',          statut:'libre',    patient:''},
-  {num:'URG-04',service:'Urgences',          statut:'reserve',  patient:'Entrée prévue'},
+// ── Lits : structure physique des chambres (configurable, pas de patients en dur) ──
+// L'occupation est calculée dynamiquement depuis le champ p.lit des patients actifs.
+const LITS_CONFIG = [
+  {num:'101-A', service:'Médecine générale'},
+  {num:'101-B', service:'Médecine générale'},
+  {num:'102-A', service:'Médecine générale'},
+  {num:'102-B', service:'Médecine générale'},
+  {num:'201-A', service:'Chirurgie'},
+  {num:'201-B', service:'Chirurgie'},
+  {num:'204-A', service:'Chirurgie'},
+  {num:'204-B', service:'Chirurgie'},
+  {num:'205-A', service:'Chirurgie'},
+  {num:'301-A', service:'Maternité'},
+  {num:'301-B', service:'Maternité'},
+  {num:'301-C', service:'Maternité'},
+  {num:'302-A', service:'Maternité'},
+  {num:'302-B', service:'Maternité'},
+  {num:'URG-01',service:'Urgences'},
+  {num:'URG-02',service:'Urgences'},
+  {num:'URG-03',service:'Urgences'},
+  {num:'URG-04',service:'Urgences'},
 ];
+
+// Lits manuellement marqués "en nettoyage" (persistés). Clé = num lit.
+let litsNettoyage = {};
+try{
+  if(typeof MEDICORE_STORE!=='undefined'){ const n=MEDICORE_STORE.load('lits_nettoyage',null); if(n&&typeof n==='object') litsNettoyage=n; }
+}catch(e){}
+
+// Construit l'état réel des lits en croisant config + patients actifs
+function calculerEtatLits(){
+  return LITS_CONFIG.map(lc=>{
+    // Patient actif occupant ce lit ?
+    const occupant = patients.find(p=>p.lit===lc.num && p.statut==='Actif' && p.type!=='Sorti');
+    if(occupant){
+      return {num:lc.num, service:lc.service, statut:'occupe', patient:occupant.nom, patientId:occupant.id};
+    }
+    if(litsNettoyage[lc.num]){
+      return {num:lc.num, service:lc.service, statut:'nettoyage', patient:'', patientId:null};
+    }
+    return {num:lc.num, service:lc.service, statut:'libre', patient:'', patientId:null};
+  });
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const fmt  = v => Math.round(v||0).toLocaleString('fr-FR');
@@ -650,9 +670,10 @@ function updateKPIs(){
   const urg=actifs.filter(p=>p.type==='Urgences').length;
   const consul=actifs.filter(p=>p.type==='Consultation').length;
   const ambu=actifs.filter(p=>p.type==='Ambulatoire').length;
-  const litsOccupes=LITS.filter(l=>l.statut==='occupe').length;
-  const totalLits=LITS.filter(l=>l.statut!=='nettoyage').length;
-  const to=Math.round(litsOccupes/totalLits*100);
+  const etatLits=calculerEtatLits();
+  const litsOccupes=etatLits.filter(l=>l.statut==='occupe').length;
+  const totalLits=etatLits.filter(l=>l.statut!=='nettoyage').length;
+  const to=totalLits?Math.round(litsOccupes/totalLits*100):0;
 
   document.getElementById('kpi-band').innerHTML=`
     <div class="kpi-band-item">
@@ -1067,11 +1088,12 @@ function renderDocs(id){
 // ── Plan des lits ──────────────────────────────────────────────────────────────
 function renderLits(){
   const fs=document.getElementById('f-service-lit').value;
+  const LITS=calculerEtatLits();  // état réel calculé depuis les patients
   const data=LITS.filter(l=>!fs||l.service===fs);
   const services=[...new Set(data.map(l=>l.service))];
   const occ=data.filter(l=>l.statut==='occupe').length;
   const total=data.length;
-  document.getElementById('lits-stats').textContent=`${occ}/${total} lits occupés — TO: ${Math.round(occ/total*100)}%`;
+  document.getElementById('lits-stats').textContent=`${occ}/${total} lits occupés — TO: ${total?Math.round(occ/total*100):0}%`;
 
   document.getElementById('lits-container').innerHTML=services.map(svc=>{
     const lits=data.filter(l=>l.service===svc);
@@ -1080,17 +1102,45 @@ function renderLits(){
       <div style="font-size:13px;font-weight:600;color:${couleur};margin-bottom:10px;border-left:3px solid ${couleur};padding-left:10px">${svc} — ${lits.filter(l=>l.statut==='occupe').length}/${lits.length} occupés</div>
       <div class="lits-grid">
         ${lits.map(l=>`
-          <div class="lit-card ${l.statut}" onclick="toast('Lit ${l.num} — ${l.statut==='occupe'?l.patient:'Libre'}','success')">
+          <div class="lit-card ${l.statut}" onclick="actionLit('${l.num}')" style="cursor:pointer" title="Cliquer pour gérer ce lit">
             <div class="lit-num">${l.num}</div>
             <div class="lit-patient">${
-              l.statut==='occupe'?l.patient:
-              l.statut==='libre'?'🟢 Libre':
-              l.statut==='reserve'?'🟡 Réservé':'🔵 Nettoyage'
+              l.statut==='occupe'?'👤 '+l.patient:
+              l.statut==='libre'?'🟢 Libre':'🔵 Nettoyage'
             }</div>
           </div>`).join('')}
       </div>
     </div>`;
   }).join('');
+}
+
+// Action au clic sur un lit : ouvrir dossier occupant OU gérer lit libre/nettoyage
+function actionLit(num){
+  const lit=calculerEtatLits().find(l=>l.num===num); if(!lit) return;
+  if(lit.statut==='occupe' && lit.patientId){
+    switchView('main'); openDossier(lit.patientId);
+    return;
+  }
+  // Lit libre ou en nettoyage → menu
+  if(lit.statut==='nettoyage'){
+    if(confirm(`Lit ${num} en nettoyage.\n\nMarquer comme libre (nettoyage terminé) ?`)){
+      delete litsNettoyage[num];
+      persistLitsNettoyage();
+      renderLits(); updateKPIs();
+      toast(`Lit ${num} libéré.`,'success');
+    }
+  } else {
+    // Libre → option mise en nettoyage
+    if(confirm(`Lit ${num} libre.\n\nMarquer en nettoyage ?`)){
+      litsNettoyage[num]=true;
+      persistLitsNettoyage();
+      renderLits(); updateKPIs();
+      toast(`Lit ${num} en nettoyage.`,'info');
+    }
+  }
+}
+function persistLitsNettoyage(){
+  if(typeof MEDICORE_STORE!=='undefined') MEDICORE_STORE.save('lits_nettoyage', litsNettoyage, true);
 }
 
 // ── Urgences ──────────────────────────────────────────────────────────────────
@@ -1665,6 +1715,11 @@ function genererNumeroDossier(){
 function openAdmission(){
   document.getElementById('adm-date').value=TODAY;
   document.getElementById('adm-dossier').value=genererNumeroDossier();
+  // Remplir la liste des lits LIBRES (synchronisée avec l'état réel)
+  const sel=document.getElementById('adm-lit');
+  const libres=calculerEtatLits().filter(l=>l.statut==='libre');
+  sel.innerHTML='<option value="">— Assigner un lit —</option>'+
+    libres.map(l=>`<option value="${l.num}">${l.num} (${l.service})</option>`).join('');
   document.getElementById('modal-admission').classList.add('open');
 }
 function closeAdmission(){document.getElementById('modal-admission').classList.remove('open')}
