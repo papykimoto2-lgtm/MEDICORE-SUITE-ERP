@@ -13,12 +13,20 @@ create table if not exists rdv (
   date         date not null,
   heure        text,
   motif        text,
-  statut       text default 'Planifié',  -- Planifié | Honoré | Absent | Annulé
+  statut       text default 'Planifié',  -- Planifié | Arrivé | En cours | Honoré | Absent | Annulé
   origine      text default 'agenda',    -- agenda | portail
   ref_portail  text,                      -- réf RDV-XXXXXX si issu du portail
+  heure_arrivee timestamptz,              -- check-in accueil
+  heure_pec     timestamptz,              -- prise en charge (début consultation)
+  heure_fin     timestamptz,              -- fin de consultation
   cree_le      timestamptz default now(),
   maj_le       timestamptz
 );
+
+-- Migration base existante :
+-- alter table rdv add column if not exists heure_arrivee timestamptz;
+-- alter table rdv add column if not exists heure_pec     timestamptz;
+-- alter table rdv add column if not exists heure_fin     timestamptz;
 
 create index if not exists idx_rdv_date    on rdv(date);
 create index if not exists idx_rdv_service on rdv(service);

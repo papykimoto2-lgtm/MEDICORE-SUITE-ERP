@@ -6,7 +6,7 @@
 <title>MediCore — Agenda RDV</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f4f3ef;--surface:#fff;--alt:#f9f8f5;--border:#e2dfd8;--accent:#1a4b6e;--accent-light:#e8f0f7;--accent-mid:#2a6090;--accent2:#c8702a;--green:#1e7a4e;--green-bg:#e8f5ef;--orange:#b05b00;--orange-bg:#fef3e2;--red:#b92b2b;--red-bg:#fdeaea;--muted-bg:#eceae4;--text:#1c1c1c;--muted:#6b6b6b;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 12px 40px rgba(0,0,0,.16)}
+:root{--bg:#f4f3ef;--surface:#fff;--alt:#f9f8f5;--border:#e2dfd8;--accent:#1a4b6e;--accent-light:#e8f0f7;--accent-mid:#2a6090;--accent2:#c8702a;--green:#1e7a4e;--green-bg:#e8f5ef;--orange:#b05b00;--orange-bg:#fef3e2;--red:#b92b2b;--red-bg:#fdeaea;--teal:#0f766e;--teal-bg:#ccfbf1;--muted-bg:#eceae4;--text:#1c1c1c;--muted:#6b6b6b;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);--shadow-lg:0 12px 40px rgba(0,0,0,.16)}
 *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
 .hdr{background:var(--accent);color:#fff;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between}
 .hdr .b{display:flex;align-items:center;gap:11px}.hdr .ic{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:18px}
@@ -48,6 +48,10 @@ select.filt{padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;
 .collide{outline:2px solid var(--red);outline-offset:-2px}
 .warn-line{display:none;background:var(--red-bg);color:var(--red);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px}
 .warn-line.show{display:block}
+.ev.arr{background:var(--orange-bg);border-color:var(--orange)}.ev.cours{background:var(--teal-bg);border-color:var(--teal)}
+.wev.arr{background:var(--orange-bg);border-color:var(--orange)}.wev.cours{background:var(--teal-bg);border-color:var(--teal)}
+.pill.arr{background:var(--orange-bg);color:var(--orange)}.pill.cours{background:var(--teal-bg);color:var(--teal)}
+.st-badge.arr{background:var(--orange-bg);color:var(--orange)}.st-badge.cours{background:var(--teal-bg);color:var(--teal)}
 
 /* SEMAINE */
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
@@ -155,7 +159,7 @@ const SUPABASE_URL='https://bjsgivzfarknjfdxhqth.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqc2dpdnpmYXJrbmpmZHhocXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDUzMDUsImV4cCI6MjA5Njg4MTMwNX0.e1Oa9y0BT3DXe6BZUpNLLbsm8uxEePbWjyWGiKcPhBc';
 const SERVICES=['Médecine générale','Chirurgie','Maternité','Pédiatrie','Cardiologie','Imagerie','Laboratoire','Ophtalmologie','Dermatologie','Urgences'];
 const HOURS=[];for(let h=7;h<=18;h++)HOURS.push(h);
-const ST={Planifié:'plan',Honoré:'hon',Absent:'abs',Annulé:'ann'};
+const ST={Planifié:'plan','Arrivé':'arr','En cours':'cours',Honoré:'hon',Absent:'abs',Annulé:'ann'};
 const SEUIL_CRENEAU=4; // RDV max par service / heure avant alerte
 const JOURS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 const MOIS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -304,6 +308,8 @@ function detail(id){
     ${r.motif?`<div class="kv"><b>Motif</b><span style="text-align:right;max-width:60%">${esc(r.motif)}</span></div>`:''}
     ${r.ref_portail?`<div class="kv"><b>Réf. portail</b><span>${esc(r.ref_portail)}</span></div>`:''}
     <div class="actions">
+      <button class="btn" style="background:var(--orange);color:#fff" onclick="agArrive('${id}')">✓ Arrivé</button>
+      <button class="btn" style="background:var(--teal);color:#fff" onclick="agPEC('${id}')">🩺 Prise en charge</button>
       <button class="btn" style="background:var(--green);color:#fff" onclick="setStatut('${id}','Honoré')">✓ Honoré</button>
       <button class="btn" style="background:var(--red-bg);color:var(--red)" onclick="setStatut('${id}','Absent')">Absent</button>
       <button class="btn btn-ghost" onclick="setStatut('${id}','Planifié')">↺ Replanifier</button>
@@ -316,6 +322,19 @@ async function setStatut(id,st){
   r.statut=st;r.maj_le=new Date().toISOString();save('rdv',rows);
   try{await sb('PATCH','rdv?id=eq.'+encodeURIComponent(id),{statut:st});}catch(e){}
   closeModal('ovDetail');toast('Statut → '+st);render();
+}
+async function agArrive(id){
+  const rows=load('rdv');const r=rows.find(x=>x.id===id);if(!r)return;
+  r.statut='Arrivé';r.heure_arrivee=new Date().toISOString();save('rdv',rows);
+  try{await sb('PATCH','rdv?id=eq.'+encodeURIComponent(id),{statut:'Arrivé',heure_arrivee:r.heure_arrivee});}catch(e){}
+  closeModal('ovDetail');toast('Patient enregistré (file d\'attente)');render();
+}
+async function agPEC(id){
+  const rows=load('rdv');const r=rows.find(x=>x.id===id);if(!r)return;
+  r.statut='En cours';r.heure_pec=new Date().toISOString();save('rdv',rows);
+  try{await sb('PATCH','rdv?id=eq.'+encodeURIComponent(id),{statut:'En cours',heure_pec:r.heure_pec});}catch(e){}
+  closeModal('ovDetail');toast('Prise en charge — DPI ouvert');render();
+  window.open('dpi.html?patient='+encodeURIComponent(r.patient_id||r.ipp),'_blank');
 }
 
 // création manuelle

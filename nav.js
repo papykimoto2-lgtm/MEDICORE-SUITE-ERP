@@ -17,6 +17,9 @@ const MEDICORE_NAV = {
       groupe: '1 · Parcours patient',
       icon: '⚕️',
       items: [
+        { id: 'rdv_accueil',     label: 'Accueil & File d\'attente', icon: '🏥', file: 'rdv_accueil.html',     syscohada: 'Accueil',     statut: 'actif',  alertes: 0, etape: 'Accueil' },
+        { id: 'rdv_agenda',      label: 'Agenda des RDV',        icon: '🗓️', file: 'rdv_agenda.html',      syscohada: 'Planning',    statut: 'actif',  alertes: 0, etape: 'Accueil' },
+        { id: 'rdv_portail',     label: 'Demandes RDV (portail)', icon: '📨', file: 'rdv_portail_admin.html', syscohada: 'Portail',     statut: 'actif',  alertes: 0, etape: 'Accueil' },
         { id: 'urgences',        label: 'Urgences & Triage',     icon: '🚑', file: 'urgences.html',        syscohada: '706/411',     statut: 'actif',  alertes: 0, etape: 'Accueil' },
         { id: 'dpi',             label: 'Dossier Patient (DPI)', icon: '📋', file: 'dpi.html',             syscohada: '411/706',     statut: 'actif',  alertes: 0, etape: 'Admission' },
         { id: 'laboratoire',     label: 'Laboratoire',           icon: '🔬', file: 'laboratoire.html',     syscohada: '706/411',     statut: 'actif', alertes: 0, etape: 'Examens' },

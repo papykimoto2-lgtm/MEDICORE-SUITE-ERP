@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediCore — Accueil & File d'attente</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f3ef;--surface:#fff;--alt:#f9f8f5;--border:#e2dfd8;--accent:#1a4b6e;--accent-light:#e8f0f7;--accent2:#c8702a;--green:#1e7a4e;--green-bg:#e8f5ef;--orange:#b05b00;--orange-bg:#fef3e2;--red:#b92b2b;--red-bg:#fdeaea;--teal:#0f766e;--teal-bg:#ccfbf1;--purple:#6b21a8;--purple-bg:#f3e8ff;--muted-bg:#eceae4;--text:#1c1c1c;--muted:#6b6b6b;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05)}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
+.hdr{background:var(--accent);color:#fff;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between}
+.hdr .b{display:flex;align-items:center;gap:11px}.hdr .ic{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:18px}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:17px}.hdr small{font-size:9.5px;opacity:.6;letter-spacing:1px;text-transform:uppercase;display:block}
+.btn{padding:8px 14px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-w{background:rgba(255,255,255,.15);color:#fff}.btn-w:hover{background:rgba(255,255,255,.25)}
+.toolbar{max-width:1280px;margin:18px auto 0;padding:0 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.toolbar input[type=date]{padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px}
+.toolbar .filt{padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface)}
+.toolbar .sp{flex:1}
+.stats{max-width:1280px;margin:14px auto 0;padding:0 18px;display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 15px;box-shadow:var(--shadow);display:flex;align-items:center;gap:9px}
+.stat .d{width:9px;height:9px;border-radius:50%}.stat b{font-size:17px;font-family:'DM Serif Display',serif}.stat small{font-size:11px;color:var(--muted);display:block}
+.dp{background:var(--accent)}.da{background:var(--orange)}.dc{background:var(--teal)}.dh{background:var(--green)}.dx{background:var(--red)}
+
+.cols{max-width:1280px;margin:18px auto;padding:0 18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.col{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:200px}
+.col-h{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.col-h h2{font-size:15px;display:flex;align-items:center;gap:8px}.col-h .n{font-size:13px;font-weight:700;background:var(--alt);border-radius:14px;padding:2px 11px}
+.col-h.attendus{border-top:3px solid var(--accent)}.col-h.attente{border-top:3px solid var(--orange)}.col-h.cours{border-top:3px solid var(--teal)}
+.col-body{padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.pt{border:1px solid var(--border);border-radius:10px;padding:13px;background:var(--alt)}
+.pt-top{display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:6px}
+.pt-top b{font-size:14.5px}.pt-top .h{font-size:12px;color:var(--muted)}
+.pt .sub{font-size:12.5px;color:var(--muted);margin-bottom:9px}
+.pt .tagp{font-size:10px;background:var(--accent2);color:#fff;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+.wait{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px}
+.wait.ok{background:var(--green-bg);color:var(--green)}.wait.mid{background:var(--orange-bg);color:var(--orange)}.wait.long{background:var(--red-bg);color:var(--red)}
+.pt-actions{display:flex;gap:7px;flex-wrap:wrap}
+.b-arr{background:var(--orange);color:#fff;flex:1}
+.b-pec{background:var(--teal);color:#fff;flex:1}
+.b-fin{background:var(--green);color:#fff;flex:1}
+.b-no{background:var(--red-bg);color:var(--red)}
+.b-ghost{background:var(--accent-light);color:var(--accent)}
+.late{outline:2px solid var(--red);outline-offset:-1px}
+.empty{font-size:12.5px;color:#bbb;text-align:center;padding:26px 10px}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120px);background:#1c1c1c;color:#fff;padding:12px 22px;border-radius:9px;font-size:14px;transition:.25s;z-index:99}#toast.show{transform:translateX(-50%) translateY(0)}
+@media(max-width:980px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="b"><div class="ic">🏥</div><div><h1>Accueil & File d'attente</h1><small>MediCore · Prise en charge RDV</small></div></div>
+  <div style="display:flex;gap:8px"><a class="btn btn-w" href="rdv_agenda.html">🗓️ Agenda</a><button class="btn btn-w" onclick="pull()">⟳ Sync</button></div>
+</div>
+
+<div class="toolbar">
+  <label style="font-size:13px;font-weight:600">Jour</label>
+  <input type="date" id="jour" onchange="render()">
+  <button class="btn b-ghost" onclick="goToday()">Aujourd'hui</button>
+  <select class="filt" id="filtService" onchange="render()"><option value="">Tous services</option></select>
+  <select class="filt" id="filtMed" onchange="render()"><option value="">Tous médecins</option></select>
+  <div class="sp"></div>
+  <span style="font-size:12px;color:var(--muted)" id="clock"></span>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="cols">
+  <div class="col">
+    <div class="col-h attendus"><h2>📋 Attendus</h2><span class="n" id="nAtt">0</span></div>
+    <div class="col-body" id="colAttendus"></div>
+  </div>
+  <div class="col">
+    <div class="col-h attente"><h2>⏳ File d'attente</h2><span class="n" id="nFile">0</span></div>
+    <div class="col-body" id="colFile"></div>
+  </div>
+  <div class="col">
+    <div class="col-h cours"><h2>🩺 En consultation</h2><span class="n" id="nCours">0</span></div>
+    <div class="col-body" id="colCours"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://bjsgivzfarknjfdxhqth.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqc2dpdnpmYXJrbmpmZHhocXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDUzMDUsImV4cCI6MjA5Njg4MTMwNX0.e1Oa9y0BT3DXe6BZUpNLLbsm8uxEePbWjyWGiKcPhBc';
+const SERVICES=['Médecine générale','Chirurgie','Maternité','Pédiatrie','Cardiologie','Imagerie','Laboratoire','Ophtalmologie','Dermatologie','Urgences'];
+const RETARD_MIN=20; // RDV en retard si heure dépassée de + de X min sans arrivée
+
+function load(s){try{const p=JSON.parse(localStorage.getItem('medicore_'+s)||'null');if(!p)return[];return Array.isArray(p)?p:(p.d||[]);}catch(e){return[];}}
+function save(s,r){localStorage.setItem('medicore_'+s,JSON.stringify({_v:1,_ts:Date.now(),d:r}));}
+function esc(s){return (s||'').toString().replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+function iso(d){return d.toISOString().slice(0,10);}
+function nowHM(){return new Date().toTimeString().slice(0,5);}
+function nowISO(){return new Date().toISOString();}
+
+async function sb(method,path,body){
+  const r=await fetch(SUPABASE_URL+'/rest/v1/'+path,{method,headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':method==='PATCH'?'return=minimal':'return=representation'},body:body?JSON.stringify(body):undefined});
+  if(!r.ok)throw new Error(await r.text());return method==='PATCH'?true:r.json();
+}
+async function pull(){
+  try{const rows=await sb('GET','rdv?select=*&order=date.desc');
+    const loc=load('rdv');const by={};loc.forEach(r=>by[r.id]=r);rows.forEach(r=>by[r.id]=Object.assign(by[r.id]||{},r));
+    save('rdv',Object.values(by));toast('Sync — '+rows.length+' RDV');}catch(e){toast('Réseau indispo — local');}
+  render();
+}
+async function patchRdv(r,champs){
+  Object.assign(r,champs,{maj_le:nowISO()});save('rdv',load('rdv').map(x=>x.id===r.id?r:x));
+  try{await sb('PATCH','rdv?id=eq.'+encodeURIComponent(r.id),champs);}catch(e){}
+}
+
+document.getElementById('filtService').innerHTML='<option value="">Tous services</option>'+SERVICES.map(s=>`<option>${s}</option>`).join('');
+function refreshMed(){const meds=[...new Set(load('rdv').map(r=>r.medecin).filter(Boolean))].sort();const el=document.getElementById('filtMed');const c=el.value;el.innerHTML='<option value="">Tous médecins</option>'+meds.map(m=>`<option>${esc(m)}</option>`).join('');el.value=c;}
+
+function jourRdv(){
+  const j=document.getElementById('jour').value;
+  const fs=document.getElementById('filtService').value,fm=document.getElementById('filtMed').value;
+  return load('rdv').filter(r=>r.date===j && r.statut!=='Annulé' && (!fs||r.service===fs)&&(!fm||r.medecin===fm));
+}
+function waitMin(r){if(!r.heure_arrivee)return 0;return Math.max(0,Math.floor((Date.now()-new Date(r.heure_arrivee))/60000));}
+function waitClass(m){return m<15?'ok':m<30?'mid':'long';}
+function fmtWait(m){return m<60?m+' min':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');}
+
+// ── actions cycle de vie ──
+function arrive(id){const r=load('rdv').find(x=>x.id===id);if(!r)return;patchRdv(r,{statut:'Arrivé',heure_arrivee:nowISO()});toast(r.patient_nom+' enregistré');render();}
+function priseEnCharge(id){
+  const r=load('rdv').find(x=>x.id===id);if(!r)return;
+  patchRdv(r,{statut:'En cours',heure_pec:nowISO()});
+  render();
+  // démarre le parcours : ouvre le DPI du patient
+  window.open('dpi.html?patient='+encodeURIComponent(r.patient_id||r.ipp),'_blank');
+  toast('Prise en charge — DPI ouvert');
+}
+function terminer(id){const r=load('rdv').find(x=>x.id===id);if(!r)return;patchRdv(r,{statut:'Honoré',heure_fin:nowISO()});toast('Consultation terminée');render();}
+function absent(id){const r=load('rdv').find(x=>x.id===id);if(!r)return;if(!confirm('Marquer '+r.patient_nom+' absent ?'))return;patchRdv(r,{statut:'Absent'});render();}
+function annuler(id){const r=load('rdv').find(x=>x.id===id);if(!r)return;if(!confirm('Annuler ce RDV ?'))return;patchRdv(r,{statut:'Annulé'});render();}
+
+function render(){
+  refreshMed();
+  document.getElementById('clock').textContent='maj '+nowHM();
+  const all=jourRdv();
+  const attendus=all.filter(r=>r.statut==='Planifié').sort((a,b)=>(a.heure||'').localeCompare(b.heure||''));
+  const file=all.filter(r=>r.statut==='Arrivé').sort((a,b)=>new Date(a.heure_arrivee)-new Date(b.heure_arrivee));
+  const cours=all.filter(r=>r.statut==='En cours').sort((a,b)=>new Date(a.heure_pec)-new Date(b.heure_pec));
+  const honores=all.filter(r=>r.statut==='Honoré').length;
+  const absents=all.filter(r=>r.statut==='Absent').length;
+
+  // stats
+  document.getElementById('stats').innerHTML=`
+    <div class="stat"><span class="d dp"></span><div><b>${attendus.length}</b><small>Attendus</small></div></div>
+    <div class="stat"><span class="d da"></span><div><b>${file.length}</b><small>En attente</small></div></div>
+    <div class="stat"><span class="d dc"></span><div><b>${cours.length}</b><small>En consultation</small></div></div>
+    <div class="stat"><span class="d dh"></span><div><b>${honores}</b><small>Honorés</small></div></div>
+    <div class="stat"><span class="d dx"></span><div><b>${absents}</b><small>Absents</small></div></div>`;
+  document.getElementById('nAtt').textContent=attendus.length;
+  document.getElementById('nFile').textContent=file.length;
+  document.getElementById('nCours').textContent=cours.length;
+
+  const tagP=r=>r.origine==='portail'?'<span class="tagp">portail</span>':'';
+
+  // colonne ATTENDUS
+  const nowmin=parseInt(nowHM().split(':')[0])*60+parseInt(nowHM().split(':')[1]);
+  document.getElementById('colAttendus').innerHTML=attendus.length?attendus.map(r=>{
+    const hm=(r.heure||'00:00').split(':');const late=document.getElementById('jour').value===iso(new Date()) && (nowmin-(parseInt(hm[0])*60+parseInt(hm[1])))>RETARD_MIN;
+    return `<div class="pt ${late?'late':''}">
+      <div class="pt-top"><b>${esc(r.patient_nom)}${tagP(r)}</b><span class="h">prévu ${esc(r.heure||'—')}</span></div>
+      <div class="sub">${esc(r.service)}${r.medecin?' · '+esc(r.medecin):''}${r.ipp?' · '+esc(r.ipp):''}</div>
+      ${late?'<div style="font-size:11.5px;color:var(--red);font-weight:600;margin-bottom:8px">⚠ Heure dépassée</div>':''}
+      <div class="pt-actions"><button class="btn b-arr" onclick="arrive('${r.id}')">✓ Arrivé</button><button class="btn b-no" onclick="absent('${r.id}')">Absent</button></div>
+    </div>`;
+  }).join(''):'<div class="empty">Aucun patient attendu.</div>';
+
+  // colonne FILE D'ATTENTE
+  document.getElementById('colFile').innerHTML=file.length?file.map((r,i)=>{
+    const w=waitMin(r);
+    return `<div class="pt">
+      <div class="pt-top"><b>${i+1}. ${esc(r.patient_nom)}${tagP(r)}</b><span class="wait ${waitClass(w)}">⏱ ${fmtWait(w)}</span></div>
+      <div class="sub">${esc(r.service)}${r.medecin?' · '+esc(r.medecin):''} · arrivé ${new Date(r.heure_arrivee).toTimeString().slice(0,5)}</div>
+      <div class="pt-actions"><button class="btn b-pec" onclick="priseEnCharge('${r.id}')">🩺 Prise en charge</button><button class="btn b-no" onclick="absent('${r.id}')">Absent</button></div>
+    </div>`;
+  }).join(''):'<div class="empty">File vide.</div>';
+
+  // colonne EN CONSULTATION
+  document.getElementById('colCours').innerHTML=cours.length?cours.map(r=>{
+    const dur=r.heure_pec?Math.floor((Date.now()-new Date(r.heure_pec))/60000):0;
+    return `<div class="pt">
+      <div class="pt-top"><b>${esc(r.patient_nom)}${tagP(r)}</b><span class="wait ok">▶ ${fmtWait(dur)}</span></div>
+      <div class="sub">${esc(r.service)}${r.medecin?' · '+esc(r.medecin):''} · depuis ${new Date(r.heure_pec).toTimeString().slice(0,5)}</div>
+      <div class="pt-actions">
+        <button class="btn b-fin" onclick="terminer('${r.id}')">✓ Terminer</button>
+        <button class="btn b-ghost" onclick="window.open('dpi.html?patient='+encodeURIComponent('${r.patient_id||r.ipp}'),'_blank')">Ouvrir DPI</button>
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty">Aucune consultation en cours.</div>';
+}
+
+function goToday(){document.getElementById('jour').value=iso(new Date());render();}
+
+// init
+document.getElementById('jour').value=iso(new Date());
+pull();
+setInterval(render,30000); // rafraîchit temps d'attente
+</script>
+</body>
+</html>
