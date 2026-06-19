@@ -149,6 +149,31 @@ textarea{resize:vertical;min-height:80px}
 footer{background:var(--accent-deep);color:rgba(255,255,255,.7);padding:32px 0;text-align:center;font-size:13px}
 footer b{color:#fff}
 
+/* dossier */
+#dossier{background:var(--surface-alt)}
+.dos-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);max-width:760px;margin:0 auto;overflow:hidden}
+.dos-form{padding:26px;display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+.dos-form .fg{margin:0}
+.dos-auth-note{padding:0 26px 18px;font-size:12px;color:var(--text-muted)}
+.dos-result{display:none;border-top:1px solid var(--border)}
+.dos-result.show{display:block}
+.dos-head{background:linear-gradient(135deg,var(--accent) 0%,var(--accent-mid) 100%);color:#fff;padding:22px 26px;display:flex;align-items:center;gap:16px}
+.dos-ava{width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700}
+.dos-head h3{font-family:'DM Serif Display',serif;font-size:22px}.dos-head small{opacity:.8;font-size:13px}
+.dos-grid{padding:22px 26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px 22px}
+.dos-grid .kv b{display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.dos-grid .kv span{font-size:14.5px;font-weight:500}
+.dos-sec{padding:0 26px 22px}
+.dos-sec h4{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.dos-rdv{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--surface-alt)}
+.dos-rdv .dt{width:64px;flex-shrink:0;text-align:center;background:var(--accent-light);border-radius:8px;padding:7px 4px}
+.dos-rdv .dt b{display:block;font-size:16px;color:var(--accent);font-family:'DM Serif Display',serif}.dos-rdv .dt small{font-size:10px;color:var(--text-muted);text-transform:uppercase}
+.dos-rdv .info{flex:1}.dos-rdv .info b{font-size:14px}.dos-rdv .info small{display:block;color:var(--text-muted);font-size:12.5px}
+.dos-st{font-size:11px;font-weight:700;padding:4px 11px;border-radius:14px}
+.dos-st.plan{background:var(--accent-light);color:var(--accent)}.dos-st.hon{background:var(--green-bg);color:var(--green)}.dos-st.abs{background:var(--red-bg);color:var(--red)}.dos-st.cours{background:var(--orange-bg);color:var(--orange)}
+.dos-err{padding:20px 26px;color:var(--red);font-weight:600;font-size:14px}
+@media(max-width:680px){.dos-form{grid-template-columns:1fr}}
+
 /* toast */
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120px);background:#1c1c1c;color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;z-index:200;transition:.25s;box-shadow:var(--shadow-lg)}
 #toast.show{transform:translateX(-50%) translateY(0)}
@@ -175,7 +200,8 @@ footer b{color:#fff}
     <button class="burger" onclick="document.getElementById('nav').classList.toggle('open')">☰</button>
     <nav class="nav" id="nav">
       <a href="#specialites">Spécialités</a>
-      <a href="#espace">Mon espace</a>
+      <a href="#dossier">Mon dossier</a>
+      <a href="#espace">Mes demandes</a>
       <a href="#contact">Contact</a>
       <a href="#rdv" class="cta">Prendre RDV</a>
     </nav>
@@ -224,8 +250,9 @@ footer b{color:#fff}
       </div>
       <div class="rdv-body" id="rdvForm">
         <div id="ippWrap" class="fg">
-          <label class="lbl">Identifiant patient (IPP) <span class="hint">si connu</span></label>
-          <input id="f_ipp" placeholder="IPP-2026-XXXX">
+          <label class="lbl">Identifiant patient (IPP) <span class="hint">remplit vos informations automatiquement</span></label>
+          <input id="f_ipp" placeholder="IPP-2026-XXXX" oninput="lookupIPP()">
+          <div id="ippInfo" class="hint"></div>
         </div>
         <div class="row2">
           <div class="fg"><label class="lbl">Nom complet <span class="req">*</span></label><input id="f_nom" placeholder="Nom & prénom"></div>
@@ -272,6 +299,25 @@ footer b{color:#fff}
         <div class="sync-tag" id="syncTag"></div>
         <div style="margin-top:22px"><button class="btn btn-ghost" style="background:var(--accent-light);color:var(--accent)" onclick="resetRdv()">Nouvelle demande</button></div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="dossier">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kick">Espace patient</div>
+      <h2>Consulter mon dossier</h2>
+      <p>Saisissez votre identifiant et une donnée de vérification pour accéder à votre dossier.</p>
+    </div>
+    <div class="dos-card">
+      <div class="dos-form">
+        <div class="fg"><label class="lbl">Identifiant (IPP) <span class="req">*</span></label><input id="d_ipp" placeholder="IPP-2026-XXXX"></div>
+        <div class="fg"><label class="lbl">Vérification <span class="req">*</span></label><input id="d_verif" placeholder="Date de naissance ou téléphone"></div>
+        <button class="btn btn-pri" onclick="consulterDossier()">Consulter</button>
+      </div>
+      <div class="dos-auth-note">🔒 Vérification par date de naissance (AAAA-MM-JJ) ou numéro de téléphone enregistré. Vos données ne sont visibles que de vous.</div>
+      <div class="dos-result" id="dosResult"></div>
     </div>
   </div>
 </section>
@@ -498,6 +544,79 @@ async function resyncPending(){
     }catch(e){ break; }
   }
   toast('Demandes en attente synchronisées');
+}
+
+// ── RPC Supabase (fonctions sécurisées) ──
+async function sbRpc(fn,params){
+  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify(params)});
+  if(!r.ok)throw new Error(await r.text());return r.json();
+}
+
+// ── Auto-remplissage du formulaire RDV par IPP ──
+let ippTimer=null, ippLast='';
+function setVal(id,v){const el=document.getElementById(id);if(el)el.value=v;}
+function lookupIPP(){
+  const ipp=document.getElementById('f_ipp').value.trim();
+  const info=document.getElementById('ippInfo');
+  if(ipp.length<6){info.textContent='';return;}
+  if(ipp===ippLast)return;
+  clearTimeout(ippTimer);
+  ippTimer=setTimeout(async()=>{
+    ippLast=ipp;info.textContent='Recherche…';info.style.color='var(--text-muted)';
+    let p=null;
+    try{p=await sbRpc('portail_patient_lookup',{p_ipp:ipp});}catch(e){}
+    if(!p)p=load('patients').find(x=>(x.ipp||'')===ipp)||null; // fallback local (même appareil)
+    if(p){
+      if(p.nom)setVal('f_nom',p.nom);
+      if(p.ddn)setVal('f_ddn',p.ddn);
+      if(p.tel)setVal('f_tel',p.tel);
+      if(p.email)setVal('f_email',p.email);
+      if(p.service){const s=document.getElementById('f_service');s.value=p.service;s.onchange();if(p.medecin)document.getElementById('f_medecin').value=p.medecin;}
+      info.innerHTML='✓ Patient reconnu : <b>'+esc(p.nom||'')+'</b>';info.style.color='var(--green)';
+    }else{
+      info.textContent='Identifiant non trouvé — saisissez vos informations manuellement.';info.style.color='var(--orange)';
+    }
+  },500);
+}
+
+// ── Consultation du dossier ──
+async function consulterDossier(){
+  const ipp=document.getElementById('d_ipp').value.trim();
+  const verif=document.getElementById('d_verif').value.trim();
+  const R=document.getElementById('dosResult');
+  if(!ipp||!verif){toast('Identifiant et vérification requis');return;}
+  R.className='dos-result show';R.innerHTML='<div class="dos-err" style="color:var(--text-muted)">Chargement…</div>';
+  let data=null,err=null;
+  try{data=await sbRpc('portail_dossier',{p_ipp:ipp,p_verif:verif});}catch(e){err=e;}
+  if(!data||data.error){const local=dossierLocal(ipp,verif);if(local)data=local;else if(!data)data={error:err?'reseau':'introuvable'};}
+  if(data.error){
+    const m=data.error==='verification'?'Vérification incorrecte (date de naissance AAAA-MM-JJ ou téléphone enregistré).':data.error==='introuvable'?'Aucun dossier trouvé pour cet identifiant.':'Service indisponible. Réessayez plus tard.';
+    R.innerHTML='<div class="dos-err">⚠ '+m+'</div>';return;
+  }
+  renderDossier(data);
+}
+function dossierLocal(ipp,verif){
+  const p=load('patients').find(x=>(x.ipp||'')===ipp);if(!p)return null;
+  const vn=verif.replace(/\s/g,'');
+  if((p.ddn||'')!==verif && (p.tel||'').replace(/\s/g,'')!==vn)return {error:'verification'};
+  const rdvs=load('rdv').filter(r=>r.ipp===ipp||r.patient_id===p.id).map(r=>({date:r.date,heure:r.heure,service:r.service,medecin:r.medecin,statut:r.statut,motif:r.motif}));
+  return {identite:{ipp:p.ipp,nom:p.nom,sexe:p.sexe,ddn:p.ddn,groupe:p.groupe,assurance:p.assurance,medecin:p.medecin,service:p.service,allergies:p.allergies,antecedents:p.antecedents},rdv:rdvs};
+}
+function renderDossier(d){
+  const id=d.identite||{},rdv=d.rdv||[];
+  const ini=(id.nom||'?').split(' ').filter(Boolean).map(x=>x[0]).slice(0,2).join('').toUpperCase();
+  const cls={'Planifié':'plan','Arrivé':'cours','En cours':'cours','Honoré':'hon','Absent':'abs','Annulé':'abs'};
+  const MA=['JAN','FÉV','MAR','AVR','MAI','JUIN','JUIL','AOÛ','SEP','OCT','NOV','DÉC'];
+  const now=new Date().toISOString().slice(0,10);
+  const aVenir=rdv.filter(r=>r.date>=now && /Planifié|Arrivé|En cours/.test(r.statut)).sort((a,b)=>a.date.localeCompare(b.date));
+  const passes=rdv.filter(r=>!(r.date>=now && /Planifié|Arrivé|En cours/.test(r.statut))).sort((a,b)=>b.date.localeCompare(a.date));
+  const ligne=r=>{const dt=new Date(r.date+'T00:00');return `<div class="dos-rdv"><div class="dt"><b>${dt.getDate()}</b><small>${MA[dt.getMonth()]}</small></div><div class="info"><b>${esc(r.service)}${r.heure?' · '+esc(r.heure):''}</b><small>${esc(r.medecin||'Médecin à confirmer')}${r.motif?' — '+esc(r.motif):''}</small></div><span class="dos-st ${cls[r.statut]||'plan'}">${esc(r.statut)}</span></div>`;};
+  let html=`<div class="dos-head"><div class="dos-ava">${ini}</div><div><h3>${esc(id.nom||'')}</h3><small>${esc(id.ipp||'')}${id.sexe?' · '+esc(id.sexe):''}${id.ddn?' · né(e) le '+esc(id.ddn):''}</small></div></div><div class="dos-grid">${
+    [['Groupe sanguin',id.groupe],['Assurance',id.assurance],['Médecin traitant',id.medecin],['Service',id.service],['Allergies',id.allergies],['Antécédents',id.antecedents]]
+    .filter(x=>x[1]).map(x=>`<div class="kv"><b>${x[0]}</b><span>${esc(x[1])}</span></div>`).join('')
+  }</div><div class="dos-sec"><h4>Prochains rendez-vous</h4>${aVenir.length?aVenir.map(ligne).join(''):'<div class="hint">Aucun rendez-vous à venir.</div>'}</div>`;
+  if(passes.length)html+=`<div class="dos-sec"><h4>Historique</h4>${passes.slice(0,8).map(ligne).join('')}</div>`;
+  document.getElementById('dosResult').innerHTML=html;
 }
 
 // fermer menu mobile au clic
