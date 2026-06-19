@@ -172,6 +172,17 @@ footer b{color:#fff}
 .dos-st{font-size:11px;font-weight:700;padding:4px 11px;border-radius:14px}
 .dos-st.plan{background:var(--accent-light);color:var(--accent)}.dos-st.hon{background:var(--green-bg);color:var(--green)}.dos-st.abs{background:var(--red-bg);color:var(--red)}.dos-st.cours{background:var(--orange-bg);color:var(--orange)}
 .dos-err{padding:20px 26px;color:var(--red);font-weight:600;font-size:14px}
+.res-card{background:var(--surface-alt);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:11px}
+.res-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.res-h b{font-size:14px}.res-h span{font-size:12px;color:var(--text-muted)}
+.res-t{width:100%;border-collapse:collapse;font-size:13px}
+.res-t th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);padding:4px 8px;border-bottom:1px solid var(--border)}
+.res-t td{padding:6px 8px;border-bottom:1px solid var(--surface)}
+.res-t td.ab{color:var(--red);font-weight:700}
+.res-t td.ab::after{content:' ⚠';font-size:10px}
+.res-t .u{color:var(--text-muted);font-size:11px;font-weight:400}
+.res-t .rf{color:var(--text-muted);font-size:12px}
+.res-ccl{margin-top:9px;font-size:13px;background:var(--accent-light);border-radius:8px;padding:9px 11px;color:#333}
 @media(max-width:680px){.dos-form{grid-template-columns:1fr}}
 
 /* toast */
@@ -600,7 +611,8 @@ function dossierLocal(ipp,verif){
   const vn=verif.replace(/\s/g,'');
   if((p.ddn||'')!==verif && (p.tel||'').replace(/\s/g,'')!==vn)return {error:'verification'};
   const rdvs=load('rdv').filter(r=>r.ipp===ipp||r.patient_id===p.id).map(r=>({date:r.date,heure:r.heure,service:r.service,medecin:r.medecin,statut:r.statut,motif:r.motif}));
-  return {identite:{ipp:p.ipp,nom:p.nom,sexe:p.sexe,ddn:p.ddn,groupe:p.groupe,assurance:p.assurance,medecin:p.medecin,service:p.service,allergies:p.allergies,antecedents:p.antecedents},rdv:rdvs};
+  const res=load('resultats').filter(r=>r.patientId===p.id && (r.statut||'validé')==='validé').map(r=>({date:r.date,type:r.type,libelle:r.libelle,conclusion:r.conclusion,params:r.params}));
+  return {identite:{ipp:p.ipp,nom:p.nom,sexe:p.sexe,ddn:p.ddn,groupe:p.groupe,assurance:p.assurance,medecin:p.medecin,service:p.service,allergies:p.allergies,antecedents:p.antecedents},rdv:rdvs,resultats:res};
 }
 function renderDossier(d){
   const id=d.identite||{},rdv=d.rdv||[];
@@ -615,7 +627,16 @@ function renderDossier(d){
     [['Groupe sanguin',id.groupe],['Assurance',id.assurance],['Médecin traitant',id.medecin],['Service',id.service],['Allergies',id.allergies],['Antécédents',id.antecedents]]
     .filter(x=>x[1]).map(x=>`<div class="kv"><b>${x[0]}</b><span>${esc(x[1])}</span></div>`).join('')
   }</div><div class="dos-sec"><h4>Prochains rendez-vous</h4>${aVenir.length?aVenir.map(ligne).join(''):'<div class="hint">Aucun rendez-vous à venir.</div>'}</div>`;
-  if(passes.length)html+=`<div class="dos-sec"><h4>Historique</h4>${passes.slice(0,8).map(ligne).join('')}</div>`;
+  const res=d.resultats||[];
+  if(res.length){
+    html+='<div class="dos-sec"><h4>Résultats d\'analyse</h4>'+res.map(r=>{
+      const dt=r.date?new Date(r.date).toLocaleDateString('fr-FR'):'';
+      const ps=Array.isArray(r.params)?r.params:[];
+      const rows=ps.map(p=>`<tr><td>${esc(p.param)}</td><td class="${p.anormal?'ab':''}">${esc(p.val)}${p.unite?' <span class="u">'+esc(p.unite)+'</span>':''}</td><td class="rf">${esc(p.ref||'')}</td></tr>`).join('');
+      return `<div class="res-card"><div class="res-h"><b>${esc(r.libelle||(r.type==='imagerie'?'Imagerie':'Analyse biologique'))}</b><span>${dt}</span></div>${rows?`<table class="res-t"><thead><tr><th>Paramètre</th><th>Résultat</th><th>Référence</th></tr></thead><tbody>${rows}</tbody></table>`:''}${r.conclusion?`<div class="res-ccl">${esc(r.conclusion)}</div>`:''}</div>`;
+    }).join('')+'</div>';
+  }
+  if(passes.length)html+=`<div class="dos-sec"><h4>Historique des rendez-vous</h4>${passes.slice(0,8).map(ligne).join('')}</div>`;
   document.getElementById('dosResult').innerHTML=html;
 }
 
