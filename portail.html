@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a4b6e">
+<title>MediCore — Portail Patient</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f3ef;--surface:#fff;--surface-alt:#f9f8f5;--border:#e2dfd8;
+  --accent:#1a4b6e;--accent-light:#e8f0f7;--accent-mid:#2a6090;--accent-deep:#143a55;
+  --accent2:#c8702a;--accent2-light:#fdf0e6;
+  --green:#1e7a4e;--green-bg:#e8f5ef;--orange:#b05b00;--orange-bg:#fef3e2;
+  --red:#b92b2b;--red-bg:#fdeaea;--text:#1c1c1c;--text-muted:#6b6b6b;
+  --radius:12px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+/* offline banner */
+#offbar{display:none;background:var(--orange);color:#fff;text-align:center;font-size:12.5px;padding:6px;font-weight:500}
+body.off #offbar{display:block}
+
+/* header */
+.hdr{background:var(--accent);color:#fff;position:sticky;top:0;z-index:60;box-shadow:0 2px 14px rgba(0,0,0,.2)}
+.hdr-in{display:flex;align-items:center;justify-content:space-between;height:62px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-ic{width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:21px}
+.brand-tx span{font-family:'DM Serif Display',serif;font-size:19px;display:block;line-height:1}
+.brand-tx small{font-size:9.5px;opacity:.65;letter-spacing:1.4px;text-transform:uppercase}
+.nav{display:flex;align-items:center;gap:4px}
+.nav a{padding:8px 13px;border-radius:7px;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.82);transition:.15s}
+.nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+.nav .cta{background:var(--accent2);color:#fff;font-weight:600}
+.nav .cta:hover{background:#b5611f}
+.burger{display:none;background:none;border:none;color:#fff;font-size:24px;cursor:pointer}
+
+/* hero */
+.hero{background:linear-gradient(135deg,var(--accent-deep) 0%,var(--accent) 50%,var(--accent-mid) 100%);color:#fff;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-90px;right:-70px;width:340px;height:340px;background:rgba(255,255,255,.05);border-radius:50%}
+.hero::after{content:'';position:absolute;bottom:-110px;left:-60px;width:280px;height:280px;background:rgba(255,255,255,.04);border-radius:50%}
+.hero-in{position:relative;z-index:1;padding:70px 0 80px;max-width:680px}
+.hero .kick{font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.75;margin-bottom:14px}
+.hero h1{font-family:'DM Serif Display',serif;font-size:clamp(30px,5vw,48px);line-height:1.1;margin-bottom:18px}
+.hero p{font-size:17px;opacity:.9;margin-bottom:28px;max-width:560px}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 24px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:.15s}
+.btn-pri{background:var(--accent2);color:#fff}.btn-pri:hover{background:#b5611f;transform:translateY(-1px)}
+.btn-ghost{background:rgba(255,255,255,.14);color:#fff}.btn-ghost:hover{background:rgba(255,255,255,.24)}
+.badges{display:flex;gap:26px;margin-top:42px;flex-wrap:wrap}
+.badge b{display:block;font-family:'DM Serif Display',serif;font-size:26px}
+.badge small{font-size:12.5px;opacity:.7}
+
+/* sections */
+section{padding:64px 0}
+.sec-head{text-align:center;max-width:640px;margin:0 auto 44px}
+.sec-head .kick{color:var(--accent2);font-size:12.5px;letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:10px}
+.sec-head h2{font-family:'DM Serif Display',serif;font-size:clamp(26px,4vw,36px);margin-bottom:12px}
+.sec-head p{color:var(--text-muted);font-size:15.5px}
+
+/* specialites grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px}
+.spec{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);transition:.18s;cursor:pointer}
+.spec:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--accent-light)}
+.spec .ic{width:48px;height:48px;border-radius:11px;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:14px}
+.spec h3{font-size:16.5px;margin-bottom:6px}
+.spec p{font-size:13.5px;color:var(--text-muted)}
+
+/* RDV section */
+#rdv{background:var(--surface-alt)}
+.rdv-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-lg);max-width:760px;margin:0 auto;overflow:hidden}
+.rdv-tabs{display:flex;border-bottom:1px solid var(--border)}
+.rdv-tab{flex:1;padding:16px;text-align:center;font-weight:600;font-size:14.5px;cursor:pointer;color:var(--text-muted);background:var(--surface-alt);border:none;font-family:inherit;transition:.15s}
+.rdv-tab.on{background:var(--surface);color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.rdv-body{padding:30px}
+.seg{display:flex;gap:10px;margin-bottom:20px}
+.seg label{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:14px;text-align:center;cursor:pointer;font-weight:600;font-size:14px;transition:.15s}
+.seg input{display:none}
+.seg input:checked+span{color:var(--accent)}
+.seg label:has(input:checked){border-color:var(--accent);background:var(--accent-light)}
+.fg{margin-bottom:16px}
+.fg label.lbl{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#333}
+.fg .req{color:var(--red)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+input,select,textarea{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:9px;font-size:14.5px;font-family:inherit;background:var(--surface);transition:.15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+textarea{resize:vertical;min-height:80px}
+.hint{font-size:12px;color:var(--text-muted);margin-top:4px}
+#ippWrap{display:none}
+
+/* dropzone */
+.dz{border:2px dashed var(--border);border-radius:12px;padding:26px;text-align:center;cursor:pointer;transition:.15s;background:var(--surface-alt)}
+.dz:hover,.dz.drag{border-color:var(--accent);background:var(--accent-light)}
+.dz .ic{font-size:34px;color:var(--accent);margin-bottom:8px}
+.dz b{font-size:14.5px}.dz small{display:block;font-size:12px;color:var(--text-muted);margin-top:4px}
+.files{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.file{display:flex;align-items:center;gap:11px;background:var(--surface-alt);border:1px solid var(--border);border-radius:9px;padding:10px 13px;font-size:13.5px}
+.file .fic{font-size:20px}
+.file .meta{flex:1;min-width:0}
+.file .meta b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file .meta small{color:var(--text-muted);font-size:11.5px}
+.file .rm{background:none;border:none;color:var(--red);cursor:pointer;font-size:18px;padding:2px 6px}
+
+.submit-row{margin-top:8px}
+.btn-full{width:100%;background:var(--accent);color:#fff;justify-content:center}
+.btn-full:hover{background:var(--accent-deep)}
+.btn-full:disabled{opacity:.55;cursor:not-allowed}
+
+/* result panel */
+.result{display:none;padding:38px 30px;text-align:center}
+.result.show{display:block}
+.result .chk{width:72px;height:72px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 18px}
+.result h3{font-family:'DM Serif Display',serif;font-size:24px;margin-bottom:8px}
+.result .ref{display:inline-block;background:var(--accent-light);color:var(--accent);font-weight:700;font-size:18px;letter-spacing:1px;padding:9px 20px;border-radius:9px;margin:10px 0 6px}
+.result p{color:var(--text-muted);font-size:14px;margin-bottom:6px}
+.sync-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 12px;border-radius:20px;margin-top:14px}
+.sync-tag.ok{background:var(--green-bg);color:var(--green)}
+.sync-tag.local{background:var(--orange-bg);color:var(--orange)}
+
+/* espace patient */
+#espace{background:var(--accent-deep);color:#fff}
+#espace .sec-head h2{color:#fff}#espace .sec-head .kick{color:var(--accent2)}
+#espace .sec-head p{color:rgba(255,255,255,.7)}
+.track-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;max-width:620px;margin:0 auto;padding:28px}
+.track-card input{background:rgba(255,255,255,.95);border:none}
+.track-search{display:flex;gap:10px}
+.track-search input{flex:1}
+.track-list{margin-top:20px;display:flex;flex-direction:column;gap:12px}
+.demande{background:var(--surface);color:var(--text);border-radius:12px;padding:16px;text-align:left}
+.demande-top{display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:8px}
+.demande b{font-size:14px}
+.st{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap}
+.st.attente{background:var(--orange-bg);color:var(--orange)}
+.st.confirme{background:var(--green-bg);color:var(--green)}
+.st.refuse{background:var(--red-bg);color:var(--red)}
+.demande small{color:var(--text-muted);font-size:12.5px;display:block}
+
+/* contact / footer */
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.ci{display:flex;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.ci .ic{width:46px;height:46px;border-radius:11px;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.ci b{display:block;font-size:14.5px;margin-bottom:3px}.ci span{font-size:13.5px;color:var(--text-muted)}
+footer{background:var(--accent-deep);color:rgba(255,255,255,.7);padding:32px 0;text-align:center;font-size:13px}
+footer b{color:#fff}
+
+/* toast */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120px);background:#1c1c1c;color:#fff;padding:13px 22px;border-radius:10px;font-size:14px;z-index:200;transition:.25s;box-shadow:var(--shadow-lg)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@media(max-width:780px){
+  .nav{display:none}.burger{display:block}
+  .nav.open{display:flex;position:absolute;top:62px;left:0;right:0;flex-direction:column;background:var(--accent);padding:10px;gap:2px}
+  .nav.open a{padding:13px}
+  .row2{grid-template-columns:1fr}
+  .contact-grid{grid-template-columns:1fr}
+  section{padding:48px 0}
+}
+</style>
+</head>
+<body>
+<div id="offbar">⚠ Hors-ligne — votre demande sera enregistrée et envoyée dès le retour du réseau.</div>
+
+<header class="hdr">
+  <div class="wrap hdr-in">
+    <a href="#" class="brand">
+      <div class="brand-ic">⚕</div>
+      <div class="brand-tx"><span>MediCore</span><small>CHU · Portail Patient</small></div>
+    </a>
+    <button class="burger" onclick="document.getElementById('nav').classList.toggle('open')">☰</button>
+    <nav class="nav" id="nav">
+      <a href="#specialites">Spécialités</a>
+      <a href="#espace">Mon espace</a>
+      <a href="#contact">Contact</a>
+      <a href="#rdv" class="cta">Prendre RDV</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-in">
+    <div class="kick">Établissement de santé</div>
+    <h1>Votre santé, accompagnée à chaque étape.</h1>
+    <p>Prenez rendez-vous en ligne, transmettez vos documents et suivez vos demandes — patients nouveaux comme déjà suivis.</p>
+    <div class="hero-btns">
+      <a href="#rdv" class="btn btn-pri">📅 Demander un rendez-vous</a>
+      <a href="#espace" class="btn btn-ghost">🔎 Suivre mes demandes</a>
+    </div>
+    <div class="badges">
+      <div class="badge"><b>24/7</b><small>Demandes en ligne</small></div>
+      <div class="badge"><b>10+</b><small>Spécialités</small></div>
+      <div class="badge"><b>100%</b><small>Dossier sécurisé</small></div>
+    </div>
+  </div>
+</section>
+
+<section id="specialites">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kick">Nos services</div>
+      <h2>Une prise en charge complète</h2>
+      <p>Sélectionnez la spécialité concernée lors de votre demande de rendez-vous.</p>
+    </div>
+    <div class="grid" id="specGrid"></div>
+  </div>
+</section>
+
+<section id="rdv">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kick">Rendez-vous</div>
+      <h2>Demander un rendez-vous</h2>
+      <p>Renseignez le formulaire. Le secrétariat vous confirme le créneau définitif.</p>
+    </div>
+    <div class="rdv-card">
+      <div class="rdv-tabs">
+        <button class="rdv-tab on" data-pt="nouveau">Nouveau patient</button>
+        <button class="rdv-tab" data-pt="ancien">Patient déjà suivi</button>
+      </div>
+      <div class="rdv-body" id="rdvForm">
+        <div id="ippWrap" class="fg">
+          <label class="lbl">Identifiant patient (IPP) <span class="hint">si connu</span></label>
+          <input id="f_ipp" placeholder="IPP-2026-XXXX">
+        </div>
+        <div class="row2">
+          <div class="fg"><label class="lbl">Nom complet <span class="req">*</span></label><input id="f_nom" placeholder="Nom & prénom"></div>
+          <div class="fg"><label class="lbl">Téléphone <span class="req">*</span></label><input id="f_tel" placeholder="+225 07 00 00 00 00"></div>
+        </div>
+        <div class="row2">
+          <div class="fg"><label class="lbl">Email</label><input id="f_email" type="email" placeholder="optionnel"></div>
+          <div class="fg"><label class="lbl">Date de naissance</label><input id="f_ddn" type="date"></div>
+        </div>
+        <div class="row2">
+          <div class="fg"><label class="lbl">Spécialité <span class="req">*</span></label><select id="f_service"></select></div>
+          <div class="fg"><label class="lbl">Médecin souhaité</label><select id="f_medecin"><option value="">Indifférent</option></select></div>
+        </div>
+        <div class="row2">
+          <div class="fg"><label class="lbl">Date souhaitée <span class="req">*</span></label><input id="f_date" type="date"></div>
+          <div class="fg"><label class="lbl">Créneau <span class="req">*</span></label>
+            <select id="f_creneau"><option value="">— choisir —</option><option>Matin (08h-12h)</option><option>Après-midi (13h-17h)</option><option>Indifférent</option></select>
+          </div>
+        </div>
+        <div class="fg"><label class="lbl">Motif de consultation</label><textarea id="f_motif" placeholder="Décrivez brièvement votre demande…"></textarea></div>
+
+        <div class="fg">
+          <label class="lbl">Documents médicaux <span class="hint">ordonnance, analyses, imagerie… (PDF/image, max 4 Mo)</span></label>
+          <div class="dz" id="dz">
+            <div class="ic">📎</div>
+            <b>Déposer vos fichiers ici</b>
+            <small>ou cliquez pour parcourir</small>
+            <input type="file" id="f_files" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" hidden>
+          </div>
+          <div class="files" id="fileList"></div>
+        </div>
+
+        <div class="submit-row">
+          <button class="btn btn-full" id="btnSubmit" onclick="submitRdv()">Envoyer ma demande →</button>
+        </div>
+      </div>
+
+      <div class="result" id="rdvResult">
+        <div class="chk">✓</div>
+        <h3>Demande enregistrée</h3>
+        <p>Votre référence de suivi :</p>
+        <div class="ref" id="resRef">—</div>
+        <p>Conservez cette référence. Le secrétariat vous contacte pour confirmer.</p>
+        <div class="sync-tag" id="syncTag"></div>
+        <div style="margin-top:22px"><button class="btn btn-ghost" style="background:var(--accent-light);color:var(--accent)" onclick="resetRdv()">Nouvelle demande</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="espace">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kick">Espace patient</div>
+      <h2>Suivre mes demandes</h2>
+      <p>Entrez votre référence RDV ou votre numéro de téléphone.</p>
+    </div>
+    <div class="track-card">
+      <div class="track-search">
+        <input id="trackInput" placeholder="RDV-XXXXXX ou +225…">
+        <button class="btn btn-pri" onclick="trackDemandes()">Rechercher</button>
+      </div>
+      <div class="track-list" id="trackList"></div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kick">Accès & contact</div>
+      <h2>Nous joindre</h2>
+    </div>
+    <div class="contact-grid">
+      <div class="ci"><div class="ic">📍</div><div><b>Adresse</b><span>CHU de Yopougon, Abidjan, Côte d'Ivoire</span></div></div>
+      <div class="ci"><div class="ic">📞</div><div><b>Standard</b><span>+225 27 00 00 00 00</span></div></div>
+      <div class="ci"><div class="ic">🕐</div><div><b>Horaires</b><span>Lun–Sam · 07h30 – 18h00 · Urgences 24/7</span></div></div>
+      <div class="ci"><div class="ic">✉️</div><div><b>Email</b><span>contact@medicore-chu.ci</span></div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>MediCore Suite</b> — Portail Patient · CHU de Yopougon</p>
+    <p style="margin-top:6px;font-size:12px;opacity:.7">Vos données sont chiffrées et destinées exclusivement au personnel soignant autorisé.</p>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// MediCore — Portail Patient · RDV + upload + sync Supabase
+// Stores : medicore_rdv_portail · medicore_portail_documents
+// Intégration : le secrétariat valide depuis MediCore (rdv-admin)
+// ════════════════════════════════════════════════════════════════════
+const SUPABASE_URL='https://bjsgivzfarknjfdxhqth.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqc2dpdnpmYXJrbmpmZHhocXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDUzMDUsImV4cCI6MjA5Njg4MTMwNX0.e1Oa9y0BT3DXe6BZUpNLLbsm8uxEePbWjyWGiKcPhBc';
+
+const SERVICES=[
+  {n:'Médecine générale',i:'🩺',d:'Consultations & suivi'},
+  {n:'Chirurgie',i:'🔪',d:'Interventions programmées'},
+  {n:'Maternité',i:'🤰',d:'Suivi grossesse & accouchement'},
+  {n:'Pédiatrie',i:'🧒',d:'Soins de l’enfant'},
+  {n:'Cardiologie',i:'❤️',d:'Cœur & vaisseaux'},
+  {n:'Imagerie',i:'🩻',d:'Radio, écho, scanner'},
+  {n:'Laboratoire',i:'🧪',d:'Analyses biologiques'},
+  {n:'Ophtalmologie',i:'👁️',d:'Vision & rétine'},
+  {n:'Dermatologie',i:'🧬',d:'Peau & affections'},
+  {n:'Urgences',i:'🚑',d:'Prise en charge 24/7'},
+];
+const MEDECINS={
+  'Médecine générale':['Dr. COULIBALY Seydou','Dr. DIABATÉ Oumar'],
+  'Chirurgie':['Dr. TOURÉ Mamadou','Dr. SORO Kassoum'],
+  'Maternité':['Dr. BAMBA Aïcha'],
+  'Urgences':['Dr. SORO Kassoum'],
+};
+
+let patientType='nouveau';
+let uploads=[]; // {nom,type,taille,data}
+
+// ── utils stockage (envelope compatible MEDICORE_SYNC) ──
+function load(store){ try{const p=JSON.parse(localStorage.getItem('medicore_'+store)||'null'); if(!p) return []; return Array.isArray(p)?p:(p.d||[]);}catch(e){return [];} }
+function save(store,rows){ localStorage.setItem('medicore_'+store,JSON.stringify({_v:1,_ts:Date.now(),d:rows})); }
+function uid(p){ return (p||'')+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(); }
+function esc(s){ return (s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
+
+// ── render spécialités ──
+document.getElementById('specGrid').innerHTML=SERVICES.map(s=>
+  `<div class="spec" onclick="pickSpec('${s.n}')"><div class="ic">${s.i}</div><h3>${s.n}</h3><p>${s.d}</p></div>`).join('');
+const selS=document.getElementById('f_service');
+selS.innerHTML='<option value="">— choisir —</option>'+SERVICES.map(s=>`<option>${s.n}</option>`).join('');
+selS.onchange=()=>{ const m=MEDECINS[selS.value]||[]; document.getElementById('f_medecin').innerHTML='<option value="">Indifférent</option>'+m.map(x=>`<option>${x}</option>`).join(''); };
+function pickSpec(n){ selS.value=n; selS.onchange(); location.hash='#rdv'; }
+
+// ── onglets type patient ──
+document.querySelectorAll('.rdv-tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.rdv-tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); patientType=t.dataset.pt;
+  document.getElementById('ippWrap').style.display = patientType==='ancien'?'block':'none';
+});
+
+// ── upload drag/drop ──
+const dz=document.getElementById('dz'), fInput=document.getElementById('f_files');
+dz.onclick=()=>fInput.click();
+['dragover','dragenter'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drag');}));
+['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('drag');}));
+dz.addEventListener('drop',ev=>handleFiles(ev.dataTransfer.files));
+fInput.onchange=()=>handleFiles(fInput.files);
+function handleFiles(list){
+  [...list].forEach(f=>{
+    if(f.size>4*1024*1024){ toast('« '+f.name+' » dépasse 4 Mo'); return; }
+    const r=new FileReader();
+    r.onload=()=>{ uploads.push({nom:f.name,type:f.type,taille:f.size,data:r.result}); renderFiles(); };
+    r.readAsDataURL(f);
+  });
+  fInput.value='';
+}
+function fileIcon(t){ if(/pdf/.test(t))return '📄'; if(/image/.test(t))return '🖼️'; return '📎'; }
+function kb(n){ return n<1024?n+' o':n<1048576?(n/1024).toFixed(0)+' Ko':(n/1048576).toFixed(1)+' Mo'; }
+function renderFiles(){
+  document.getElementById('fileList').innerHTML=uploads.map((f,i)=>
+    `<div class="file"><span class="fic">${fileIcon(f.type)}</span><div class="meta"><b>${esc(f.nom)}</b><small>${kb(f.taille)}</small></div><button class="rm" onclick="rmFile(${i})">×</button></div>`).join('');
+}
+function rmFile(i){ uploads.splice(i,1); renderFiles(); }
+
+// ── soumission ──
+async function submitRdv(){
+  const v=id=>document.getElementById(id).value.trim();
+  const nom=v('f_nom'), tel=v('f_tel'), service=v('f_service'), date=v('f_date'), creneau=v('f_creneau');
+  if(!nom||!tel||!service||!date||!creneau){ toast('Champs obligatoires manquants'); return; }
+  const btn=document.getElementById('btnSubmit'); btn.disabled=true; btn.textContent='Envoi…';
+
+  const ref='RDV-'+Date.now().toString(36).toUpperCase().slice(-6);
+  const now=new Date().toISOString();
+  const docsRefs=[];
+
+  const demande={
+    id:uid('RP-'), ref, type_patient:patientType, ipp:v('f_ipp')||null,
+    nom, tel, email:v('f_email')||null, ddn:v('f_ddn')||null,
+    service, medecin:v('f_medecin')||null, date_souhaitee:date, creneau,
+    motif:v('f_motif')||null, statut:'En attente', source:'portail',
+    nb_documents:uploads.length, cree_le:now, _synced:false
+  };
+
+  // documents → store séparé (lié par ref)
+  const docStore=load('portail_documents');
+  uploads.forEach(f=>{
+    const d={ id:uid('DOC-'), rdv_ref:ref, nom:f.nom, type:f.type, taille:f.taille, data:f.data, cree_le:now, _synced:false };
+    docStore.push(d); docsRefs.push(d.id);
+  });
+  demande.documents=docsRefs;
+
+  // 1) local d'abord (offline-first)
+  const store=load('rdv_portail'); store.push(demande); save('rdv_portail',store); save('portail_documents',docStore);
+
+  // 2) tentative Supabase (circuit breaker)
+  let synced=false;
+  if(navigator.onLine){
+    try{
+      await sbInsert('rdv_portail',[stripData(demande)]);
+      if(uploads.length) await sbInsert('portail_documents', docStore.filter(d=>d.rdv_ref===ref));
+      synced=true;
+      // marquer synced en local
+      demande._synced=true; save('rdv_portail',load('rdv_portail').map(x=>x.ref===ref?{...x,_synced:true}:x));
+      save('portail_documents',load('portail_documents').map(d=>d.rdv_ref===ref?{...d,_synced:true}:d));
+    }catch(e){ console.warn('Supabase indisponible — conservé en local',e); }
+  }
+
+  document.getElementById('rdvForm').style.display='none';
+  document.getElementById('rdvResult').classList.add('show');
+  document.getElementById('resRef').textContent=ref;
+  const tag=document.getElementById('syncTag');
+  tag.className='sync-tag '+(synced?'ok':'local');
+  tag.innerHTML=synced?'☁️ Synchronisé avec l’hôpital':'⏳ Enregistré — envoi au retour du réseau';
+  btn.disabled=false; btn.textContent='Envoyer ma demande →';
+}
+function stripData(d){ const c={...d}; delete c.documents; return c; }
+
+async function sbInsert(table,rows){
+  const r=await fetch(SUPABASE_URL+'/rest/v1/'+table,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify(rows)
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return true;
+}
+
+function resetRdv(){
+  ['f_nom','f_tel','f_email','f_ddn','f_date','f_motif','f_ipp'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('f_service').value=''; document.getElementById('f_creneau').value='';
+  document.getElementById('f_medecin').innerHTML='<option value="">Indifférent</option>';
+  uploads=[]; renderFiles();
+  document.getElementById('rdvResult').classList.remove('show');
+  document.getElementById('rdvForm').style.display='block';
+}
+
+// ── suivi demandes ──
+function trackDemandes(){
+  const q=document.getElementById('trackInput').value.trim().toLowerCase();
+  if(!q){ toast('Entrez une référence ou un téléphone'); return; }
+  const rows=load('rdv_portail').filter(d=>(d.ref||'').toLowerCase()===q || (d.tel||'').replace(/\s/g,'').includes(q.replace(/\s/g,'')));
+  const wrap=document.getElementById('trackList');
+  if(!rows.length){ wrap.innerHTML='<div class="demande"><b>Aucune demande trouvée</b><small>Vérifiez votre référence ou numéro.</small></div>'; return; }
+  const cls={'En attente':'attente','Confirmé':'confirme','Confirmée':'confirme','Refusé':'refuse','Refusée':'refuse'};
+  wrap.innerHTML=rows.sort((a,b)=>new Date(b.cree_le)-new Date(a.cree_le)).map(d=>`
+    <div class="demande">
+      <div class="demande-top"><b>${esc(d.service)}${d.medecin?' · '+esc(d.medecin):''}</b><span class="st ${cls[d.statut]||'attente'}">${esc(d.statut)}</span></div>
+      <small>Réf. ${d.ref} — souhaité le ${d.date_souhaitee} · ${esc(d.creneau)}</small>
+      <small>${esc(d.nom)} · ${d.nb_documents} document(s)</small>
+    </div>`).join('');
+}
+
+// ── réseau / resync offline ──
+function netState(){ document.body.classList.toggle('off',!navigator.onLine); if(navigator.onLine) resyncPending(); }
+window.addEventListener('online',netState); window.addEventListener('offline',netState); netState();
+async function resyncPending(){
+  const pend=load('rdv_portail').filter(d=>!d._synced);
+  if(!pend.length) return;
+  for(const d of pend){
+    try{
+      await sbInsert('rdv_portail',[stripData(d)]);
+      const docs=load('portail_documents').filter(x=>x.rdv_ref===d.ref && !x._synced);
+      if(docs.length) await sbInsert('portail_documents',docs);
+      save('rdv_portail',load('rdv_portail').map(x=>x.ref===d.ref?{...x,_synced:true}:x));
+      save('portail_documents',load('portail_documents').map(x=>x.rdv_ref===d.ref?{...x,_synced:true}:x));
+    }catch(e){ break; }
+  }
+  toast('Demandes en attente synchronisées');
+}
+
+// fermer menu mobile au clic
+document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>document.getElementById('nav').classList.remove('open'));
+// date min = aujourd'hui
+document.getElementById('f_date').min=new Date().toISOString().slice(0,10);
+</script>
+</body>
+</html>

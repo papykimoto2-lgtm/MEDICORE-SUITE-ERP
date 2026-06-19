@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediCore — Demandes RDV (Portail)</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f3ef;--surface:#fff;--border:#e2dfd8;--accent:#1a4b6e;--accent-light:#e8f0f7;--accent2:#c8702a;--green:#1e7a4e;--green-bg:#e8f5ef;--orange:#b05b00;--orange-bg:#fef3e2;--red:#b92b2b;--red-bg:#fdeaea;--text:#1c1c1c;--muted:#6b6b6b;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05)}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text)}
+.hdr{background:var(--accent);color:#fff;padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between}
+.hdr .b{display:flex;align-items:center;gap:12px}.hdr .ic{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:19px}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:18px}.hdr small{font-size:10px;opacity:.6;letter-spacing:1px;text-transform:uppercase;display:block}
+.btn{padding:9px 16px;border:none;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-w{background:rgba(255,255,255,.15);color:#fff}.btn-w:hover{background:rgba(255,255,255,.25)}
+.wrap{max-width:1100px;margin:24px auto;padding:0 20px}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.bar .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;box-shadow:var(--shadow)}
+.bar .stat b{font-size:20px;font-family:'DM Serif Display',serif;display:block}.bar .stat small{font-size:11px;color:var(--muted)}
+.bar .sp{flex:1}
+select.filt{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13.5px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px}
+.card-top{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:10px}
+.card-top h3{font-size:16px}.card-top .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:14px;background:var(--accent-light);color:var(--accent)}
+.tag.new{background:var(--orange-bg);color:var(--orange)}.tag.old{background:var(--green-bg);color:var(--green)}
+.st{font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:14px;white-space:nowrap}
+.st.att{background:var(--orange-bg);color:var(--orange)}.st.conf{background:var(--green-bg);color:var(--green)}.st.ref{background:var(--red-bg);color:var(--red)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 18px;font-size:13.5px;margin:8px 0}
+.fields div b{color:var(--muted);font-weight:500;font-size:11.5px;display:block}
+.motif{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px;margin:8px 0;color:#333}
+.docs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.doc{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12.5px;cursor:pointer;text-decoration:none;color:var(--accent);font-weight:600}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px;margin-top:4px}
+.actions input{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px}
+.btn-ok{background:var(--green);color:#fff}.btn-no{background:var(--red-bg);color:var(--red)}.btn-ghost{background:var(--accent-light);color:var(--accent)}
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120px);background:#1c1c1c;color:#fff;padding:12px 22px;border-radius:9px;font-size:14px;transition:.25s;z-index:99}#toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="b"><div class="ic">⚕</div><div><h1>Demandes de RDV</h1><small>Portail patient → Planning</small></div></div>
+  <button class="btn btn-w" onclick="pull()">⟳ Synchroniser</button>
+</div>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="stat"><b id="cAtt">0</b><small>En attente</small></div>
+    <div class="stat"><b id="cConf">0</b><small>Confirmées</small></div>
+    <div class="stat"><b id="cTot">0</b><small>Total</small></div>
+    <div class="sp"></div>
+    <select class="filt" id="filt" onchange="render()">
+      <option value="En attente">En attente</option>
+      <option value="">Toutes</option>
+      <option value="Confirmé">Confirmées</option>
+      <option value="Refusé">Refusées</option>
+    </select>
+  </div>
+  <div id="list"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://bjsgivzfarknjfdxhqth.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqc2dpdnpmYXJrbmpmZHhocXRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDUzMDUsImV4cCI6MjA5Njg4MTMwNX0.e1Oa9y0BT3DXe6BZUpNLLbsm8uxEePbWjyWGiKcPhBc';
+function load(s){try{const p=JSON.parse(localStorage.getItem('medicore_'+s)||'null');if(!p)return[];return Array.isArray(p)?p:(p.d||[]);}catch(e){return[];}}
+function save(s,r){localStorage.setItem('medicore_'+s,JSON.stringify({_v:1,_ts:Date.now(),d:r}));}
+function uid(p){return (p||'')+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,4).toUpperCase();}
+function esc(s){return (s||'').toString().replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+async function sb(method,path,body){
+  const r=await fetch(SUPABASE_URL+'/rest/v1/'+path,{method,headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':method==='PATCH'?'return=minimal':'return=representation'},body:body?JSON.stringify(body):undefined});
+  if(!r.ok)throw new Error(await r.text());return method==='PATCH'?true:r.json();
+}
+
+// pull depuis Supabase → fusion locale
+async function pull(){
+  try{
+    const rows=await sb('GET','rdv_portail?select=*&order=cree_le.desc');
+    const docs=await sb('GET','portail_documents?select=*');
+    const loc=load('rdv_portail'); const byRef={}; loc.forEach(d=>byRef[d.ref]=d);
+    rows.forEach(d=>byRef[d.ref]=Object.assign(byRef[d.ref]||{},d,{_synced:true}));
+    save('rdv_portail',Object.values(byRef));
+    const ld=load('portail_documents'); const byId={}; ld.forEach(d=>byId[d.id]=d); docs.forEach(d=>byId[d.id]=d);
+    save('portail_documents',Object.values(byId));
+    toast('Synchronisé — '+rows.length+' demande(s)'); render();
+  }catch(e){ toast('Réseau indisponible — affichage local'); render(); }
+}
+
+function docsFor(ref){ return load('portail_documents').filter(d=>d.rdv_ref===ref); }
+function openDoc(id){ const d=load('portail_documents').find(x=>x.id===id); if(!d){toast('Document indisponible');return;} const w=window.open(); w.document.write(/pdf/.test(d.type)?`<iframe src="${d.data}" style="width:100%;height:100vh;border:0"></iframe>`:`<img src="${d.data}" style="max-width:100%">`); }
+
+function render(){
+  const all=load('rdv_portail'); const f=document.getElementById('filt').value;
+  document.getElementById('cAtt').textContent=all.filter(d=>d.statut==='En attente').length;
+  document.getElementById('cConf').textContent=all.filter(d=>/Confirm/.test(d.statut||'')).length;
+  document.getElementById('cTot').textContent=all.length;
+  let rows=all.filter(d=>!f|| (d.statut||'').startsWith(f.slice(0,7)));
+  rows.sort((a,b)=>new Date(b.cree_le)-new Date(a.cree_le));
+  const L=document.getElementById('list');
+  if(!rows.length){ L.innerHTML='<div class="empty">Aucune demande.</div>'; return; }
+  L.innerHTML=rows.map(d=>{
+    const docs=docsFor(d.ref);
+    const sc=/Confirm/.test(d.statut)?'conf':/Refus/.test(d.statut)?'ref':'att';
+    const pt=d.type_patient==='ancien'?'<span class="tag old">Patient suivi</span>':'<span class="tag new">Nouveau</span>';
+    return `<div class="card">
+      <div class="card-top">
+        <div><h3>${esc(d.nom)}</h3><div class="sub">${d.ref} · reçu ${new Date(d.cree_le).toLocaleString('fr-FR')}</div>
+          <div class="tags">${pt}<span class="tag">${esc(d.service)}</span>${d.ipp?`<span class="tag">IPP ${esc(d.ipp)}</span>`:''}</div></div>
+        <span class="st ${sc}">${esc(d.statut)}</span>
+      </div>
+      <div class="fields">
+        <div><b>Téléphone</b>${esc(d.tel)}</div>
+        <div><b>Email</b>${esc(d.email||'—')}</div>
+        <div><b>Naissance</b>${esc(d.ddn||'—')}</div>
+        <div><b>Médecin</b>${esc(d.medecin||'Indifférent')}</div>
+        <div><b>Date souhaitée</b>${esc(d.date_souhaitee)}</div>
+        <div><b>Créneau</b>${esc(d.creneau||'—')}</div>
+      </div>
+      ${d.motif?`<div class="motif">💬 ${esc(d.motif)}</div>`:''}
+      ${docs.length?`<div class="docs">${docs.map(x=>`<a class="doc" onclick="openDoc('${x.id}')">📎 ${esc(x.nom)}</a>`).join('')}</div>`:''}
+      ${d.statut==='En attente'?`<div class="actions">
+        <input type="date" id="dt_${d.id}" value="${d.date_souhaitee}">
+        <input type="time" id="hr_${d.id}" value="09:00">
+        <button class="btn btn-ok" onclick="confirmer('${d.id}')">✓ Confirmer & planifier</button>
+        <button class="btn btn-no" onclick="refuser('${d.id}')">Refuser</button>
+      </div>`:`<div class="actions"><span class="sub">${d.traite_par?('Traité par '+esc(d.traite_par)):''}</span></div>`}
+    </div>`;
+  }).join('');
+}
+
+// Confirmer : crée patient si nouveau + crée RDV planifié (store 'rdv') + maj statut
+async function confirmer(id){
+  const all=load('rdv_portail'); const d=all.find(x=>x.id===id); if(!d)return;
+  const date=document.getElementById('dt_'+id).value, heure=document.getElementById('hr_'+id).value;
+  let patientId=d.ipp;
+
+  // créer patient si nouveau et inexistant
+  const pats=load('patients');
+  let pat = patientId? pats.find(p=>p.ipp===patientId||p.id===patientId):null;
+  if(!pat){
+    const newId='P'+Date.now().toString().slice(-7);
+    pat={ id:newId, ipp:'IPP-'+new Date().getFullYear()+'-'+Math.floor(1000+Math.random()*9000),
+      nom:d.nom, sexe:'', ddn:d.ddn||'', service:d.service, type:'Consultation', statut:'Actif',
+      lit:'', medecin:d.medecin||'', motif:d.motif||'', allergies:'', antecedents:'', comorbidites:'',
+      groupe:'', assurance:'', tel:d.tel, entree:null, source:'portail' };
+    pats.push(pat); save('patients',pats); patientId=pat.id;
+  } else { patientId=pat.id; }
+
+  // créer le RDV planifié
+  const rdv=load('rdv');
+  rdv.push({ id:uid('RDV-'), patient_id:patientId, patient_nom:d.nom, ipp:pat.ipp,
+    service:d.service, medecin:d.medecin||'', date, heure, motif:d.motif||'',
+    statut:'Planifié', origine:'portail', ref_portail:d.ref, cree_le:new Date().toISOString() });
+  save('rdv',rdv);
+
+  // maj demande
+  d.statut='Confirmé'; d.traite_par='Secrétariat'; d.traite_le=new Date().toISOString(); d.date_confirmee=date; d.heure_confirmee=heure;
+  save('rdv_portail',all);
+
+  // push Supabase (best effort)
+  try{ await sb('PATCH','rdv_portail?ref=eq.'+encodeURIComponent(d.ref),{statut:'Confirmé',traite_par:'Secrétariat',traite_le:d.traite_le}); }catch(e){}
+  toast('RDV confirmé · patient + planning mis à jour'); render();
+}
+
+async function refuser(id){
+  const all=load('rdv_portail'); const d=all.find(x=>x.id===id); if(!d)return;
+  d.statut='Refusé'; d.traite_par='Secrétariat'; d.traite_le=new Date().toISOString();
+  save('rdv_portail',all);
+  try{ await sb('PATCH','rdv_portail?ref=eq.'+encodeURIComponent(d.ref),{statut:'Refusé',traite_par:'Secrétariat',traite_le:d.traite_le}); }catch(e){}
+  toast('Demande refusée'); render();
+}
+
+pull();
+</script>
+</body>
+</html>
