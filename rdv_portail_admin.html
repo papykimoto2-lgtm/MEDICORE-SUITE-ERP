@@ -135,6 +135,11 @@ function render(){
 async function confirmer(id){
   const all=load('rdv_portail'); const d=all.find(x=>x.id===id); if(!d)return;
   const date=document.getElementById('dt_'+id).value, heure=document.getElementById('hr_'+id).value;
+  // anti-conflit (même médecin / créneau chargé)
+  const occ=load('rdv').filter(r=>r.statut!=='Annulé'&&r.medecin&&r.medecin===d.medecin&&r.date===date&&(r.heure||'')===heure);
+  if(d.medecin && occ.length && !confirm('⚠ '+d.medecin+' déjà pris le '+date+' à '+heure+' ('+occ[0].patient_nom+').\nForcer ?'))return;
+  const ch=load('rdv').filter(r=>r.statut!=='Annulé'&&r.service===d.service&&r.date===date&&(r.heure||'')===heure).length;
+  if(ch>=4 && !confirm('⚠ Créneau '+d.service+' chargé : '+ch+' RDV à '+heure+'.\nContinuer ?'))return;
   let patientId=d.ipp;
 
   // créer patient si nouveau et inexistant

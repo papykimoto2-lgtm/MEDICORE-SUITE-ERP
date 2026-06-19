@@ -45,6 +45,9 @@ select.filt{padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;
 .ev.abs{background:var(--red-bg);border-color:var(--red)}
 .ev.ann{background:var(--muted-bg);border-color:var(--orange);opacity:.7}
 .ev .badge-p{display:inline-block;font-size:9.5px;background:var(--accent2);color:#fff;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle}
+.collide{outline:2px solid var(--red);outline-offset:-2px}
+.warn-line{display:none;background:var(--red-bg);color:var(--red);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px}
+.warn-line.show{display:block}
 
 /* SEMAINE */
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
@@ -132,12 +135,13 @@ select.filt{padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;
       <datalist id="patList"></datalist>
     </div>
     <div class="row2">
-      <div class="fg"><label>Date <span class="rq">*</span></label><input type="date" id="n_date"></div>
-      <div class="fg"><label>Heure <span class="rq">*</span></label><input type="time" id="n_heure" value="09:00"></div>
+      <div class="fg"><label>Date <span class="rq">*</span></label><input type="date" id="n_date" onchange="checkNewConflict()"></div>
+      <div class="fg"><label>Heure <span class="rq">*</span></label><input type="time" id="n_heure" value="09:00" onchange="checkNewConflict()"></div>
     </div>
+    <div class="warn-line" id="n_warn"></div>
     <div class="row2">
-      <div class="fg"><label>Service <span class="rq">*</span></label><select id="n_service"></select></div>
-      <div class="fg"><label>Médecin</label><input id="n_medecin" placeholder="optionnel"></div>
+      <div class="fg"><label>Service <span class="rq">*</span></label><select id="n_service" onchange="checkNewConflict()"></select></div>
+      <div class="fg"><label>Médecin</label><input id="n_medecin" placeholder="optionnel" onchange="checkNewConflict()"></div>
     </div>
     <div class="fg"><label>Motif</label><textarea id="n_motif" rows="2" placeholder="Motif de consultation…"></textarea></div>
     <div class="actions"><button class="btn btn-pri" style="flex:1" onclick="createRdv()">Planifier</button></div>
@@ -152,6 +156,7 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const SERVICES=['Médecine générale','Chirurgie','Maternité','Pédiatrie','Cardiologie','Imagerie','Laboratoire','Ophtalmologie','Dermatologie','Urgences'];
 const HOURS=[];for(let h=7;h<=18;h++)HOURS.push(h);
 const ST={Planifié:'plan',Honoré:'hon',Absent:'abs',Annulé:'ann'};
+const SEUIL_CRENEAU=4; // RDV max par service / heure avant alerte
 const JOURS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 const MOIS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
@@ -195,6 +200,27 @@ function filtered(){
 }
 function evClass(r){return ST[r.statut]||'plan';}
 
+// ── Détection de conflits ───────────────────────────────────────────
+function conflitsMedecin(date,heure,medecin,excludeId){
+  if(!medecin)return [];
+  return load('rdv').filter(r=>r.id!==excludeId && r.statut!=='Annulé' && r.medecin===medecin && r.date===date && (r.heure||'')===(heure||''));
+}
+function chargeCreneau(date,heure,service,excludeId){
+  return load('rdv').filter(r=>r.id!==excludeId && r.statut!=='Annulé' && r.service===service && r.date===date && (r.heure||'')===(heure||'')).length;
+}
+function collisionMap(rdvs){
+  const m={};rdvs.forEach(r=>{if(r.statut==='Annulé'||!r.medecin)return;const k=r.medecin+'|'+r.date+'|'+(r.heure||'');m[k]=(m[k]||0)+1;});return m;
+}
+function estCollision(r,map){return r.medecin && map[r.medecin+'|'+r.date+'|'+(r.heure||'')]>1;}
+function checkNewConflict(){
+  const date=document.getElementById('n_date').value,heure=document.getElementById('n_heure').value;
+  const service=document.getElementById('n_service').value,medecin=document.getElementById('n_medecin').value.trim();
+  const w=document.getElementById('n_warn');let msg='';
+  if(date&&heure&&medecin){const c=conflitsMedecin(date,heure,medecin,null);if(c.length)msg='⚠ '+medecin+' déjà pris à '+heure+' ('+esc(c[0].patient_nom)+')';}
+  if(!msg&&date&&heure&&service){const ch=chargeCreneau(date,heure,service,null);if(ch>=SEUIL_CRENEAU)msg='⚠ Créneau '+service+' chargé : '+ch+' RDV à '+heure;}
+  w.textContent=msg;w.classList.toggle('show',!!msg);
+}
+
 function setView(v){view=v;document.querySelectorAll('.views button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));render();}
 function shift(n){if(view==='jour')cursor.setDate(cursor.getDate()+n);else if(view==='semaine')cursor.setDate(cursor.getDate()+7*n);else cursor.setMonth(cursor.getMonth()+n);render();}
 function goToday(){cursor=new Date();render();}
@@ -223,35 +249,38 @@ function render(){
 }
 
 function renderDay(all){
+  const cmap=collisionMap(all);
   const day=all.filter(r=>sameDay(new Date(r.date+'T00:00'),cursor));
   const A=document.getElementById('area');
   A.innerHTML='<div class="day-grid">'+HOURS.map(h=>{
     const evs=day.filter(r=>parseInt((r.heure||'09:00').split(':')[0])===h).sort((a,b)=>(a.heure||'').localeCompare(b.heure||''));
     return `<div class="hour-row"><div class="hour-lbl">${String(h).padStart(2,'0')}:00</div><div class="hour-slot">${
-      evs.map(r=>`<div class="ev ${evClass(r)}" onclick="detail('${r.id}')"><b>${esc(r.heure||'')} · ${esc(r.patient_nom)}${r.origine==='portail'?'<span class="badge-p">portail</span>':''}</b><small>${esc(r.service)}${r.medecin?' · '+esc(r.medecin):''}</small></div>`).join('')||''
+      evs.map(r=>`<div class="ev ${evClass(r)}${estCollision(r,cmap)?' collide':''}" onclick="detail('${r.id}')"><b>${estCollision(r,cmap)?'⚠ ':''}${esc(r.heure||'')} · ${esc(r.patient_nom)}${r.origine==='portail'?'<span class="badge-p">portail</span>':''}</b><small>${esc(r.service)}${r.medecin?' · '+esc(r.medecin):''}</small></div>`).join('')||''
     }</div></div>`;
   }).join('')+'</div>';
 }
 
 function renderWeek(all){
+  const cmap=collisionMap(all);
   const m=mondayOf(cursor);const A=document.getElementById('area');let cols='';
   for(let i=0;i<7;i++){const d=new Date(m);d.setDate(m.getDate()+i);
     const evs=all.filter(r=>sameDay(new Date(r.date+'T00:00'),d)).sort((a,b)=>(a.heure||'').localeCompare(b.heure||''));
     const today=sameDay(d,new Date());
     cols+=`<div class="wcol"><div class="wcol-h ${today?'today':''}"><b>${JOURS[i]}</b><small>${d.getDate()} ${MOIS[d.getMonth()].slice(0,4)}</small></div>
-      <div class="wcol-body">${evs.length?evs.map(r=>`<div class="wev ${evClass(r)}" onclick="detail('${r.id}')"><b>${esc(r.heure||'')} ${esc(r.patient_nom)}</b><small>${esc(r.service)}</small></div>`).join(''):'<div class="wempty">—</div>'}</div></div>`;
+      <div class="wcol-body">${evs.length?evs.map(r=>`<div class="wev ${evClass(r)}${estCollision(r,cmap)?' collide':''}" onclick="detail('${r.id}')"><b>${estCollision(r,cmap)?'⚠ ':''}${esc(r.heure||'')} ${esc(r.patient_nom)}</b><small>${esc(r.service)}</small></div>`).join(''):'<div class="wempty">—</div>'}</div></div>`;
   }
   A.innerHTML='<div class="week">'+cols+'</div>';
 }
 
 function renderMonth(all){
+  const cmap=collisionMap(all);
   const first=new Date(cursor.getFullYear(),cursor.getMonth(),1);
   const start=mondayOf(first);const A=document.getElementById('area');
   let cells='';
   for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);
     const out=d.getMonth()!==cursor.getMonth();const today=sameDay(d,new Date());
     const evs=all.filter(r=>sameDay(new Date(r.date+'T00:00'),d)).sort((a,b)=>(a.heure||'').localeCompare(b.heure||''));
-    const shown=evs.slice(0,3).map(r=>`<div class="pill ${evClass(r)}" onclick="event.stopPropagation();detail('${r.id}')">${esc(r.heure||'')} ${esc(r.patient_nom)}</div>`).join('');
+    const shown=evs.slice(0,3).map(r=>`<div class="pill ${evClass(r)}${estCollision(r,cmap)?' collide':''}" onclick="event.stopPropagation();detail('${r.id}')">${estCollision(r,cmap)?'⚠':''}${esc(r.heure||'')} ${esc(r.patient_nom)}</div>`).join('');
     const more=evs.length>3?`<div class="more">+${evs.length-3} autre(s)</div>`:'';
     cells+=`<div class="mcell ${out?'out':''} ${today?'today':''}" onclick="cursor=new Date('${iso(d)}T00:00');setView('jour')"><div class="dnum">${d.getDate()}</div>${shown}${more}</div>`;
   }
@@ -301,6 +330,11 @@ async function createRdv(){
   const date=document.getElementById('n_date').value,heure=document.getElementById('n_heure').value;
   const service=document.getElementById('n_service').value,medecin=document.getElementById('n_medecin').value.trim();
   if(!pv||!date||!heure||!service){toast('Patient, date, heure, service requis');return;}
+  // anti-conflit
+  const cMed=conflitsMedecin(date,heure,medecin,null);
+  if(cMed.length && !confirm('⚠ '+medecin+' a déjà un RDV le '+date+' à '+heure+' ('+cMed[0].patient_nom+').\nForcer le double-booking ?'))return;
+  const charge=chargeCreneau(date,heure,service,null);
+  if(charge>=SEUIL_CRENEAU && !confirm('⚠ Créneau chargé : '+charge+' RDV sur '+service+' à '+heure+'.\nContinuer ?'))return;
   // résoudre patient (existant via " — IPP/id", sinon création légère)
   let nom=pv,ipp='',pid='';
   const pats=load('patients');
